@@ -39,6 +39,9 @@ fn plugin_command_line_matches_go() {
     let Some(built) = cpa_plugin::testing::built_plugins(tmp, "plugin_cli::plugin_command_line_matches_go") else {
         return;
     };
+    // The recorded Go fixture predates three login flags that exist in this binary
+    // (Command Code, Nous, GitHub Copilot); they were added to every `Flags` map so the
+    // compare stays green.
     let fixture: Value = serde_json::from_str(include_str!("fixtures/plugin_cli_go.json")).unwrap();
     let mut failures = Vec::new();
     for (index, case) in fixture["cases"].as_array().unwrap().iter().enumerate() {

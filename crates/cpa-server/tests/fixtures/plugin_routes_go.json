@@ -1092,10 +1092,10 @@
         "body": "{}"
       },
       "result": {
-        "status": 404,
-        "content_type": "",
-        "body": "",
-        "version_headers": false
+        "status": 400,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"auth_index is required\"}",
+        "version_headers": true
       }
     },
     {

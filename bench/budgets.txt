@@ -25,10 +25,13 @@
 # or less, archive 13 MB or less.
 # 2026-10-05: first budgets, measured by this job (Ubuntu 22.04 runner) on master with
 # file change notifications.
-size.x86_64-unknown-linux-gnu.binary_bytes   40_307_056  2
-size.x86_64-unknown-linux-gnu.text_bytes     26_370_487  2
-size.x86_64-unknown-linux-gnu.rodata_bytes    8_492_512  2
-size.x86_64-unknown-linux-gnu.archive_bytes  17_102_342  2
+# 2026-10-11: React 19 + Base UI dashboard embed. Measured on the Ubuntu runner at
+# 2780f82: binary +1_136_096, text +652_992, rodata +368_640, archive +423_109 over the
+# previous budgets.
+size.x86_64-unknown-linux-gnu.binary_bytes   41_443_152  2
+size.x86_64-unknown-linux-gnu.text_bytes     27_023_479  2
+size.x86_64-unknown-linux-gnu.rodata_bytes    8_861_152  2
+size.x86_64-unknown-linux-gnu.archive_bytes  17_525_451  2
 # Crates linked into the binary in two or more versions; a new one fails until it is
 # justified here. 2026-10-05: base64, block-buffer, cpufeatures, crypto-common, digest,
 # getrandom, hashbrown (3), rand, rand_core, sha2, thiserror.

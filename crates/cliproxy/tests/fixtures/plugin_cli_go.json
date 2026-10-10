@@ -54,6 +54,12 @@
               "Type": "",
               "Value": "false"
             },
+            "command-code-login": {
+              "Name": "command-code-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
             "config": {
               "Name": "config",
               "Set": false,
@@ -107,6 +113,12 @@
               "Set": false,
               "Type": "",
               "Value": "3"
+            },
+            "github-copilot-login": {
+              "Name": "github-copilot-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
             },
             "home-disable-cluster-discovery": {
               "Name": "home-disable-cluster-discovery",
@@ -164,6 +176,12 @@
             },
             "no-browser": {
               "Name": "no-browser",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "nous-login": {
+              "Name": "nous-login",
               "Set": false,
               "Type": "",
               "Value": "false"
@@ -319,6 +337,12 @@
               "Type": "",
               "Value": "false"
             },
+            "command-code-login": {
+              "Name": "command-code-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
             "config": {
               "Name": "config",
               "Set": false,
@@ -372,6 +396,12 @@
               "Set": false,
               "Type": "",
               "Value": "3"
+            },
+            "github-copilot-login": {
+              "Name": "github-copilot-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
             },
             "home-disable-cluster-discovery": {
               "Name": "home-disable-cluster-discovery",
@@ -429,6 +459,12 @@
             },
             "no-browser": {
               "Name": "no-browser",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "nous-login": {
+              "Name": "nous-login",
               "Set": false,
               "Type": "",
               "Value": "false"
@@ -596,6 +632,12 @@
               "Type": "",
               "Value": "false"
             },
+            "command-code-login": {
+              "Name": "command-code-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
             "config": {
               "Name": "config",
               "Set": false,
@@ -649,6 +691,12 @@
               "Set": false,
               "Type": "",
               "Value": "3"
+            },
+            "github-copilot-login": {
+              "Name": "github-copilot-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
             },
             "home-disable-cluster-discovery": {
               "Name": "home-disable-cluster-discovery",
@@ -706,6 +754,12 @@
             },
             "no-browser": {
               "Name": "no-browser",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "nous-login": {
+              "Name": "nous-login",
               "Set": false,
               "Type": "",
               "Value": "false"
@@ -941,6 +995,12 @@
               "Type": "",
               "Value": "false"
             },
+            "command-code-login": {
+              "Name": "command-code-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
             "config": {
               "Name": "config",
               "Set": false,
@@ -994,6 +1054,12 @@
               "Set": false,
               "Type": "",
               "Value": "3"
+            },
+            "github-copilot-login": {
+              "Name": "github-copilot-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
             },
             "home-disable-cluster-discovery": {
               "Name": "home-disable-cluster-discovery",
@@ -1051,6 +1117,12 @@
             },
             "no-browser": {
               "Name": "no-browser",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "nous-login": {
+              "Name": "nous-login",
               "Set": false,
               "Type": "",
               "Value": "false"
@@ -1191,6 +1263,12 @@
               "Type": "",
               "Value": "false"
             },
+            "command-code-login": {
+              "Name": "command-code-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
             "config": {
               "Name": "config",
               "Set": false,
@@ -1244,6 +1322,12 @@
               "Set": false,
               "Type": "",
               "Value": "3"
+            },
+            "github-copilot-login": {
+              "Name": "github-copilot-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
             },
             "home-disable-cluster-discovery": {
               "Name": "home-disable-cluster-discovery",
@@ -1301,6 +1385,12 @@
             },
             "no-browser": {
               "Name": "no-browser",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "nous-login": {
+              "Name": "nous-login",
               "Set": false,
               "Type": "",
               "Value": "false"
@@ -1439,6 +1529,12 @@
               "Type": "",
               "Value": "false"
             },
+            "command-code-login": {
+              "Name": "command-code-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
             "config": {
               "Name": "config",
               "Set": false,
@@ -1492,6 +1588,12 @@
               "Set": false,
               "Type": "",
               "Value": "3"
+            },
+            "github-copilot-login": {
+              "Name": "github-copilot-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
             },
             "home-disable-cluster-discovery": {
               "Name": "home-disable-cluster-discovery",
@@ -1549,6 +1651,12 @@
             },
             "no-browser": {
               "Name": "no-browser",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "nous-login": {
+              "Name": "nous-login",
               "Set": false,
               "Type": "",
               "Value": "false"
@@ -1686,6 +1794,12 @@
               "Type": "",
               "Value": "false"
             },
+            "command-code-login": {
+              "Name": "command-code-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
             "config": {
               "Name": "config",
               "Set": false,
@@ -1739,6 +1853,12 @@
               "Set": false,
               "Type": "",
               "Value": "3"
+            },
+            "github-copilot-login": {
+              "Name": "github-copilot-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
             },
             "home-disable-cluster-discovery": {
               "Name": "home-disable-cluster-discovery",
@@ -1796,6 +1916,12 @@
             },
             "no-browser": {
               "Name": "no-browser",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "nous-login": {
+              "Name": "nous-login",
               "Set": false,
               "Type": "",
               "Value": "false"

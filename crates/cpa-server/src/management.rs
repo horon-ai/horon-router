@@ -602,10 +602,7 @@ pub fn router(state: Arc<Management>) -> Router {
         )
         .route(&format!("{v0}/quota/fetch"), methods().post(guarded!(s, quota::fetch)))
         .route(&format!("{v0}/quota/reset"), methods().post(guarded!(s, quota::reset)));
-    router = router.route(
-        &format!("{v8}/quota/fetch"),
-        methods().post(guarded!(s, quota::fetch)),
-    );
+    router = router.route(&format!("{v8}/quota/fetch"), methods().post(guarded!(s, quota::fetch)));
     router = router
         .route(
             &format!("{v0}/plugins/{{id}}/enabled"),
@@ -676,6 +673,7 @@ pub fn router(state: Arc<Management>) -> Router {
         );
     router
         .fallback(plugins::no_route)
+        .route("/ui", get(panel_alias))
         .route("/management.html", get(panel))
         .route("/assets/{*path}", get(panel))
         .route("/fonts/{*path}", get(panel))
@@ -944,11 +942,19 @@ async fn legacy_yaml(State(state): State<Arc<Management>>) -> Response {
 
 include!(concat!(env!("OUT_DIR"), "/dashboard.rs"));
 
+async fn panel_alias(State(state): State<Arc<Management>>) -> Response {
+    panel_bytes(&state, "/management.html")
+}
+
 async fn panel(State(state): State<Arc<Management>>, OriginalUri(uri): OriginalUri) -> Response {
+    panel_bytes(&state, uri.path())
+}
+
+fn panel_bytes(state: &Management, path: &str) -> Response {
     if state.rt.config().management.disable_control_panel {
         return error(404, "not_found");
     }
-    let Some((bytes, mime)) = dashboard_asset(uri.path()) else {
+    let Some((bytes, mime)) = dashboard_asset(path) else {
         return error(404, "not_found");
     };
     (

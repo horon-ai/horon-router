@@ -1,3 +1,19 @@
+@import "tailwindcss";
+@source inline("bg-background text-foreground bg-primary");
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-border: var(--border);
+  --color-ring: var(--ring);
+  --radius-lg: var(--radius);
+  --radius-md: 8px;
+  --radius-full: 999px;
+  --font-sans: Host, system-ui, sans-serif;
+}
+
 @font-face {
   font-family: Host;
   src: url("/fonts/host-grotesk.woff2") format("woff2");
@@ -27,6 +43,13 @@
   --lift: 0 1px 0 rgb(255 255 255 / 0.7) inset, 0 1px 2px rgb(0 0 0 / 0.08);
   --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --background: var(--body);
+  --foreground: var(--ink);
+  --primary: var(--accent);
+  --primary-foreground: #1c1b19;
+  --border: var(--line);
+  --ring: var(--focus);
+  --radius: 12px;
   color-scheme: light;
 }
 [data-theme="dark"] {

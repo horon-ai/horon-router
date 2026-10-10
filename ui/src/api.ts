@@ -1,5 +1,5 @@
-import type { Data } from "./core";
-import { t } from "./lang.svelte";
+import type { Data } from "./core.ts";
+import { t } from "./lang.ts";
 
 // The management key lives only in this module's memory. It is never written to storage.
 // Requests go only to the server that served this page: the API sits next to it
@@ -14,14 +14,22 @@ let hooks: {
 } = { unauthorized() {}, missing() {}, meta() {} };
 
 export class ApiError extends Error {
+  status: number;
+  code: string;
+  method: string;
+  path: string;
   constructor(
     message: string,
-    public status: number,
-    public code: string,
-    public method: string,
-    public path: string,
+    status: number,
+    code: string,
+    method: string,
+    path: string,
   ) {
     super(message);
+    this.status = status;
+    this.code = code;
+    this.method = method;
+    this.path = path;
   }
   /** The server does not implement this route or method (Rust 501/405, Go's empty 404). */
   get missing() {

@@ -2,8 +2,9 @@
 // server (/requests/api-call with the credential's own token, or a quota plugin), so it
 // only ever runs when the user presses a button.
 import { api } from "./api";
-import { store } from "./store.svelte";
-import { t } from "./lang.svelte";
+import { session } from "./session";
+import { queryClient, keys } from "./queries";
+import { t } from "./lang";
 import { provider, quotaFresh, quotaWindows, signalWindows, type Data, type Window } from "./core";
 
 // Usage endpoints the server calls with the credential's own token ($TOKEN$ is substituted server-side).
@@ -17,18 +18,18 @@ const usageURL: Record<string, string> = {
   antigravity: "https://daily-cloudcode-pa.googleapis.com/v1internal:retrieveUserQuotaSummary",
 };
 const plugin = (p: string) =>
-  (store.plugins.data || []).find((x) => x.supports_quota && (x.quota_provider || x.id) === p);
+  (queryClient.getQueryData<Data[]>(keys.plugins) || []).find((x) => x.supports_quota && (x.quota_provider || x.id) === p);
 export const quotaKey = (a: Data) => a.auth_index || a.name;
 /** The provider has a usage endpoint or quota plugin this server can call. */
 export const hasSource = (a: Data) =>
   !!plugin(provider(a))
-  || (provider(a) === "command-code" && (store.can("POST", "/quota/fetch") || store.can("POST", "/requests/api-call")))
-  || (!!usageURL[provider(a)] && store.can("POST", "/requests/api-call"));
+  || (provider(a) === "command-code" && (session.can("POST", "/quota/fetch") || session.can("POST", "/requests/api-call")))
+  || (!!usageURL[provider(a)] && session.can("POST", "/requests/api-call"));
 export const canCheck = (a: Data) => !a.disabled && hasSource(a);
 
 /** What is known about one credential's limits: a live check in this tab, else passive signals. */
 export function limits(a: Data): { windows: Window[]; at: number } | { error: string } | null {
-  const live = store.quota[quotaKey(a)];
+  const live = session.quota[quotaKey(a)];
   if (live) return "error" in live ? live : { at: live.at, windows: quotaWindows(live.provider, live.raw, t) };
   const windows = signalWindows(provider(a), a.quota, t);
   return windows.length ? { windows, at: Date.parse(a.quota?.observed_at) || 0 } : null;
@@ -36,12 +37,12 @@ export function limits(a: Data): { windows: Window[]; at: number } | { error: st
 
 export async function check(a: Data, force = true) {
   const p = provider(a);
-  if (!force && quotaFresh(store.quota[quotaKey(a)])) return;
+  if (!force && quotaFresh(session.quota[quotaKey(a)])) return;
   try {
     let raw: Data;
     const pl = plugin(p);
     if (pl) raw = await api(`/plugins/${encodeURIComponent(pl.id)}/quota`, "POST", { name: a.name, auth_index: a.auth_index });
-    else if (p === "command-code" && store.can("POST", "/quota/fetch")) {
+    else if (p === "command-code" && session.can("POST", "/quota/fetch")) {
       raw = await api("/quota/fetch", "POST", { auth_index: a.auth_index, provider: p });
     } else {
       const header: Data = { Authorization: "Bearer $TOKEN$", "Content-Type": "application/json" };
@@ -69,9 +70,9 @@ export async function check(a: Data, force = true) {
         );
       raw = typeof r.body === "string" ? JSON.parse(r.body) : r.body;
     }
-    store.quota = { ...store.quota, [quotaKey(a)]: { at: Date.now(), provider: p, raw } };
+    session.quota = { ...session.quota, [quotaKey(a)]: { at: Date.now(), provider: p, raw } };
   } catch (e) {
-    store.quota = { ...store.quota, [quotaKey(a)]: { error: e instanceof Error ? e.message : String(e) } };
+    session.quota = { ...session.quota, [quotaKey(a)]: { error: e instanceof Error ? e.message : String(e) } };
   }
 }
 

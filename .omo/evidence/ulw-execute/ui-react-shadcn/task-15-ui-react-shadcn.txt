@@ -1,0 +1,20 @@
+Checkbox 15: dashboard documentation for React, Tailwind CSS, and shadcn-style Base UI.
+
+Base commit: 08f312d on ui-react-shadcn.
+Updated ui/PRODUCT.md, ui/README.md, CONTRIBUTING.md, and ui/src/i18n.ts.
+ui/PANEL.md was already updated by checkbox 14 and was not edited.
+docs/PARITY.md was not edited.
+AGENTS.md and ui/AGENTS.md were left out of the commit because the local
+Git exclude rule protects these machine-specific instruction files; the
+temporary copies were removed.
+
+Verified:
+- rg -n "Svelte 5|lang.svelte|svelte-check" ui AGENTS.md CONTRIBUTING.md
+  returned 1 with no matches (rg's no-match exit status).
+- Dashboard source paths remain documented in ui/README.md.
+- The documented JS and CSS gzip limits match checkbox 14: 157,300 B
+  and 7,700 B respectively.
+- git diff --check returned 0.
+- No tests were added or run for these prose and comment-only changes.
+- The optional ~/.omo/memory skill files were skipped per the latest instruction.
+AGENTS.md was left untracked because of the local exclude (and its temporary copy was removed).

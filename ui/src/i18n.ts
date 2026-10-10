@@ -1,5 +1,5 @@
 // Pure i18n core: no DOM, no runes, so core.ts and its tests can use it under plain Node.
-// The reactive current language lives in lang.svelte.ts.
+// The reactive current language lives in lang.ts.
 import { en } from "./locales/en.ts";
 import { ko } from "./locales/ko.ts";
 

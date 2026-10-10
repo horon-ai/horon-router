@@ -7,10 +7,10 @@
 //               sign-in and mints a key whose base URL is the mock upstream on 9101.
 //
 // The walk: the sign-in page explains a server with management off; on the fresh server
-// the overview's Get started list starts at 0 of 3; creating a client key, signing in to
-// Meta and sending one request through the proxy tick off the three steps, after which
-// the list disappears and the overview shows the request. Screenshots at desktop and
-// phone width in both themes.
+// the overview's Get started list starts at 0 of 3; creating a client key leaves
+// the tool-setup step unfinished until a tool is used. Signing in to Meta removes
+// the card, and a request reaches the proxy.
+// Screenshots cover desktop and phone width in both themes.
 //
 // Usage: CHROME_PATH=... node scripts/first-run-check.mjs <off-url> <fresh-url> <management-key> [capture-dir]
 import { chromium } from "playwright-core";
@@ -84,15 +84,17 @@ try {
   }
   pass("fresh server: Get started shows 0 of 3 in both themes, desktop and phone, without overflow");
 
-  // 3. Step 2 first, by keyboard. Both places that create a key remove the pressed button,
-  //    so focus must move on to the next action. Use with tools first, then reset the key
-  //    list and do it again from Get started.
+  // 3. The legacy #use bookmark redirects to Client keys. Generate by keyboard,
+  //    then reset and create again from Get started to verify its next-action focus.
   const focused = (selector) => page.waitForFunction((s) => document.activeElement?.matches(s), selector, { timeout: 10_000 });
-  await page.evaluate(() => (location.hash = "#use"));
-  await main.getByRole("button", { name: "Create a client key" }).focus();
+  await page.evaluate(() => (location.hash = "#/use"));
+  await page.waitForFunction(() => location.hash === "#/keys");
+  await main.getByRole("button", { name: "Generate", exact: true }).focus();
   await page.keyboard.press("Enter");
-  await focused('.seg button[aria-pressed="true"]');
-  pass("Use with tools: Enter on Create a client key adds a key and focus moves to the tool choice");
+  assert.match(await main.getByLabel("New key").inputValue(), /^sk-/);
+  await main.getByRole("button", { name: "Add key" }).click();
+  await main.getByRole("button", { name: "Show keys" }).waitFor();
+  pass("legacy #use redirects to Client keys; Generate and Add key create a key");
   await page.evaluate(async (s) => {
     const r = await fetch("./v8/management/config/access/api-keys", {
       method: "PUT",
@@ -101,53 +103,51 @@ try {
     });
     if (!r.ok) throw new Error(`reset api-keys: HTTP ${r.status}`);
   }, secret);
-  await page.evaluate(() => (location.hash = "#overview"));
+  await page.evaluate(() => (location.hash = "#/overview"));
   await page.reload();
   await signIn(page);
   await start.getByText("0 of 3 done").waitFor();
   await start.getByRole("button", { name: "Create a client key" }).focus();
   await page.keyboard.press("Enter");
-  await start.getByText("1 of 3 done").waitFor();
-  await focused(".checklist a.key.primary");
+  await start.getByText("0 of 3 done").waitFor();
+  await focused(".start a.key.primary");
   assert.equal(await page.evaluate(() => document.activeElement.textContent.trim()), "Connect account");
-  pass("Get started: Enter on Create a client key adds it (1 of 3) and focus moves to Connect account");
+  pass("Get started: Enter on Create a client key adds it; tool setup remains unfinished and focus moves to Connect account");
 
-  // 4. Use with tools before any account: the key works, no models yet.
-  await page.evaluate(() => (location.hash = "#use"));
+  // 4. The overview's model probe reports an empty list before an account exists.
+  await start.getByRole("button", { name: "Send test request" }).click();
   const status = main.locator('[role="status"]');
-  await status.filter({ hasText: /no models are available yet/ }).waitFor();
-  await shot(page, "06-use-no-account-desktop-light");
-  pass("Use with tools tests the new key: works, no models until an account is connected");
+  await status.filter({ hasText: /no models are available yet/i }).waitFor();
+  await shot(page, "06-overview-no-account-desktop-light");
+  pass("Overview model probe reports no models before an account is connected");
 
   // 5. Connect an account (Meta device code against the fake login server).
-  await page.evaluate(() => (location.hash = "#connect"));
+  await page.evaluate(() => (location.hash = "#/connect"));
   await main.getByRole("button", { name: "Meta", exact: true }).click();
   await main.getByText("META-FAKE").waitFor();
   await shot(page, "07-connect-meta-device-code-desktop-light");
   await main.getByText("Connected", { exact: true }).waitFor({ timeout: 30_000 });
   pass("Meta sign-in: device code shown, connected");
 
-  // 6. Use with tools again: real models, ready-to-copy setup with this address.
-  await page.evaluate(() => (location.hash = "#use"));
-  await status.filter({ hasText: /Working\. This key reaches \d+ model/ }).waitFor();
+  // 6. Client keys remains reachable from the legacy alias; the proxy reports models.
+  await page.evaluate(() => (location.hash = "#/use"));
+  await page.waitForFunction(() => location.hash === "#/keys");
   const origin = new URL(freshUrl).origin;
   const config = await page.evaluate(
     async (s) => (await fetch("./v8/management/config", { headers: { Authorization: `Bearer ${s}` } })).json(),
     secret,
   );
   const clientKey = config.access["api-keys"][0];
-  for (const tool of ["Claude Code", "Codex CLI", "Cursor", "OpenAI SDK", "Anthropic SDK", "curl"]) {
-    await main.getByRole("button", { name: tool, exact: true }).click();
-    const code = await main.locator("pre.code-window").textContent();
-    if (tool === "Cursor") assert.ok(code.includes("https://your-public-address/v1"), "Cursor gets a public-address placeholder on localhost");
-    else assert.ok(code.includes(origin), `${tool}: uses ${origin}`);
-    assert.ok(!code.includes(clientKey) && code.includes(`${clientKey.slice(0, 3)}…${clientKey.slice(-4)}`), `${tool}: the key is shown shortened`);
-  }
-  await main.getByRole("button", { name: "Claude Code", exact: true }).click();
-  await shot(page, "08-use-ready-desktop-light");
-  const models = await main.getByLabel("Model").locator("option").allTextContents();
+  const shownKey = await main.locator(".list code").first().textContent();
+  assert.equal(shownKey, `${clientKey.slice(0, 3)}…${clientKey.slice(-4)}`, "client key is masked");
+  const models = await page.evaluate(async (key) => {
+    const response = await fetch("./v1/models", { headers: { Authorization: `Bearer ${key}` } });
+    if (!response.ok) throw new Error(`GET /v1/models: HTTP ${response.status}`);
+    return (await response.json()).data.map((model) => model.id);
+  }, clientKey);
+  await shot(page, "08-keys-ready-desktop-light");
   assert.ok(models.length > 0);
-  pass(`Use with tools: key reaches ${models.length} models; all six setups point at ${origin} with the key shortened`);
+  pass(`Client keys: key reaches ${models.length} models at ${origin} and is displayed masked`);
 
   // 7. The tool's first request (what Claude Code or an SDK would send).
   const reply = await page.evaluate(
@@ -165,7 +165,7 @@ try {
   pass(`first request through the proxy: ${models[0]} answered 200`);
 
   // 8. Overview after setup: the list is gone, the request shows.
-  await page.evaluate(() => (location.hash = "#overview"));
+  await page.evaluate(() => (location.hash = "#/overview"));
   await page.waitForFunction(() => !document.querySelector("main h2#start") && document.querySelector(".display"), null, { timeout: 30_000 });
   await shot(page, "09-overview-ready-desktop-light");
   for (const [theme, device, name] of [
@@ -176,15 +176,18 @@ try {
     const p = await open(freshUrl, device, theme);
     await signIn(p);
     if (name.includes("credentials")) {
-      await p.evaluate(() => (location.hash = "#credentials"));
+      await p.evaluate(() => (location.hash = "#/credentials"));
       await p.locator("main h1", { hasText: "Credentials" }).waitFor();
     }
-    await p.waitForTimeout(500);
+    await p.waitForFunction(() => !!document.querySelector("#main h1"));
     assert.equal(await overflow(p), false, `${name}: no horizontal overflow`);
     await shot(p, name);
     await p.context().close();
   }
   pass("after setup: Get started is gone and the overview shows traffic, in both themes and on a phone");
+  const storage = await page.evaluate(() => ({ local: Object.keys(localStorage), session: Object.keys(sessionStorage) }));
+  assert.ok(storage.local.every((key) => ["cliproxy-theme", "cliproxy-lang"].includes(key)), JSON.stringify(storage.local));
+  assert.deepEqual(storage.session, []);
   assert.deepEqual(errors, []);
   pass("no page errors");
 } finally {

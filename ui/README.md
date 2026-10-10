@@ -1,6 +1,6 @@
 # cliproxy-rs dashboard
 
-The management dashboard for cliproxy-rs, written in Svelte 5 with plain CSS. It talks to the v8 Management API defined by Go CLIProxyAPI, and it has two outputs built from one source tree:
+The management dashboard for cliproxy-rs, written in React 19 with Tailwind CSS and shadcn-style Base UI components. It talks to the v8 Management API defined by Go CLIProxyAPI, and it has two outputs built from one source tree:
 
 - `dist/` is embedded by the Rust binary (`crates/cpa-server/build.rs`) and served at `/management.html`.
 - `dist-panel/management.html` is one self-contained file for existing Go CLIProxyAPI servers. See [PANEL.md](PANEL.md).
@@ -14,12 +14,12 @@ Requires Node 22.12 or newer.
 ```sh
 npm ci
 npm run dev      # Vite on :5173, proxies /v8 to 127.0.0.1:8317 (override with CPA_BACKEND=...)
-npm run check    # svelte-check, 0 errors and 0 warnings expected
+npm run check    # TypeScript, 0 errors expected
 npm test         # unit tests for src/core.ts and src/i18n.ts
-npm run build    # dist/, dist-panel/, then the size budget
+npm run build    # dist/, dist-panel/, then the size report
 ```
 
-`npm run build` runs `vite build`, then `scripts/panel.mjs` (inlines JS, CSS, font and favicon into `dist-panel/management.html`, writes its SHA-256 to `dist-panel/management.html.sha256` and into PANEL.md), then `scripts/size.mjs`, which fails the build if gzip JavaScript exceeds 66,000 B or CSS exceeds 6,853 B. The ceilings began as the sizes of the dashboard this one replaced (42,642 B and 6,853 B); JavaScript was raised for the beginner onboarding, the Claude usage parser and plan limits, and then the English and Korean dictionaries.
+`npm run build` runs `vite build`, then `scripts/panel.mjs` (inlines JS, CSS, font and favicon into `dist-panel/management.html`, writes its SHA-256 to `dist-panel/management.html.sha256` and into PANEL.md), then `scripts/size.mjs`, which prints the gzip sizes of the JavaScript, CSS, HTML and single-file panel.
 
 Rebuild the UI before compiling Rust when UI sources change; `ui/dist` is checked in and embedded at compile time.
 
@@ -28,14 +28,16 @@ Rebuild the UI before compiling Rust when UI sources change; `ui/dist` is checke
 | Path | Role |
 | --- | --- |
 | `src/api.ts` | Fetch wrapper. Holds the management key in memory and reports unimplemented routes (Go-style empty 404, 501, 405). |
-| `src/store.svelte.ts` | Shared state: session, server kind from version headers, config, credentials, plugins, capabilities, toasts, writes with stale checks. |
+| `src/session.ts`, `src/queries.ts` | Session state and capability probes; TanStack Query owns server reads and reread-before-write mutations. |
 | `src/core.ts` | Pure helpers: credential state, traffic buckets, usage records, quota windows, diffs. Tested in `src/core.test.ts`. |
-| `src/i18n.ts`, `src/lang.svelte.ts`, `src/locales/` | Languages (English, 한국어). `t("key", { n })` looks up a message; the language comes from the saved choice (`localStorage` `cliproxy-lang`, set by the language button), else the first browser language we have, else English. Tested in `src/i18n.test.ts`. |
-| `src/Load.svelte` | Loading, error, not-available and data states for one read. |
-| `src/Missing.svelte` | One line naming actions this server does not implement. |
-| `src/Grille.svelte` | The 20-bucket traffic grille. |
-| `src/Editor.svelte` | JSON or YAML editor with a reviewed diff and a reread before writing. |
-| `src/pages/*.svelte` | One component per screen. |
+| `src/i18n.ts`, `src/lang.ts`, `src/locales/` | Languages (English, 한국어). `t("key", { n })` looks up a message; the language comes from the saved choice (`localStorage` `cliproxy-lang`, set by the language button), else the first browser language we have, else English. Tested in `src/i18n.test.ts`. |
+| `src/components/Load.tsx` | Loading, error, not-available and data states for one read. |
+| `src/components/Missing.tsx` | One line naming actions this server does not implement. |
+| `src/components/Grille.tsx` | The 20-bucket traffic grille. |
+| `src/Editor.tsx` | JSON or YAML editor with a reviewed diff and a reread before writing. |
+| `src/pages/*.tsx` | One component per screen. |
+| `src/routes/` | TanStack Router hash routes that mount the screen components. |
+| `src/components/ui/` | shadcn-style components built on Base UI and styled with Tailwind CSS. |
 
 ## Languages
 

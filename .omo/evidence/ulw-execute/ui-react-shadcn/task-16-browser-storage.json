@@ -1,0 +1,6 @@
+{
+  "localStorageKeys": ["cliproxy-lang"],
+  "sessionStorageKeys": [],
+  "allowedLocalStorageKeys": ["cliproxy-theme", "cliproxy-lang"],
+  "source": "agent-browser inspect16, disposable Rust backend at 127.0.0.1:18317"
+}

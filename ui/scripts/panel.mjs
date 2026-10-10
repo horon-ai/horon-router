@@ -31,7 +31,9 @@ html = html
   .replace(/<link rel="preload"[^>]*>\s*/, "")
   .replace(/href="\.\/favicon\.svg"/, () => `href="${icon}"`);
 // Only data: URLs and in-page fragments (#i-icon sprite references) may remain.
-const external = [...html.matchAll(/\b(?:src|href)="(?!data:|#)([^"]*)"/g)].map((m) => m[1]);
+// Scan HTML tags, not JavaScript string literals such as React's dynamic href="..." snippets.
+const external = [...html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/g, "").matchAll(/\b(?:src|href)="(?!data:|#)([^"]*)"/g)]
+  .map((m) => m[1]);
 if (external.length) throw new Error(`panel: external references remain: ${external.join(", ")}`);
 
 mkdirSync("dist-panel", { recursive: true });

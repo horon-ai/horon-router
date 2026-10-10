@@ -1,0 +1,14 @@
+Task 13: Logs, Config, Plugins, System React migration
+Worktree: ui-react-shadcn-wave1
+
+Changed only the four target pages and their routes, including the request-detail route.
+Deleted Logs.svelte, Config.svelte, Plugins.svelte, and System.svelte.
+No commit was created.
+
+Verification:
+- npm test (ui): exit 0; 26 tests passed.
+- vite build --outDir /tmp/cliproxy-ui-wave1-check (ui): exit 0; 199 modules transformed.
+- git diff --check: exit 0.
+- Static inspection: Config's Edit YAML loads /config.yaml as text into Editor.tsx, which renders a textarea; strategy buttons set aria-pressed; none of the four pages contains dangerouslySetInnerHTML; each old Svelte page is absent.
+- Browser interaction not verified against a running server.
+- npm run check (ui): exit 2. Existing lang.svelte.ts and store.svelte.ts contain Svelte rune references ($state and $derived) without types. No diagnostic refers to any of the four migrated pages or their routes.

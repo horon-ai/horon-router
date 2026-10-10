@@ -1,0 +1,10 @@
+Task 7: React configuration editor, reread-before-write
+Worktree: /Users/alpox/Desktop/dev/cliproxyapi-wt/ui-react-shadcn-wave1
+
+Verification:
+- cd ui && npm test: exit 0, 26 tests passed, including editor GET mismatch -> PUT 0.
+- grep -n dangerouslySetInnerHTML ui/src/Editor.tsx: no matches (exit 1).
+- Editor.tsx and editor-save.ts LSP diagnostics: no errors.
+- npm run check: exit 2, only the pre-existing lang.svelte.ts and store.svelte.ts Svelte rune errors remain; no Editor.tsx/editor-save.ts errors.
+- React editor is not mounted in the app shell yet; its Svelte callers will be ported by later page tasks.
+- Existing ui/dist changes belong to parallel work and were not staged.

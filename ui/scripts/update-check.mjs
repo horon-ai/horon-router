@@ -37,7 +37,7 @@ try {
   browser("find", "label", "Management key", "fill", "FAKE-browser-test-key");
   browser("find", "role", "button", "click", "--name", "Connect", "--exact");
   browser("wait", "--text", "Overview");
-  browser("click", 'nav a[href="#system"]');
+  browser("click", 'nav a[href="#/system"]');
   browser("wait", "--text", "Check for a new release");
   assert.equal(evaluate("window.updateCalls"), 0, "page load must not check");
   shot("updates-before-click");

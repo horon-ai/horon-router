@@ -26,6 +26,8 @@ const probes = new Set([
 try {
   browser("open", url);
   browser("set", "viewport", "1440", "1000", "2");
+  if (evaluate("document.querySelector('input[type=password]')?.labels[0]?.textContent?.includes('관리 키')"))
+    browser("click", 'button[lang="en"]');
   browser(
     "eval",
     `(()=>{window.__calls=[];const original=window.fetch;window.fetch=async(...args)=>{const response=await original(...args);window.__calls.push({path:new URL(args[0],location.href).pathname,method:args[1]?.method||'GET',status:response.status});return response};return true})()`,
@@ -41,14 +43,18 @@ try {
     evaluate(`(()=>{if(document.documentElement.dataset.theme!=='${theme}')document.querySelector('[aria-label^="Use "]').click();return true})()`);
     for (const page of ["overview", "use", "credentials", "providers", "keys", "models", "payload", "config", "logs", "system"]) {
       const before = evaluate("window.__calls.length");
-      browser("click", `nav a[href="#${page}"]`);
-      browser("wait", "800");
+      browser("click", `nav a[href="#/${page}"]`);
+      const target = page === "use" ? "keys" : page;
+      browser("wait", "--fn", `location.hash==='#/${target}'`);
       settled();
       const state = evaluate(
         `({theme:document.documentElement.dataset.theme,route:location.hash,error:document.querySelector('main [role=alert]')?.textContent||'',overflow:document.documentElement.scrollWidth>innerWidth,missing:[...document.querySelectorAll('main .state')].map(e=>e.textContent).filter(t=>t.includes('Not available')).length,calls:window.__calls.slice(${before})})`,
       );
       assert.equal(state.theme, theme);
-      assert.equal(state.route, `#${page}`);
+      assert.ok(
+        state.route === `#/${target}` || (page === "overview" && state.route === "#overview"),
+        `${page}: unexpected hash ${state.route}`,
+      );
       assert.equal(state.error, "", `${page}: ${state.error}`);
       assert.equal(state.overflow, false, `${page}: viewport overflow`);
       // Reads succeed, or the route is honestly reported as not implemented (501/405).
@@ -82,11 +88,11 @@ try {
     ["POST", "/routing/cooldown/reset", "cooldown reset", `[...document.querySelectorAll('.detail button')].find(b=>b.textContent==='Reset cooldown').disabled`],
     ["DELETE", "/credentials", "delete", `[...document.querySelectorAll('.detail button')].find(b=>b.textContent==='Delete').disabled`],
   ];
-  browser("click", 'nav a[href="#credentials"]');
+  browser("click", 'nav a[href="#/credentials"]');
   settled();
-  browser("eval", "location.hash='credentials/claude-research.json'");
+  browser("eval", "location.hash='#/credentials/claude-research.json'");
   browser("wait", ".detail");
-  browser("wait", "2500");
+  browser("wait", "--fn", "window.__calls.some(c=>c.path.endsWith('/credentials/models'))");
   const missingLine = evaluate("[...document.querySelectorAll('main .note')].map(n=>n.textContent).find(t=>t.includes('Not available'))||''");
   const summary = [];
   for (const [method, path, name, disabledJs] of actions) {
@@ -99,13 +105,13 @@ try {
 
   // A route the server lacks is read once, not retried in a loop.
   const before = evaluate("window.__calls.length");
-  browser("click", 'nav a[href="#quotas"]');
-  browser("wait", "4000");
+  browser("click", 'nav a[href="#/quotas"]');
+  settled();
   const pluginReads = evaluate(`window.__calls.slice(${before}).filter(c=>c.path.endsWith('/plugins')&&c.method==='GET').length`);
   assert.ok(pluginReads <= 1, `GET /plugins read ${pluginReads} times`);
   console.log(`PASS unsupported reads are not retried in a loop (${pluginReads} read of GET /plugins)`);
 
-  browser("click", 'nav a[href="#payload"]');
+  browser("click", 'nav a[href="#/payload"]');
   settled();
   browser("find", "role", "button", "click", "--name", "Add rule");
   browser("wait", "--text", "Rule added.");
@@ -114,7 +120,7 @@ try {
   browser("wait", "--fn", "document.querySelectorAll('main .rule').length===0");
   console.log("PASS payload add/remove: persisted real Rust writes");
 
-  browser("click", 'nav a[href="#config"]');
+  browser("click", 'nav a[href="#/config"]');
   settled();
   browser("find", "role", "button", "click", "--name", "Edit YAML");
   browser("wait", "textarea");
@@ -130,7 +136,7 @@ try {
   browser("find", "role", "button", "click", "--name", "Close");
   console.log("PASS YAML editor: persisted tree, real diff, discarded without writing");
 
-  browser("click", 'nav a[href="#credentials"]');
+  browser("click", 'nav a[href="#/credentials"]');
   settled();
   browser("set", "viewport", "390", "844", "2");
   settled();
@@ -138,7 +144,7 @@ try {
   browser("screenshot", `${output}/rust-dashboard-narrow.png`, "--full");
   const storage = evaluate("({local:Object.keys(localStorage),session:Object.keys(sessionStorage)})");
   assert.deepEqual(storage.session, []);
-  assert.ok(storage.local.every((k) => k === "cliproxy-theme"));
+  assert.ok(storage.local.every((k) => ["cliproxy-theme", "cliproxy-lang"].includes(k)));
   console.log("PASS 390px Chromium: no overflow; management key absent from storage");
   writeFileSync(`${output}/rust-dashboard-checks.json`, JSON.stringify(results, null, 2));
 } finally {

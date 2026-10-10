@@ -26,10 +26,12 @@ const shot = (name, full = false) => page.screenshot({ path: `${out}/${name}.png
 const settle = async () => {
   await page.waitForFunction(() => !document.querySelector("main [aria-busy=true]"));
   await page.evaluate(() => document.fonts.ready);
-  await page.waitForTimeout(300);
 };
 const go = async (hash) => {
-  await page.evaluate((h) => (location.hash = h), hash);
+  const target = hash.startsWith("#/") ? hash : `#/${hash.slice(1)}`;
+  await page.evaluate((h) => (location.hash = h), target);
+  await page.waitForFunction((h) => location.hash === h && !!document.querySelector("#main h1"),
+    target === "#/use" ? "#/keys" : target);
   await settle();
 };
 const button = (name, scope = main) => scope.getByRole("button", { name, exact: true });
@@ -55,7 +57,9 @@ try {
   await main.getByText("(Go)").waitFor();
   pass("server detected as Go from X-CPA headers");
 
-  const pages = ["overview", "use", "credentials", "connect", "providers", "keys", "models", "payload", "quotas", "usage", "logs", "config", "plugins", "system"];
+  await go("#use");
+  assert.equal(await page.evaluate(() => location.hash), "#/keys", "legacy #use redirects to client keys");
+  const pages = ["overview", "credentials", "connect", "providers", "keys", "models", "payload", "quotas", "usage", "logs", "config", "plugins", "system"];
   for (const theme of ["light", "dark"]) {
     if ((await page.evaluate(() => document.documentElement.dataset.theme)) !== theme)
       await page.locator('[aria-label^="Use "]').first().click();
@@ -180,7 +184,7 @@ try {
   await page.locator(".menu").click();
   await page.getByRole("link", { name: "Logs" }).click();
   await settle();
-  assert.equal(await page.evaluate(() => location.hash), "#logs");
+  assert.equal(await page.evaluate(() => location.hash), "#/logs");
   assert.equal(await page.evaluate(() => document.activeElement?.id), "main");
   pass("phone: both themes fit 390 px; menu takes focus, makes the page inert, Escape returns focus, links navigate");
 
@@ -189,14 +193,20 @@ try {
   await go("#keys");
   await page.locator(".skip").focus();
   await page.keyboard.press("Enter");
-  assert.deepEqual(await page.evaluate(() => [location.hash, document.activeElement?.id]), ["#keys", "main"]);
+  assert.deepEqual(await page.evaluate(() => [location.hash, document.activeElement?.id]), ["#/keys", "main"]);
   pass("skip link moves focus to the content and keeps the page");
 
   const foreign = requests.filter((r) => !r.url.startsWith(origin) && !r.url.startsWith("data:"));
   assert.deepEqual(foreign, [], "requests outside the serving origin");
 
-  const storage = await page.evaluate(() => JSON.stringify({ ...localStorage, ...sessionStorage }));
-  assert.ok(!storage.includes(KEY), "management key in storage");
+  const storage = await page.evaluate(() => ({
+    local: Object.keys(localStorage),
+    session: Object.keys(sessionStorage),
+    values: JSON.stringify({ ...localStorage, ...sessionStorage }),
+  }));
+  assert.ok(!storage.values.includes(KEY), "management key in storage");
+  assert.ok(storage.local.every((key) => ["cliproxy-theme", "cliproxy-lang"].includes(key)), JSON.stringify(storage.local));
+  assert.deepEqual(storage.session, []);
   assert.deepEqual(problems, [], "console errors");
   // The only HTTP errors are reads of config paths that are not set yet (Go: 404 not_found).
   assert.deepEqual(failures.filter((f) => !/^GET \/v8\/management\/config\/\S+ 404$/.test(f)), [], "unexpected HTTP errors");

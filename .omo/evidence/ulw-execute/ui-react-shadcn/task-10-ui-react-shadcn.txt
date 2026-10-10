@@ -1,0 +1,29 @@
+Checkbox 10: Credentials and Connect React port
+
+Changed only the Credentials and Connect pages and their three routes. Deleted
+Credentials.svelte and Connect.svelte. No commit, Go probe, or real OAuth run.
+
+Credentials: searchable and status-filtered rows, credential ID detail route
+(#/credentials/<id>), upload label with aria-disabled, per-item and bulk token
+refresh, inert fields form when PATCH is unavailable, reset cooldown, delete,
+download, model list, and 10-second credentials polling.
+Connect: built-in and OAuth plugin providers, is_webui=true for forwarded
+providers, provider_not_found suppression, HTTPS-only authorization links,
+status polling, cancel, callback paste, device code, and Vertex import.
+The existing shell maps /connect to the credentials navigation highlight.
+
+Static verification:
+- Credentials.tsx contains aria-disabled and all five named action entries:
+  upload, token refresh, editing fields, cooldown reset, delete.
+- The five action tuples are passed to <Missing actions={missing} />.
+  Missing.tsx calls session.probe(actions) in its effect. This verifies the
+  session.probe wiring, not a live probe against Go.
+- Connect.tsx contains aria-disabled on the Vertex upload label.
+- npm test: exit 0, 26 passed, 0 failed.
+- npm run check: exit 2; errors are confined to existing Svelte rune files
+  src/lang.svelte.ts and src/store.svelte.ts (TS2304 $state/$derived and TS7053).
+  No diagnostics were reported in the two new React pages by this command.
+- No build was run because it writes ui/dist, which other workers are changing.
+
+Other parallel workers' route, page, and dist changes were observed in git
+status and left untouched. No runtime browser or OAuth check was performed.

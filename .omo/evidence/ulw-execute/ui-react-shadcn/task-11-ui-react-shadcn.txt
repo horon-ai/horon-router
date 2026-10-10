@@ -1,0 +1,9 @@
+Checkbox 11: Providers, Keys, Models
+Worktree: ui-react-shadcn-wave1
+Result: three React pages and routes implemented; three corresponding Svelte sources removed.
+Keys: queries.replace("access/api-keys", ...) used for add/remove; mask/reveal, clipboard, duplicate notification and common.showKeys/common.hideKeys retained.
+Models: channel segments, per-channel catalog useQuery and alias/exclusion replace implemented.
+Providers: masked API keys, Grille traffic, config Load and usage error branches implemented.
+Verification: npm test passed, 26/26. git diff --check passed. grep confirmed Keys.tsx imports replace from queries and uses common.showKeys.
+Type check: npm run check failed only in pre-existing ui/src/lang.svelte.ts and ui/src/store.svelte.ts (missing Svelte $state/$derived types); no errors reported in the three ported pages.
+No commit made.

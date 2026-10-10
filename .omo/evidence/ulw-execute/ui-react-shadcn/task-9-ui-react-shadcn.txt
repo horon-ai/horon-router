@@ -1,0 +1,13 @@
+Task 9: Overview React port and first-run
+Worktree: /Users/alpox/Desktop/dev/cliproxyapi-wt/ui-react-shadcn-wave1
+No commit requested; changes remain uncommitted.
+
+Verification:
+- Overview route imports Overview.tsx and yields #/overview through the existing hash router.
+- Credentials query refetchInterval is 10_000; first-run setup requires start === "open", config and credentials loaded, credentials length === 0, and remaining steps.
+- grep Overview.tsx for /usage/queue: no matches. Quota requests run only from Check limits.
+- npm test: exit 0, 26 tests passed.
+- npm run check: exit 2, only legacy lang.svelte.ts/store.svelte.ts rune errors; no Overview.tsx errors.
+- Vite build --outDir .task9-build: exit 0, 184 modules transformed.
+- Aside browser was unavailable in this session, so first-run visibility on a live backend was not observed.
+- Existing ui/dist changes belong to parallel work and were not edited.

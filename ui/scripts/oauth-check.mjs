@@ -48,7 +48,7 @@ try {
   await page.getByLabel("Management key").fill("orb-dashboard-test-only");
   await page.getByRole("button", { name: "Connect", exact: true }).click();
   await main.getByText("operator@example.invalid").first().waitFor();
-  await page.evaluate(() => (location.hash = "#connect"));
+  await page.evaluate(() => (location.hash = "#/connect"));
   await main.getByRole("heading", { name: "Sign in with a provider" }).waitFor();
 
   if (mode === "fake") {
@@ -80,7 +80,7 @@ try {
       await main.getByText("Connected", { exact: true }).waitFor({ timeout: 30_000 });
       pass(`${provider}: device code ${code} shown, polled to completion`);
     }
-    await page.evaluate(() => (location.hash = "#credentials"));
+    await page.evaluate(() => (location.hash = "#/credentials"));
     for (const email of ["claude-login@example.invalid", "codex-login@example.invalid", "meta-login@example.invalid", "xai-login@example.invalid"])
       await main.getByText(email).first().waitFor({ timeout: 15_000 });
     const groups = await main.locator(".group").allTextContents();
@@ -89,7 +89,7 @@ try {
     pass("all six new credentials are listed on Credentials");
 
     // A built-in provider this server lacks: honest message, button disabled afterwards.
-    await page.evaluate(() => (location.hash = "#connect"));
+    await page.evaluate(() => (location.hash = "#/connect"));
     await button("Antigravity").click();
     const toast = await page.locator(".toast", { hasText: /Antigravity|ok/ }).or(main.getByText("Waiting for approval")).first().textContent();
     if (toast.includes("not available")) {

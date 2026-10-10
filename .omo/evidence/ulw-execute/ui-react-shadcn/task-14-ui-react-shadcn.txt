@@ -1,0 +1,12 @@
+Task 14: React dashboard dist and single-file Go panel
+Worktree: /Users/alpox/Desktop/dev/cliproxyapi-wt/ui-react-shadcn-wave1
+
+Verification:
+- find ui/src -type f with *.svelte / *.svelte.ts: zero files.
+- cd ui && npm run check: exit 0.
+- cd ui && npm test: exit 0, 26 tests passed.
+- cd ui && npm run build: exit 0, 199 modules transformed. panel.mjs rejected the initial build because React's JS strings contained dynamic href="...", then an HTML-tag-only scan fixed the false positive; final build passed.
+- size.mjs final: JS 145,628 B gzip / budget 157,300 B / 11,672 B spare; CSS 7,125 B gzip / budget 7,700 B / 575 B spare. Both ceilings have about 8% headroom.
+- panel.mjs checks for external HTML src/href (after removing inline script content), external CSS URLs and literal </script in JS; final panel passed.
+- SHA-256 dist-panel/management.html: f6874ba07a29918e7f5abef10a4dac636950f098a1abcfbdcc6caaaa494deabf. Matches ui/PANEL.md and the generated checksum.
+- git diff --check: exit 0.
