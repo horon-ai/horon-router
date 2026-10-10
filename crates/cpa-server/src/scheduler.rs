@@ -356,7 +356,7 @@ pub fn normalize(raw: RawRouting<'_>) -> Policy {
     Policy {
         strategy: match raw.strategy.trim().to_ascii_lowercase().as_str() {
             "weighted-round-robin" | "weightedroundrobin" | "wrr" => Strategy::WeightedRoundRobin,
-            "fill-first" | "fillfirst" | "ff" => Strategy::FillFirst,
+            "fill-first" | "fillfirst" | "ff" | "quota-failover" => Strategy::FillFirst,
             "soonest-reset" | "soonestreset" | "reset-first" | "resetfirst" => Strategy::SoonestReset,
             _ => Strategy::RoundRobin,
         },

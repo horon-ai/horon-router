@@ -692,7 +692,22 @@ impl CommandCodeExecutor {
                 effort_sent = false;
                 continue;
             }
-            return Err(compat::status_error(status, response_headers, &error_body, true));
+            let mut error = compat::status_error(status, response_headers, &error_body, true);
+            if cfg.routing.strategy.trim().eq_ignore_ascii_case("quota-failover") && status == 400 {
+                let message = serde_json::from_slice::<Value>(&error_body).ok().and_then(|body| {
+                    body.pointer("/error/message")
+                        .or_else(|| body.get("message"))
+                        .and_then(Value::as_str)
+                        .map(str::to_owned)
+                });
+                if message.is_some_and(|m| m.to_ascii_lowercase().contains("insufficient credits")) {
+                    // Command Code reports exhausted billing as BAD_REQUEST, not 429.
+                    // In the opt-in policy this is credential-wide quota, not a bad prompt.
+                    error.status = 429;
+                    error.scope = FailureScope::Credential;
+                }
+            }
+            return Err(error);
         };
 
         let original_request = if req.original_body.is_empty() {

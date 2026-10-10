@@ -298,6 +298,20 @@ impl Runtime {
         let aliases = crate::registry::global_aliases(cfg);
         let scope = selection.clone();
         let admit = admission(registry, &aliases, &scope, &self.executors);
+        let exhausted = if cfg.routing.strategy.trim().eq_ignore_ascii_case("quota-failover") {
+            let candidates = self
+                .store
+                .snapshot()
+                .into_iter()
+                .filter(|c| !c.disabled && admit(c).is_some())
+                .collect();
+            crate::quota_routing::exhausted(self, cfg, candidates).await
+        } else {
+            Default::default()
+        };
+        let quota_admit = |c: &Credential| {
+            if exhausted.contains(&c.id) { None } else { admit(c) }
+        };
         // `soonest-reset` ranks by the quota windows the executors last observed.
         let now = std::time::SystemTime::now();
         let ranks = |c: &Credential| {
@@ -311,7 +325,7 @@ impl Runtime {
                 crate::scheduler::Windows::observed(&provider, &s.signals, s.observed_at, now)
             })
         };
-        let mut lease = self.store.select_ranked(selection, policy, &admit, &ranks)?;
+        let mut lease = self.store.select_ranked(selection, policy, &quota_admit, &ranks)?;
         if self.executors.readiness(&lease.credential, cfg) != Readiness::PrepareNow {
             return Ok(lease);
         }
