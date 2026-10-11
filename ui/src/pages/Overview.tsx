@@ -1,6 +1,7 @@
 import { Button } from "../components/ui/button";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { clientModels } from "../api";
 import {
   ago, buckets, credName, credState, flag, label, newKey, provider, readPath,
@@ -77,13 +78,13 @@ export function Overview() {
   }
   const steps: {
     done: boolean; title: string; text: string; action: string;
-    href?: string; run?: () => void; off?: boolean;
+    to?: "/connect" | "/keys"; run?: () => void; off?: boolean;
   }[] = [
     { done: rows.length > 0, title: t("start.s1.title"), text: t("start.s1.text"),
-      href: "#/connect", action: t("ov.connect") },
+      to: "/connect", action: t("ov.connect") },
     keys.length
       ? { done: !!served || flag.get("start-tool") === "1", title: t("start.s2.title"),
-          text: t("start.s2.text"), href: "#/keys", action: t("start.s2.action") }
+          text: t("start.s2.text"), to: "/keys", action: t("start.s2.action") }
       : { done: false, title: t("start.s2.title"), text: t("start.s2.textNoKey"),
           run: () => void createKey(), action: t("start.s2.create") },
     { done: !!served || tested, title: t("start.s3.title"), text: t("start.s3.text"),
@@ -110,9 +111,9 @@ export function Overview() {
   return <>
     <div className="head">
       <h1>{t("ov.title")}</h1>
-      <a className="key primary" href="#/connect">
+      <Link className="key primary" to="/connect" activeProps={{}}>
         <svg className="i" aria-hidden="true"><use href="#i-plus" /></svg>{t("ov.connect")}
-      </a>
+      </Link>
     </div>
     {setup && <section className="window start" aria-labelledby="start">
       <div className="section-head">
@@ -137,8 +138,8 @@ export function Overview() {
                 </span>
               : !step.done && <small>{step.text}</small>}
           </span>
-          {!step.done && (step.href
-            ? <a className={`key small ${i === next ? "primary" : ""}`} href={step.href}>{step.action}</a>
+          {!step.done && (step.to
+            ? <Link className={`key small ${i === next ? "primary" : ""}`} to={step.to} activeProps={{}}>{step.action}</Link>
             : <Button size="small" variant={i === next ? "primary" : "default"}
                 disabled={state.busy || step.off} onClick={step.run}>{step.action}</Button>)}
         </li>)}
@@ -171,7 +172,7 @@ export function Overview() {
               : "—"}<small>{traffic && total ? "%" : ""}</small></strong>
             <span className="legend">{!traffic ? t("common.notReported")
               : total ? t("ov.failedN", { n: fmt(failed) }) : t("ov.noRequests")}
-              {traffic && !total && <span className="hint">{" · "}<a href="#/keys">{t("ov.setupTool")}</a></span>}
+              {traffic && !total && <span className="hint">{" · "}<Link to="/keys" activeProps={{}}>{t("ov.setupTool")}</Link></span>}
             </span>
           </div>
           <p className="routing legend">{t("ov.routing")} <b>{t(strategy(routing.strategy).name).toLowerCase()}</b>
@@ -184,9 +185,9 @@ export function Overview() {
             <h2>{t("ov.credentials")}</h2>
             {checkable && <Button variant="quiet" size="small" disabled={checking} onClick={() => void checkLimits()}>
               {checking ? t("ov.checking") : t("ov.check")}</Button>}
-            <a className="key quiet small" href="#/credentials">{t("common.manage")}
+            <Link className="key quiet small" to="/credentials" activeProps={{}}>{t("common.manage")}
               <svg className="i" width="14" height="14" aria-hidden="true"><use href="#i-chevron" /></svg>
-            </a>
+            </Link>
           </div>
           <ul className="list creds">
             {groups.flatMap((group) => [
@@ -195,16 +196,16 @@ export function Overview() {
               </li>,
               ...group.rows.map((row) =>
               <li key={`${row.a.name}\u0000${row.a.auth_index}`}>
-                <a className="item" href={`#/credentials/${encodeURIComponent(row.a.id || row.a.name)}`}>
+                <Link className="item" to="/credentials/$id" params={{ id: String(row.a.id || row.a.name) }} activeProps={{}}>
                   <span className={`lamp ${row.s.lamp}`} />
                   <span className="name grow"><strong>{credName(row.a)}</strong><small>{row.a.note || row.a.name}</small></span>
                   {row.b ? <Grille data={row.b} max={max} /> : <span className="legend">{t("ov.noHistory")}</span>}
                   <span className="num count">{row.b ? fmt(sum(row.b.total)) : "—"}</span>
                   <span className="state-label">{row.s.label}</span>
-                </a>
+                </Link>
               </li>),
             ])}
-            <li><a className="item add" href="#/connect"><span className="lamp off" />{t("ov.addAnother")}</a></li>
+            <li><Link className="item add" to="/connect" activeProps={{}}><span className="lamp off" />{t("ov.addAnother")}</Link></li>
           </ul>
         </section>
         {!!limited.length && <section className="section">

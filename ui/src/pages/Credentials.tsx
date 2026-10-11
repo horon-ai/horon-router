@@ -2,7 +2,7 @@ import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { useEffect, useMemo, useState, useSyncExternalStore, type ChangeEvent, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useNavigate, useRouterState } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { api, download } from "../api";
 import { buckets, credName, credState, label, provider, span, sum, type Data } from "../core";
 import { Grille } from "../components/Grille";
@@ -133,7 +133,7 @@ export function Credentials({ credentialId }: { credentialId?: string }) {
       <Button disabled={state.busy || !rows.length || !session.can("POST", "/credentials/refresh")} onClick={refreshAll}>
         <svg className="i" aria-hidden="true"><use href="#i-refresh" /></svg>{t("cr.refresh")}
       </Button>
-      <a className="key primary" href="#/connect"><svg className="i" aria-hidden="true"><use href="#i-plus" /></svg>{t("cr.connect")}</a>
+      <Link className="key primary" to="/connect" activeProps={{}}><svg className="i" aria-hidden="true"><use href="#i-plus" /></svg>{t("cr.connect")}</Link>
     </div>
     <Missing actions={missing} />
     <Load res={creds} what={t("what.credentials")}>{(list) => !list.length

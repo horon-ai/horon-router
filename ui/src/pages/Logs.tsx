@@ -2,6 +2,7 @@ import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Link, useNavigate, useParams, useRouterState } from "@tanstack/react-router";
 import { api, download } from "../api";
 import type { Data } from "../core";
 import { Load } from "../components/Load";
@@ -12,6 +13,9 @@ const MAX = 1500;
 export function Logs() {
   useSyncExternalStore(subscribeLang, language);
   const state = useSyncExternalStore(subscribe, getSnapshot);
+  const navigate = useNavigate();
+  const pathname = useRouterState({ select: (router) => router.location.pathname });
+  const currentId = useParams({ strict: false, select: (params) => params.id });
   const cursor = useRef("");
   const pane = useRef<HTMLDivElement>(null);
   const lines = useRef<string[]>([]);
@@ -19,7 +23,7 @@ export function Logs() {
   const [tail, setTail] = useState(true);
   const [own, setOwn] = useState(false);
   const [visible, setVisible] = useState(!document.hidden);
-  const [reqId, setReqId] = useState(() => decodeURIComponent(location.hash.match(/^#\/logs\/([^/?]+)/)?.[1] || ""));
+  const [reqId, setReqId] = useState(() => decodeURIComponent(pathname.match(/^\/logs\/([^/?]+)/)?.[1] || ""));
   const [reqText, setReqText] = useState("");
   const [reqError, setReqError] = useState("");
   const logs = useQuery({
@@ -48,14 +52,9 @@ export function Logs() {
     catch (e) { setReqError(e instanceof Error ? e.message : String(e)); }
   }
   useEffect(() => {
-    const change = () => {
-      const id = location.hash.match(/^#\/logs\/([^/?]+)/)?.[1];
-      if (id) void inspect(decodeURIComponent(id));
-    };
-    window.addEventListener("hashchange", change);
-    change();
-    return () => window.removeEventListener("hashchange", change);
-  }, []);
+    const id = pathname.match(/^\/logs\/([^/?]+)/)?.[1];
+    if (id) void inspect(decodeURIComponent(id));
+  }, [pathname]);
   const shown = (logs.data || []).filter((line) => (own || !line.includes("/management/")) && line.toLowerCase().includes(query.trim().toLowerCase()));
   const parse = (line: string) => line.match(/^\[([^\]]*)\] \[([^\]]*)\] \[(\w+)\s*\] (?:\[[^\]]*\] )?(.*)$/);
   return <>
@@ -74,7 +73,7 @@ export function Logs() {
       <div className="code-window log" ref={pane} role="log" aria-label={t("lg.log")} tabIndex={0}>
         {shown.map((line, i) => { const m = parse(line); return m
           ? <div className={m[3].toLowerCase()} key={i}><span className="t">{m[1].slice(11)}</span>
-              {/[^-]/.test(m[2]) ? <a className="t" href={`#/logs/${encodeURIComponent(m[2])}`}>{m[2]}</a> : <span className="t">{m[2]}</span>}
+              {/[^-]/.test(m[2]) ? <Link className="t" to="/logs/$id" params={{ id: m[2] }} activeProps={{}}>{m[2]}</Link> : <span className="t">{m[2]}</span>}
               <span className="lvl">{m[3]}</span>{m[4]}</div>
           : <div key={i}>{line}</div>; })}
         {!shown.length && <div className="muted">{query ? t("lg.noMatch") : all.length ? "" : t("lg.empty")}</div>}
@@ -82,7 +81,7 @@ export function Logs() {
       <p className="legend">{t("lg.count", { shown: shown.length.toLocaleString(), total: all.length.toLocaleString(), max: MAX.toLocaleString() })}</p>
     </section>}</Load>
     <section className="section"><h2>{t("lg.request")}</h2>
-      <form className="form" onSubmit={(e) => { e.preventDefault(); const id = reqId.trim(); if (location.hash === `#/logs/${encodeURIComponent(id)}`) void inspect(id); else location.hash = `#/logs/${encodeURIComponent(id)}`; }}>
+      <form className="form" onSubmit={(e) => { e.preventDefault(); const id = reqId.trim(); if (currentId === id) void inspect(id); else void navigate({ to: "/logs/$id", params: { id } }); }}>
         <label className="field">{t("lg.reqId")}<Input required value={reqId} onChange={(e) => setReqId(e.target.value)} placeholder={t("lg.reqPh")} /></label>
         <Button type="submit">{t("lg.open")}</Button>
         {reqText && <Button type="button" onClick={() => download(new Blob([reqText]), `request-${reqId}.log`)}>{t("common.download")}</Button>}

@@ -1,6 +1,7 @@
 import { Button } from "../components/ui/button";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { api, missing, text } from "../api";
 import { buckets, sumBuckets, sum, label, provider, cleanEvent, usageStats, type Buckets, type Data, type Event } from "../core";
 import { Grille } from "../components/Grille";
@@ -104,7 +105,7 @@ export function Usage() {
           <span className={`lamp ${e.failed ? "bad" : "ok"}`} />
           <span className="legend">{time(e.at)}</span><code className="ellipsis grow">{e.model}</code>
           <span className="num">{e.latency} ms · {e.failed ? `HTTP ${e.status || "?"}` : t("us.tok", { n: e.input + e.output })}</span>
-          <a className="legend mono ellipsis" href={`#/logs/${encodeURIComponent(e.id)}`} title={e.id}>{e.id}</a>
+          <Link className="legend mono ellipsis" to="/logs/$id" params={{ id: e.id }} activeProps={{}} title={e.id}>{e.id}</Link>
         </li>)}</ul>
       </>}
     </section>

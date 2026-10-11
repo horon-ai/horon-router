@@ -139,13 +139,13 @@ label.key:focus-within { outline: 2px solid var(--focus); outline-offset: 2px; }
 input:not([type="checkbox"], [type="radio"], [type="file"]), select, textarea {
   font: inherit; color: var(--ink); width: 100%;
   min-height: 36px; padding: 0 12px;
-  background: var(--raised); border: 1px solid var(--line-2); border-radius: 8px;
+  background: var(--raised); border: 1px solid var(--ink-2); border-radius: 8px;
   transition: border-color 0.12s;
 }
 textarea { padding: 10px 12px; resize: vertical; line-height: 1.5; }
 textarea.code { font: 12.5px/1.6 var(--mono); }
 input::placeholder, textarea::placeholder { color: var(--ink-2); opacity: 1; }
-input:hover, select:hover, textarea:hover { border-color: var(--ink-3); }
+input:hover, select:hover, textarea:hover { border-color: var(--ink); }
 input:focus-visible, select:focus-visible, textarea:focus-visible { outline: none; border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
 input[type="checkbox"] { width: 16px; height: 16px; margin: 0; }
 .field { display: grid; gap: 6px; font-size: 13px; color: var(--ink-2); min-width: 0; }
@@ -263,7 +263,7 @@ input[type="checkbox"] { width: 16px; height: 16px; margin: 0; }
 .code-window > div { padding: 0 18px; white-space: pre-wrap; word-break: break-word; }
 .diff .added { background: color-mix(in srgb, var(--ok) 16%, transparent); }
 .diff .removed { background: color-mix(in srgb, var(--bad) 14%, transparent); }
-.diff span { display: inline-block; width: 18px; color: var(--ink-2); user-select: none; }
+.diff span { display: inline-block; width: 18px; color: var(--ink); user-select: none; }
 
 /* Toast */
 .toast {

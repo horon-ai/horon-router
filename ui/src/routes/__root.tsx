@@ -1,6 +1,6 @@
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
-import { Outlet, createRootRoute, useBlocker, useRouterState } from "@tanstack/react-router";
+import { Link, Outlet, createRootRoute, useBlocker, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent } from "react";
 import { Rich } from "../components/Rich";
@@ -126,14 +126,17 @@ function AppShell() {
     }}>{t("app.skip")}</a>
     <div className="shell">
       <nav className={`side${menu ? " open" : ""}`} id="pages" aria-label={t("app.pages")}>
-        <a className="brand" href="#/overview"><Mark /></a>
+        <Link className="brand" to="/overview" activeProps={{}}><Mark /></Link>
         <div className="nav">
           {pages.map(([id, label], index) => label
-            ? <a key={id} href={id === "credentials" ? "#/credentials" : `#/${id}`}
+            ? <Link key={id} to={`/${id}`} activeProps={{}}
                 aria-current={current === id ? "page" : undefined}
-                onClick={() => setMenu(false)}>
+                onClick={() => {
+                  setMenu(false);
+                  if (menu) menuButton.current?.focus();
+                }}>
                 {t(label)}{id === "credentials" && !!creds.data?.length && <small>{creds.data.length}</small>}
-              </a>
+              </Link>
             : <hr key={`separator-${index}`} />)}
         </div>
         <div className="side-foot"><Theme /><Language />
@@ -144,7 +147,7 @@ function AppShell() {
       </nav>
       <div className="main">
         <header className="top">
-          <a className="brand" href="#/overview"><Mark /></a>
+          <Link className="brand" to="/overview" activeProps={{}}><Mark /></Link>
           <span className="row" role="status">
             <span className={`lamp ${state.online ? "ok" : "bad"}`} />
             {state.online ? <><span className="sr">{t("app.connectedTo")}</span>

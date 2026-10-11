@@ -2,6 +2,7 @@ import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { useState, useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { api, missing, text } from "../api";
 import { label, mask, readPath, sum, type Buckets, type Data } from "../core";
 import { Grille } from "../components/Grille";
@@ -50,7 +51,7 @@ export function Providers() {
       <h1>{t("pv.title")}</h1>
       {!!groups.length && <Button variant="quiet" aria-pressed={reveal}
         onClick={() => setReveal(!reveal)}>{t(reveal ? "common.hideKeys" : "common.showKeys")}</Button>}
-      <a className="key" href="#/config"><svg className="i" aria-hidden="true"><use href="#i-edit" /></svg>{t("common.edit")}</a>
+      <Link className="key" to="/config" activeProps={{}}><svg className="i" aria-hidden="true"><use href="#i-edit" /></svg>{t("common.edit")}</Link>
     </div>
     <div className="seg" role="group" aria-label={t("pv.provider")}>
       {families.map((f) => <button key={f} aria-pressed={family === f} onClick={() => setFamily(f)}>

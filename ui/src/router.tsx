@@ -3,7 +3,10 @@ import { RouterProvider, createHashHistory, createRouter } from "@tanstack/react
 import { routeTree } from "./routeTree.gen";
 import { queryClient } from "./queries";
 
-export const router = createRouter({ routeTree, history: createHashHistory() });
+const history = createHashHistory();
+// Keep the panel's fragment-only link URLs while retaining indexed router navigation.
+history.createHref = (href) => `#${href}`;
+export const router = createRouter({ routeTree, history });
 
 declare module "@tanstack/react-router" {
   interface Register {

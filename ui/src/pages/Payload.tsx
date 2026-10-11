@@ -2,6 +2,7 @@ import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { useState, useSyncExternalStore, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { readPath, type Data } from "../core";
 import { Load } from "../components/Load";
 import { t, subscribe as subscribeLang, getSnapshot as language } from "../lang";
@@ -47,7 +48,7 @@ export function Payload() {
   return <>
     <div className="head">
       <h1>{t("pl.title")}</h1>
-      <a className="key" href="#/config"><svg className="i" aria-hidden="true"><use href="#i-edit" /></svg>{t("common.edit")}</a>
+      <Link className="key" to="/config" activeProps={{}}><svg className="i" aria-hidden="true"><use href="#i-edit" /></svg>{t("common.edit")}</Link>
     </div>
     <div className="seg" role="group" aria-label={t("pl.kind")}>
       {kinds.map((k) => <button key={k} aria-pressed={kind === k} onClick={() => setKind(k)}>

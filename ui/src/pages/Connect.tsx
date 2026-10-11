@@ -8,6 +8,7 @@ import { t, subscribe as subscribeLang, getSnapshot as language } from "../lang"
 import { keys, queries, queryClient } from "../queries";
 import { session } from "../session";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 
 const builtIn = ["claude", "codex", "antigravity", "kimi", "kimi-ai", "xai", "devin", "meta", "command-code", "nous", "github-copilot"];
 const forwarded = ["claude", "codex", "antigravity", "xai", "devin"];
@@ -140,7 +141,7 @@ export function Connect() {
         </ol>
         <div className="row"><Button variant="quiet" onClick={() => void cancel()}>{t("cn.cancel")}</Button></div>
       </> : status === "ok"
-        ? <><p>{t("cn.saved")}</p><div className="row"><a className="key primary" href="#/credentials">{t("cn.viewCreds")}</a></div></>
+        ? <><p>{t("cn.saved")}</p><div className="row"><Link className="key primary" to="/credentials" activeProps={{}}>{t("cn.viewCreds")}</Link></div></>
         : <>{problem && <p className="error">{problem}</p>}
           <div className="row"><Button onClick={() => void start(current.provider)}>{t("cn.again")}</Button></div></>}
     </section>}
@@ -152,7 +153,7 @@ export function Connect() {
             disabled={state.busy || !session.can("POST", "/oauth/import") || gone.includes("vertex")} onChange={vertex} />
         </label></li>
         <li className="item"><span className="grow">{t("cn.useKey")}</span>
-          <a className="key" href="#/providers">{t("cn.providers")}</a></li></ul>
+          <Link className="key" to="/providers" activeProps={{}}>{t("cn.providers")}</Link></li></ul>
     </section>
   </>;
 }
