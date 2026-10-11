@@ -224,7 +224,7 @@ fn valid_string(json: &[u8], mut i: usize) -> (bool, usize) {
     loop {
         let mut ch: u8;
         'tok: loop {
-            // cliproxy-rs: jump over the plain span up to the next `"` or `\` (memchr2),
+            // hyper-router: jump over the plain span up to the next `"` or `\` (memchr2),
             // stopping early at a control byte; the byte loop below still decides every
             // STRING byte, so the result is the same.
             i = skip_plain(json, i);

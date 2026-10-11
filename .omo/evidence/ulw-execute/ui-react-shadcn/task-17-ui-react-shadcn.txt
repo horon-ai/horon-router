@@ -27,7 +27,7 @@ Verification:
   CSS 7125 B gzip / budget 7700 B. dist/dist-panel and PANEL.md
   checksum rebuilt together, panel SHA-256
   c3754f4fcbe74c6113c7922f7efd2f64e22bf651cbd9be50fddea3bfd53fd68a.
-- CARGO_BUILD_JOBS=2 nice -n 19 cargo build -p cliproxy --locked:
+- CARGO_BUILD_JOBS=2 nice -n 19 cargo build -p hyperrouter --locked:
   exit 0 to embed the latest UI (no Rust source change).
 - PATH="$PWD/node_modules/.bin:$PATH" node scripts/browser-check-rust.mjs
   http://127.0.0.1:18319/management.html

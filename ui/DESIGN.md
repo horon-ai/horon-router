@@ -1,5 +1,5 @@
 ---
-name: cliproxy-rs Instrument
+name: hyper-router Instrument
 description: The proxy drawn as a well-made device, after Rams-era Braun.
 colors:
   light-background: "#ffffff"

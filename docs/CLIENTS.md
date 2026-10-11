@@ -1,6 +1,6 @@
-# cliproxy-rs를 도구와 함께 쓰기
+# HyperRouter를 도구와 함께 쓰기
 
-> 이 문서에서 알 수 있는 것: Claude Code, Codex CLI, Gemini CLI 같은 도구와 SDK를 cliproxy-rs에 연결하는 방법.
+> 이 문서에서 알 수 있는 것: Claude Code, Codex CLI, Gemini CLI 같은 도구와 SDK를 hyper-router에 연결하는 방법.
 
 예제는 `http://127.0.0.1:8317`과 `your-client-key`를 씁니다. 두 값을 `config.yaml`에 있는 주소와 클라이언트 키(도구가 프록시에 접속할 때 쓰는 비밀 키)로 바꿉니다. `/management.html`의 대시보드에는 **Use with tools** 페이지가 있고, 여기서 두 값을 복사 버튼과 함께 볼 수 있습니다. 모델 ID는 대시보드의 **Models** 페이지나 `GET /v1/models`에서 고릅니다. 쓸 수 있는 ID는 프록시(내 요청을 대신 전달해 주는 중간 서버)에 연결한 계정에 따라 다릅니다.
 
@@ -31,7 +31,7 @@ claude
 <a id="claude-code-versions"></a>
 ### Claude Code 버전
 
-Claude 계정을 쓰면 Claude Code가 2.1.280 이상(주 버전 2 안)일 때 cliproxy-rs가 Claude Code의 고유 신원(`User-Agent`와 SDK, Node 버전)을 그대로 전달합니다. 2.1.280보다 새 버전은 Claude Code처럼 `X-Stainless-Package-Version`과 `X-Stainless-Runtime-Version` 헤더를 둘 다 보내야 합니다. 세션 제목 요청과 사용 한도 확인 요청도 같은 방식으로 전달됩니다. `stabilize-device-profile: true`이면 2.1.280부터의 2.1.x 버전도 Claude Code로 계속 인정되어 신원을 감추지 않습니다. 다만 고정된 2.1.280 신원으로 업스트림(요청을 실제로 받아 처리하는 제공자 서버)에 전달됩니다. 2.2 이상은 신원을 감추고 Stainless 요구 사항을 적용하지 않습니다. 다른 클라이언트와 더 오래된 Claude Code는 Claude Code 2.1.280으로 업스트림에 전달됩니다. `claude-cli` 클라이언트를 그대로 넘기지 않을 때는 계정과 버전마다 로그에 한 번만 남기며, 계정은 인증 번호(대시보드와 관리 API가 보여 주는 값)로 표시합니다. Stainless 헤더가 빠져서인 경우에는 그 이유도 함께 남깁니다.
+Claude 계정을 쓰면 Claude Code가 2.1.280 이상(주 버전 2 안)일 때 hyper-router가 Claude Code의 고유 신원(`User-Agent`와 SDK, Node 버전)을 그대로 전달합니다. 2.1.280보다 새 버전은 Claude Code처럼 `X-Stainless-Package-Version`과 `X-Stainless-Runtime-Version` 헤더를 둘 다 보내야 합니다. 세션 제목 요청과 사용 한도 확인 요청도 같은 방식으로 전달됩니다. `stabilize-device-profile: true`이면 2.1.280부터의 2.1.x 버전도 Claude Code로 계속 인정되어 신원을 감추지 않습니다. 다만 고정된 2.1.280 신원으로 업스트림(요청을 실제로 받아 처리하는 제공자 서버)에 전달됩니다. 2.2 이상은 신원을 감추고 Stainless 요구 사항을 적용하지 않습니다. 다른 클라이언트와 더 오래된 Claude Code는 Claude Code 2.1.280으로 업스트림에 전달됩니다. `claude-cli` 클라이언트를 그대로 넘기지 않을 때는 계정과 버전마다 로그에 한 번만 남기며, 계정은 인증 번호(대시보드와 관리 API가 보여 주는 값)로 표시합니다. Stainless 헤더가 빠져서인 경우에는 그 이유도 함께 남깁니다.
 
 ```text
 claude: Claude Code 2.1.220 on credential 1f3a9c0b7d2e4a68 is not passed through; requests use the claude-cli/2.1.280 (external, cli) identity. ...
@@ -43,7 +43,7 @@ Anthropic은 모델에 비해 너무 오래된 Claude Code 버전을 거부합�
 Claude Code 2.1.236 does not support this model; version 2.1.251 or newer is required. Run 'claude update', or update the Claude desktop app, then try again.
 ```
 
-`error.details.error_code`는 `claude_code_version_too_old`입니다. Claude Code 자체에서는 `claude update`를 실행합니다. 다른 클라이언트를 쓰거나 전달되지 않는 Claude Code 버전을 쓰면 cliproxy-rs가 보내는 신원이 모델이 요구하는 버전보다 낮습니다. cliproxy-rs 릴리스에서 이 값을 올리기 전까지는 `config.yaml`에서 더 새 버전을 설정합니다. `claude --version`이 출력하는 버전과 그 버전이 보내는 `X-Stainless-Package-Version`, `X-Stainless-Runtime-Version` 헤더를 씁니다.
+`error.details.error_code`는 `claude_code_version_too_old`입니다. Claude Code 자체에서는 `claude update`를 실행합니다. 다른 클라이언트를 쓰거나 전달되지 않는 Claude Code 버전을 쓰면 hyper-router가 보내는 신원이 모델이 요구하는 버전보다 낮습니다. hyper-router 릴리스에서 이 값을 올리기 전까지는 `config.yaml`에서 더 새 버전을 설정합니다. `claude --version`이 출력하는 버전과 그 버전이 보내는 `X-Stainless-Package-Version`, `X-Stainless-Runtime-Version` 헤더를 씁니다.
 
 ```yaml
 oauth:
@@ -84,17 +84,17 @@ claude
 
 ```toml
 model = "<model-id>"
-model_provider = "cliproxy"
+model_provider = "hyperrouter"
 
-[model_providers.cliproxy]
-name = "cliproxy-rs"
+[model_providers.hyperrouter]
+name = "hyper-router"
 base_url = "http://127.0.0.1:8317/v1"
-env_key = "CLIPROXY_CLIENT_KEY"
+env_key = "HYPERROUTER_CLIENT_KEY"
 wire_api = "responses"
 ```
 
 ```bash
-export CLIPROXY_CLIENT_KEY=your-client-key
+export HYPERROUTER_CLIENT_KEY=your-client-key
 codex
 ```
 
@@ -137,15 +137,15 @@ amp config model-providers check-access --provider-model <provider/model>
 <a id="opencode"></a>
 ## OpenCode
 
-[OpenCode 제공자 안내](https://opencode.ai/docs/providers#custom-provider)에 사용자 정의 OpenAI 호환 제공자가 나옵니다. `opencode.json`에 아래 내용을 추가하고 `<model-id>`를 바꾼 다음 `/models`에서 `cliproxy/<model-id>`를 선택합니다. OpenAI Chat Completions를 씁니다.
+[OpenCode 제공자 안내](https://opencode.ai/docs/providers#custom-provider)에 사용자 정의 OpenAI 호환 제공자가 나옵니다. `opencode.json`에 아래 내용을 추가하고 `<model-id>`를 바꾼 다음 `/models`에서 `hyperrouter/<model-id>`를 선택합니다. OpenAI Chat Completions를 씁니다.
 
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
   "provider": {
-    "cliproxy": {
+    "hyperrouter": {
       "npm": "@ai-sdk/openai-compatible",
-      "name": "cliproxy-rs",
+      "name": "hyper-router",
       "options": {
         "baseURL": "http://127.0.0.1:8317/v1",
         "apiKey": "your-client-key"
@@ -168,7 +168,7 @@ amp config model-providers check-access --provider-model <provider/model>
   "customModels": [
     {
       "model": "<model-id>",
-      "displayName": "cliproxy-rs",
+      "displayName": "hyper-router",
       "baseUrl": "http://127.0.0.1:8317/v1",
       "apiKey": "your-client-key",
       "provider": "generic-chat-completion-api"
@@ -216,12 +216,12 @@ Custom model: <model-id>
 {
   "language_models": {
     "openai_compatible": {
-      "cliproxy": {
+      "hyperrouter": {
         "api_url": "http://127.0.0.1:8317/v1",
         "available_models": [
           {
             "name": "<model-id>",
-            "display_name": "cliproxy-rs",
+            "display_name": "hyper-router",
             "max_tokens": 128000
           }
         ]
@@ -232,7 +232,7 @@ Custom model: <model-id>
 ```
 
 ```bash
-export CLIPROXY_API_KEY=your-client-key
+export HYPERROUTER_API_KEY=your-client-key
 ```
 
 OpenAI Responses를 쓰려면 모델 항목에서 `capabilities.chat_completions`를 `false`로 설정합니다. Zed는 Anthropic Messages용 `language_models.anthropic_compatible`과 `api_url: "http://127.0.0.1:8317"`도 문서에 적어 두었습니다.
@@ -243,11 +243,11 @@ OpenAI Responses를 쓰려면 모델 항목에서 `capabilities.chat_completions
 [Continue OpenAI 제공자 안내](https://docs.continue.dev/customize/model-providers/top-level/openai#openai-api-compatible-providers)는 `config.yaml`의 `apiBase`, `apiKey`, `model`을 씁니다. 이 설정은 OpenAI Chat Completions를 씁니다.
 
 ```yaml
-name: cliproxy-rs
+name: hyper-router
 version: 1.0.0
 schema: v1
 models:
-  - name: cliproxy-rs
+  - name: hyper-router
     provider: openai
     model: <model-id>
     apiBase: http://127.0.0.1:8317/v1

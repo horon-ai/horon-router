@@ -11,14 +11,14 @@ license = "MIT"
 rust-version = "1.88"
 
 [workspace.dependencies]
-cpa-common = { path = "crates/cpa-common" }
-cpa-core = { path = "crates/cpa-core" }
-cpa-exec = { path = "crates/cpa-exec" }
-cpa-home = { path = "crates/cpa-home" }
-cpa-plugin = { path = "crates/cpa-plugin" }
-cpa-server = { path = "crates/cpa-server" }
-cpa-store = { path = "crates/cpa-store" }
-cpa-translate = { path = "crates/cpa-translate" }
+hr-common = { path = "crates/hr-common" }
+hr-core = { path = "crates/hr-core" }
+hr-exec = { path = "crates/hr-exec" }
+hr-home = { path = "crates/hr-home" }
+hr-plugin = { path = "crates/hr-plugin" }
+hr-server = { path = "crates/hr-server" }
+hr-store = { path = "crates/hr-store" }
+hr-translate = { path = "crates/hr-translate" }
 
 anyhow = "1"
 axum = "0.8.9"

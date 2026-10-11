@@ -44,7 +44,7 @@ diff -ruN a/gjson/src/lib.rs b/gjson/src/lib.rs
      (&json[s..i], info, i)
  }
  
-+// cliproxy-rs: memchr2 finds the next `"` or `\\` (the CHSTRTOK bytes) instead of a
++// hyper-router: memchr2 finds the next `"` or `\\` (the CHSTRTOK bytes) instead of a
 +// table lookup per byte; the result is the same.
  #[inline(always)]
  fn scan_string<'a>(json: &'a [u8], mut i: usize) -> (&'a [u8], InfoBits, usize) {
@@ -102,7 +102,7 @@ diff -ruN a/gjson/src/scan_tests.rs b/gjson/src/scan_tests.rs
 --- a/gjson/src/scan_tests.rs
 +++ b/gjson/src/scan_tests.rs
 @@ -0,0 +1,142 @@
-+// cliproxy-rs: the patched string scanners against verbatim copies of gjson 0.8.1's
++// hyper-router: the patched string scanners against verbatim copies of gjson 0.8.1's
 +// originals, on every start offset of many short adversarial buffers and of long ones
 +// with a special byte at every position.
 +
@@ -499,7 +499,7 @@ diff -ruN a/gjson/src/valid.rs b/gjson/src/valid.rs
 -                    i += 1;
 -                }
 -            }
-+            // cliproxy-rs: jump over the plain span up to the next `"` or `\` (memchr2),
++            // hyper-router: jump over the plain span up to the next `"` or `\` (memchr2),
 +            // stopping early at a control byte; the byte loop below still decides every
 +            // STRING byte, so the result is the same.
 +            i = skip_plain(json, i);

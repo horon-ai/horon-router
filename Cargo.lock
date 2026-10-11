@@ -674,36 +674,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1c133bc6a41be0d194c306b5506d15e6feeea7b1d6604bd3f8310dfb2ca96486"
 
 [[package]]
-name = "cliproxy"
-version = "0.2.2"
-dependencies = [
- "anyhow",
- "axum",
- "clap",
- "cpa-common",
- "cpa-core",
- "cpa-exec",
- "cpa-home",
- "cpa-plugin",
- "cpa-server",
- "cpa-store",
- "futures-util",
- "getrandom 0.3.4",
- "http-body",
- "libc",
- "ratatui",
- "serde_json",
- "serde_yaml_ng",
- "socket2",
- "tokio",
- "tokio-util",
- "tower",
- "tracing",
- "url",
- "wreq",
-]
-
-[[package]]
 name = "cmake"
 version = "0.1.58"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -793,212 +763,6 @@ name = "countme"
 version = "3.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7704b5fdd17b18ae31c4c1da5a2e0305a2bf17b5249300a9ee9ed7b72114c636"
-
-[[package]]
-name = "cpa-common"
-version = "0.2.2"
-dependencies = [
- "base64 0.22.1",
- "cpa-core",
- "flate2",
- "gjson",
- "http",
- "memchr",
- "serde_json",
- "serde_yaml_ng",
- "sha2 0.10.9",
- "tokio",
-]
-
-[[package]]
-name = "cpa-core"
-version = "0.2.2"
-dependencies = [
- "anyhow",
- "base64 0.22.1",
- "bcrypt",
- "bytes",
- "futures-util",
- "http",
- "serde",
- "serde_json",
- "serde_yaml_ng",
- "sha2 0.10.9",
- "tracing",
- "yaml-edit",
-]
-
-[[package]]
-name = "cpa-exec"
-version = "0.2.2"
-dependencies = [
- "async-compression",
- "axum",
- "base64 0.22.1",
- "brotli-decompressor",
- "btls",
- "bytes",
- "chrono",
- "cpa-common",
- "cpa-core",
- "cpa-home",
- "cpa-translate",
- "flate2",
- "futures-util",
- "getrandom 0.3.4",
- "gjson",
- "http",
- "http2",
- "httpdate",
- "libc",
- "regex",
- "serde",
- "serde_json",
- "serde_yaml_ng",
- "sha2 0.10.9",
- "tiktoken-rs",
- "tokio",
- "tokio-btls",
- "tokio-tungstenite",
- "tokio-util",
- "tracing",
- "url",
- "uuid",
- "wreq",
-]
-
-[[package]]
-name = "cpa-home"
-version = "0.2.2"
-dependencies = [
- "anyhow",
- "base64 0.22.1",
- "btls",
- "chrono",
- "cpa-common",
- "cpa-core",
- "serde",
- "serde_json",
- "serde_yaml_ng",
- "sha2 0.10.9",
- "tokio",
- "tokio-btls",
- "tokio-util",
- "tracing",
- "tracing-subscriber",
- "uuid",
-]
-
-[[package]]
-name = "cpa-plugin"
-version = "0.2.2"
-dependencies = [
- "async-compression",
- "base64 0.22.1",
- "bytes",
- "chrono",
- "cpa-common",
- "cpa-core",
- "cpa-exec",
- "cpa-plugin",
- "cpa-translate",
- "flate2",
- "futures-util",
- "http",
- "libc",
- "serde_json",
- "serde_yaml_ng",
- "sha2 0.10.9",
- "tokio",
- "tokio-util",
- "tracing",
- "url",
- "wreq",
-]
-
-[[package]]
-name = "cpa-server"
-version = "0.2.2"
-dependencies = [
- "anyhow",
- "async-compression",
- "async-trait",
- "axum",
- "base64 0.22.1",
- "bcrypt",
- "btls",
- "bytes",
- "chrono",
- "cpa-common",
- "cpa-core",
- "cpa-exec",
- "cpa-plugin",
- "cpa-translate",
- "futures-util",
- "getrandom 0.3.4",
- "gjson",
- "http-body",
- "hyper",
- "hyper-util",
- "libc",
- "regex",
- "rtc",
- "serde",
- "serde_json",
- "serde_yaml_ng",
- "sha2 0.10.9",
- "socket2",
- "subtle",
- "tokio",
- "tokio-btls",
- "tower",
- "tower-service",
- "tracing",
- "tracing-subscriber",
- "url",
- "uuid",
- "webrtc",
- "windows-sys 0.61.2",
- "wreq",
- "zstd",
-]
-
-[[package]]
-name = "cpa-store"
-version = "0.2.2"
-dependencies = [
- "anyhow",
- "axum",
- "base64 0.22.1",
- "btls",
- "bytes",
- "chrono",
- "cpa-server",
- "futures-util",
- "serde",
- "serde_json",
- "sha2 0.10.9",
- "tokio",
- "tokio-btls",
- "tokio-postgres",
- "tracing",
- "url",
- "wreq",
-]
-
-[[package]]
-name = "cpa-translate"
-version = "0.2.2"
-dependencies = [
- "base64 0.22.1",
- "bytes",
- "cpa-common",
- "cpa-core",
- "rand 0.9.5",
- "regex",
- "serde_json",
- "sha2 0.10.9",
-]
 
 [[package]]
 name = "cpufeatures"
@@ -1625,6 +1389,212 @@ dependencies = [
 ]
 
 [[package]]
+name = "hr-common"
+version = "0.2.2"
+dependencies = [
+ "base64 0.22.1",
+ "flate2",
+ "gjson",
+ "hr-core",
+ "http",
+ "memchr",
+ "serde_json",
+ "serde_yaml_ng",
+ "sha2 0.10.9",
+ "tokio",
+]
+
+[[package]]
+name = "hr-core"
+version = "0.2.2"
+dependencies = [
+ "anyhow",
+ "base64 0.22.1",
+ "bcrypt",
+ "bytes",
+ "futures-util",
+ "http",
+ "serde",
+ "serde_json",
+ "serde_yaml_ng",
+ "sha2 0.10.9",
+ "tracing",
+ "yaml-edit",
+]
+
+[[package]]
+name = "hr-exec"
+version = "0.2.2"
+dependencies = [
+ "async-compression",
+ "axum",
+ "base64 0.22.1",
+ "brotli-decompressor",
+ "btls",
+ "bytes",
+ "chrono",
+ "flate2",
+ "futures-util",
+ "getrandom 0.3.4",
+ "gjson",
+ "hr-common",
+ "hr-core",
+ "hr-home",
+ "hr-translate",
+ "http",
+ "http2",
+ "httpdate",
+ "libc",
+ "regex",
+ "serde",
+ "serde_json",
+ "serde_yaml_ng",
+ "sha2 0.10.9",
+ "tiktoken-rs",
+ "tokio",
+ "tokio-btls",
+ "tokio-tungstenite",
+ "tokio-util",
+ "tracing",
+ "url",
+ "uuid",
+ "wreq",
+]
+
+[[package]]
+name = "hr-home"
+version = "0.2.2"
+dependencies = [
+ "anyhow",
+ "base64 0.22.1",
+ "btls",
+ "chrono",
+ "hr-common",
+ "hr-core",
+ "serde",
+ "serde_json",
+ "serde_yaml_ng",
+ "sha2 0.10.9",
+ "tokio",
+ "tokio-btls",
+ "tokio-util",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
+name = "hr-plugin"
+version = "0.2.2"
+dependencies = [
+ "async-compression",
+ "base64 0.22.1",
+ "bytes",
+ "chrono",
+ "flate2",
+ "futures-util",
+ "hr-common",
+ "hr-core",
+ "hr-exec",
+ "hr-plugin",
+ "hr-translate",
+ "http",
+ "libc",
+ "serde_json",
+ "serde_yaml_ng",
+ "sha2 0.10.9",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "url",
+ "wreq",
+]
+
+[[package]]
+name = "hr-server"
+version = "0.2.2"
+dependencies = [
+ "anyhow",
+ "async-compression",
+ "async-trait",
+ "axum",
+ "base64 0.22.1",
+ "bcrypt",
+ "btls",
+ "bytes",
+ "chrono",
+ "futures-util",
+ "getrandom 0.3.4",
+ "gjson",
+ "hr-common",
+ "hr-core",
+ "hr-exec",
+ "hr-plugin",
+ "hr-translate",
+ "http-body",
+ "hyper",
+ "hyper-util",
+ "libc",
+ "regex",
+ "rtc",
+ "serde",
+ "serde_json",
+ "serde_yaml_ng",
+ "sha2 0.10.9",
+ "socket2",
+ "subtle",
+ "tokio",
+ "tokio-btls",
+ "tower",
+ "tower-service",
+ "tracing",
+ "tracing-subscriber",
+ "url",
+ "uuid",
+ "webrtc",
+ "windows-sys 0.61.2",
+ "wreq",
+ "zstd",
+]
+
+[[package]]
+name = "hr-store"
+version = "0.2.2"
+dependencies = [
+ "anyhow",
+ "axum",
+ "base64 0.22.1",
+ "btls",
+ "bytes",
+ "chrono",
+ "futures-util",
+ "hr-server",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "tokio",
+ "tokio-btls",
+ "tokio-postgres",
+ "tracing",
+ "url",
+ "wreq",
+]
+
+[[package]]
+name = "hr-translate"
+version = "0.2.2"
+dependencies = [
+ "base64 0.22.1",
+ "bytes",
+ "hr-common",
+ "hr-core",
+ "rand 0.9.5",
+ "regex",
+ "serde_json",
+ "sha2 0.10.9",
+]
+
+[[package]]
 name = "http"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1731,6 +1701,36 @@ dependencies = [
  "pin-project-lite",
  "tokio",
  "tower-service",
+]
+
+[[package]]
+name = "hyperrouter"
+version = "0.2.2"
+dependencies = [
+ "anyhow",
+ "axum",
+ "clap",
+ "futures-util",
+ "getrandom 0.3.4",
+ "hr-common",
+ "hr-core",
+ "hr-exec",
+ "hr-home",
+ "hr-plugin",
+ "hr-server",
+ "hr-store",
+ "http-body",
+ "libc",
+ "ratatui",
+ "serde_json",
+ "serde_yaml_ng",
+ "socket2",
+ "tokio",
+ "tokio-util",
+ "tower",
+ "tracing",
+ "url",
+ "wreq",
 ]
 
 [[package]]

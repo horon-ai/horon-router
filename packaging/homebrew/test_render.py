@@ -16,9 +16,9 @@ TARGETS = (
 
 class RenderTest(unittest.TestCase):
     def setUp(self):
-        self.template = Path(__file__).with_name("cliproxy-rs.rb").read_text()
+        self.template = Path(__file__).with_name("hyper-router.rb").read_text()
         self.checksums = "\n".join(
-            f"{str(index) * 64}  cliproxy-1.2.3-{target}.tar.gz"
+            f"{str(index) * 64}  hyperrouter-1.2.3-{target}.tar.gz"
             for index, target in enumerate(TARGETS, 1)
         )
 
@@ -26,7 +26,7 @@ class RenderTest(unittest.TestCase):
         formula = render("v1.2.3", self.checksums, self.template)
         self.assertNotIn("@VERSION@", formula)
         for index, target in enumerate(TARGETS, 1):
-            self.assertIn(f'cliproxy-1.2.3-{target}.tar.gz"\n      sha256 "{str(index) * 64}"', formula)
+            self.assertIn(f'hyperrouter-1.2.3-{target}.tar.gz"\n      sha256 "{str(index) * 64}"', formula)
 
     def test_rejects_bad_release_metadata(self):
         for tag, checksums in (
@@ -42,7 +42,7 @@ class RenderTest(unittest.TestCase):
 
     def test_existing_formula_never_downgrades_and_equal_versions_retry(self):
         with tempfile.TemporaryDirectory() as directory:
-            output = Path(directory) / "cliproxy-rs.rb"
+            output = Path(directory) / "hyper-router.rb"
             sums = Path(directory) / "SHA256SUMS"
             sums.write_text(self.checksums)
             for installed in ("1.10.0", "2.0.0", "1.2.4", "1.2.3", "1.2.2"):

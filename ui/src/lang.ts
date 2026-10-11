@@ -1,6 +1,6 @@
 import { detect, translator, type Key, type Lang, type Params, type Tr } from "./i18n.ts";
 
-const STORE = "cliproxy-lang";
+const STORE = "hyperrouter-lang";
 const books = { en: translator("en"), ko: translator("ko") };
 const saved = () => {
   try {

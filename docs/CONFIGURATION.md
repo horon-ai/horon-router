@@ -2,7 +2,7 @@
 
 > 이 문서에서 알 수 있는 것: `config.yaml`에 넣을 수 있는 설정과 각 설정이 하는 일.
 
-cliproxy-rs는 YAML 파일 하나, `config.yaml`을 읽습니다. 파일 경로는 `--config`로 넘깁니다. 넘기지 않으면 서버는 현재 디렉터리의 `config.yaml`을 읽습니다. CLIProxyAPI의 v8 구조(여기서 보여 주는 형태)와 예전의 평면 구조를 모두 받아들이고, CLIProxyAPI의 [`config.example.yaml`](https://github.com/router-for-me/CLIProxyAPI/blob/6fecc6e5567912661654a4eaf9b8f5436facd1c2/config.example.yaml)에 있는 설정도 모두 받아들입니다. 아직 이식하지 않은 기능의 설정은 파일에 남아 있어도 아무 효과가 없습니다.
+hyper-router는 YAML 파일 하나, `config.yaml`을 읽습니다. 파일 경로는 `--config`로 넘깁니다. 넘기지 않으면 서버는 현재 디렉터리의 `config.yaml`을 읽습니다. CLIProxyAPI의 v8 구조(여기서 보여 주는 형태)와 예전의 평면 구조를 모두 받아들이고, CLIProxyAPI의 [`config.example.yaml`](https://github.com/router-for-me/CLIProxyAPI/blob/6fecc6e5567912661654a4eaf9b8f5436facd1c2/config.example.yaml)에 있는 설정도 모두 받아들입니다. 아직 이식하지 않은 기능의 설정은 파일에 남아 있어도 아무 효과가 없습니다.
 
 서버는 이 파일을 지켜봅니다. 대부분의 변경은 재시작 없이 1초 안에 반영됩니다. `server.host`, `server.port`, `server.tls`, `server.trusted-proxies`는 시작할 때만 읽습니다. 값을 바꾼 뒤에는 재시작하십시오. 대시보드나 관리 API가 설정을 바꾸면 그 키만 다시 씁니다. 주석까지 포함한 나머지 부분은 그대로 남습니다.
 
@@ -20,7 +20,7 @@ access:
 management:
   secret-key: "your-management-key"
 oauth:
-  auth-dir: "~/.cliproxy-rs/auth"
+  auth-dir: "~/.hyper-router/auth"
 routing:
   strategy: round-robin
   session-affinity: true
@@ -63,7 +63,7 @@ observability:
 | 설정 | 하는 일 |
 |---|---|
 | `auth-dir` | 계정 로그인 파일을 두는 폴더입니다. 기본값은 `~/.cli-proxy-api`입니다. `~`는 실제 경로로 확장됩니다. 서버가 이 폴더를 지켜보므로 파일을 추가하거나 고치거나 지우면 재시작 없이 반영됩니다. |
-| `providers.codex.chatgpt-keep-alive` | cliproxy-rs가 더한 설정입니다. 기본값은 `false`입니다. `true`이면 프록시마다 `chatgpt.com`으로 가는 유휴 연결을 최대 2개까지 90초 동안 유지합니다. 그래서 Codex HTTP 요청이 TCP와 TLS 핸드셰이크를 건너뜁니다. 끄면 CLIProxyAPI와 마찬가지로 Codex 요청마다 자기 연결을 새로 엽니다. 값을 바꾸면 재시작 없이 다음 요청부터 적용됩니다. Go는 파일에 이 키가 있어도 무시하고 시작합니다. Go의 v8 관리 API로 설정을 수정하면 이 키가 주석으로 옮겨집니다. 그래서 cliproxy-rs로 돌아오면 설정이 다시 꺼진 상태가 됩니다. Go의 v0 엔드포인트로 수정하면 이 키가 그대로 남습니다. Go의 v8 API로 이 키를 설정하면 Go가 모르는 다른 키와 마찬가지로 거부됩니다. |
+| `providers.codex.chatgpt-keep-alive` | hyper-router가 더한 설정입니다. 기본값은 `false`입니다. `true`이면 프록시마다 `chatgpt.com`으로 가는 유휴 연결을 최대 2개까지 90초 동안 유지합니다. 그래서 Codex HTTP 요청이 TCP와 TLS 핸드셰이크를 건너뜁니다. 끄면 CLIProxyAPI와 마찬가지로 Codex 요청마다 자기 연결을 새로 엽니다. 값을 바꾸면 재시작 없이 다음 요청부터 적용됩니다. Go는 파일에 이 키가 있어도 무시하고 시작합니다. Go의 v8 관리 API로 설정을 수정하면 이 키가 주석으로 옮겨집니다. 그래서 hyper-router로 돌아오면 설정이 다시 꺼진 상태가 됩니다. Go의 v0 엔드포인트로 수정하면 이 키가 그대로 남습니다. Go의 v8 API로 이 키를 설정하면 Go가 모르는 다른 키와 마찬가지로 거부됩니다. |
 
 <a id="api-keys"></a>
 ## API 키
@@ -98,7 +98,7 @@ api-keys:
 | `cooldown.disable-cooling` | `true`이면 실패한 계정을 쉬게 하지 않고 순환에 계속 둡니다. |
 | `cooldown.transient-error-cooldown-seconds` | 일시적인 업스트림(요청을 실제로 받아 처리하는 제공자 서버) 오류 뒤에 계정을 쉬게 하는 시간입니다. `0`이면 60초이고, 음수면 이 기능을 끕니다. |
 | `cooldown.save-cooldown-status` | `true`이면 쿨다운을 `auth-dir`의 `.cds` 파일에 남깁니다. 재시작해도 잊지 않습니다. |
-| `cooldown.max-trusted-cooldown` | cliproxy-rs가 더한 설정입니다. 계정이 사용 한도에 닿으면 제공자가 초기화 시점을 알려 줍니다. 며칠 뒤일 때도 있고, 계정은 그때까지 쉽니다. 제공자가 예고보다 일찍 초기화하는 일이 잦습니다. 그래서 cliproxy-rs는 알려 준 시간을 최대 이 값만큼만 믿습니다(기본값 `"1h"`. Go 기간 형식인 `"90m"`이나 초를 뜻하는 숫자도 쓸 수 있습니다. 최소 10초입니다). 그 뒤에는 다음 요청을 통과시켜 확인합니다. 그래도 한도가 남아 있으면 다음 휴식은 두 배가 되고, 알려 준 초기화 시점을 넘지 않습니다. `0`이면 CLIProxyAPI처럼 알려 준 초기화 시점을 그대로 믿습니다. 읽을 수 없는 값은 로그에 남기고 기본값을 씁니다. [Go와 다른 점](DIFFERENCES-FROM-GO.md#deliberate-differences)을 보십시오. |
+| `cooldown.max-trusted-cooldown` | hyper-router가 더한 설정입니다. 계정이 사용 한도에 닿으면 제공자가 초기화 시점을 알려 줍니다. 며칠 뒤일 때도 있고, 계정은 그때까지 쉽니다. 제공자가 예고보다 일찍 초기화하는 일이 잦습니다. 그래서 hyper-router는 알려 준 시간을 최대 이 값만큼만 믿습니다(기본값 `"1h"`. Go 기간 형식인 `"90m"`이나 초를 뜻하는 숫자도 쓸 수 있습니다. 최소 10초입니다). 그 뒤에는 다음 요청을 통과시켜 확인합니다. 그래도 한도가 남아 있으면 다음 휴식은 두 배가 되고, 알려 준 초기화 시점을 넘지 않습니다. `0`이면 CLIProxyAPI처럼 알려 준 초기화 시점을 그대로 믿습니다. 읽을 수 없는 값은 로그에 남기고 기본값을 씁니다. [Go와 다른 점](DIFFERENCES-FROM-GO.md#deliberate-differences)을 보십시오. |
 
 <a id="optional-preset-fail-over-only-on-429"></a>
 ### 선택 프리셋: 429일 때만 다른 계정으로 전환
@@ -145,11 +145,11 @@ Claude 계정은 `HTTPS_PROXY`와 `HTTP_PROXY`를 무시합니다. 프록시를 
 <a id="worker-threads"></a>
 ## 작업 스레드
 
-최상위의 `worker-threads: 4`는 요청을 처리하는 스레드 수를 정합니다. 지정하지 않으면 cliproxy-rs는 CPU 개수와 2 중 작은 값을 씁니다. 한 사람이 쓰기에는 충분합니다. 프롬프트가 300 KB인 코딩 에이전트 요청은 CPU를 약 20~30 ms 쓰고(작은 채팅 요청은 약 1 ms), 요청 시간의 대부분은 제공자를 기다리는 데 쓰입니다. 스레드가 하나 늘 때마다 해제한 메모리를 자기 풀로 따로 가질 수 있습니다. 그래서 스레드가 많을수록 상주 메모리 크기가 커집니다. `TOKIO_WORKER_THREADS` 환경 변수가 이 값을 덮어씁니다.
+최상위의 `worker-threads: 4`는 요청을 처리하는 스레드 수를 정합니다. 지정하지 않으면 hyper-router는 CPU 개수와 2 중 작은 값을 씁니다. 한 사람이 쓰기에는 충분합니다. 프롬프트가 300 KB인 코딩 에이전트 요청은 CPU를 약 20~30 ms 쓰고(작은 채팅 요청은 약 1 ms), 요청 시간의 대부분은 제공자를 기다리는 데 쓰입니다. 스레드가 하나 늘 때마다 해제한 메모리를 자기 풀로 따로 가질 수 있습니다. 그래서 스레드가 많을수록 상주 메모리 크기가 커집니다. `TOKIO_WORKER_THREADS` 환경 변수가 이 값을 덮어씁니다.
 
 이 키는 시작할 때 `-config` 파일(기본값 `./config.yaml`)에서 한 번 읽습니다. 원격 저장소(`PGSTORE_*`, `OBJECTSTORE_*`, `GITSTORE_*`)나 Home이 설정을 넘겨주기 전에 읽습니다. 저장소의 `config.yaml`이나 Home이 넘긴 설정에서는 효과가 없습니다. 로컬 `-config` 파일은 그대로 적용됩니다. 그런 곳에서는 `TOKIO_WORKER_THREADS`를 설정하십시오. 그곳의 값이 실행 중인 스레드 수와 다르면 경고를 로그에 남깁니다.
 
-이 설정은 cliproxy-rs에만 있습니다. CLIProxyAPI는 파일에 이 키가 있어도 시작하고 v0 관리 API 저장을 거쳐도 유지합니다. 하지만 v8 설정 쓰기는 이 키를 주석으로 만들고, 이 키가 들어 있는 `config.yaml` 전체를 올리면 거부됩니다. 두 서버가 설정을 공유한다면 `TOKIO_WORKER_THREADS`를 쓰십시오. [DIFFERENCES-FROM-GO.md](DIFFERENCES-FROM-GO.md)를 보십시오.
+이 설정은 hyper-router에만 있습니다. CLIProxyAPI는 파일에 이 키가 있어도 시작하고 v0 관리 API 저장을 거쳐도 유지합니다. 하지만 v8 설정 쓰기는 이 키를 주석으로 만들고, 이 키가 들어 있는 `config.yaml` 전체를 올리면 거부됩니다. 두 서버가 설정을 공유한다면 `TOKIO_WORKER_THREADS`를 쓰십시오. [DIFFERENCES-FROM-GO.md](DIFFERENCES-FROM-GO.md)를 보십시오.
 
 <a id="environment"></a>
 ## 환경 변수

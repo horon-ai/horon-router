@@ -4,13 +4,13 @@ require "tmpdir"
 require "yaml"
 
 formula = Formulary.factory(ARGV.fetch(0))
-expected_command = [formula.opt_bin/"cliproxy", "--config", formula.etc/"cliproxy-rs/config.yaml"].map(&:to_s)
+expected_command = [formula.opt_bin/"hyperrouter", "--config", formula.etc/"hyper-router/config.yaml"].map(&:to_s)
 raise "service does not pass config" unless formula.service.run == expected_command
 raise "background service type" unless formula.service.run_type == :immediate
 
-Dir.mktmpdir("cliproxy-homebrew-test") do |directory|
+Dir.mktmpdir("hyperrouter-homebrew-test") do |directory|
   formula.define_singleton_method(:etc) { Pathname(directory) }
-  config_dir = Pathname(directory)/"cliproxy-rs"
+  config_dir = Pathname(directory)/"hyper-router"
   config = config_dir/"config.yaml"
   keys_file = config_dir/"keys.env"
 
@@ -19,8 +19,8 @@ Dir.mktmpdir("cliproxy-homebrew-test") do |directory|
   keys = keys_file.read.lines.to_h { |line| line.strip.split("=", 2) }
   raise "not localhost-only" unless settings.fetch("server") == { "host" => "127.0.0.1", "port" => 8317 }
   raise "remote management enabled" unless settings.fetch("management").fetch("allow-remote") == false
-  client_key = keys.fetch("CLIPROXY_CLIENT_KEY")
-  management_key = keys.fetch("CLIPROXY_MANAGEMENT_KEY")
+  client_key = keys.fetch("HYPERROUTER_CLIENT_KEY")
+  management_key = keys.fetch("HYPERROUTER_MANAGEMENT_KEY")
   raise "invalid client key" unless client_key.match?(/\A[0-9a-f]{48}\z/)
   raise "invalid management key" unless management_key.match?(/\A[0-9a-f]{48}\z/)
   raise "keys match" if client_key == management_key
@@ -70,7 +70,7 @@ end
 formula_workflow = YAML.safe_load_file(".github/workflows/homebrew.yml")
 checkout = formula_workflow.fetch("jobs").fetch("formula").fetch("steps").first.fetch("uses")
 raise "mutable formula checkout" unless checkout.match?(/\Aactions\/checkout@[0-9a-f]{40}\z/)
-Dir.mktmpdir("cliproxy-release-test") do |directory|
+Dir.mktmpdir("hyperrouter-release-test") do |directory|
   ["", "test-token"].each do |token|
     output = Pathname(directory)/"output"
     output.unlink if output.exist?

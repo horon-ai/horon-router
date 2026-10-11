@@ -58,7 +58,7 @@ export const session = {
   get theme() { return state.theme; },
   get meta() { return state.meta; },
   get kind(): "rust" | "go" | "unknown" {
-    return state.meta.version.startsWith("cliproxy-rs") ? "rust" : state.meta.commit || state.meta.built ? "go" : "unknown";
+    return state.meta.version.startsWith("hyper-router") ? "rust" : state.meta.commit || state.meta.built ? "go" : "unknown";
   },
   get online() { return state.online; },
   get busy() { return state.busy; },
@@ -118,7 +118,7 @@ export const session = {
     const theme = state.theme === "dark" ? "light" : "dark";
     document.documentElement.dataset.theme = theme;
     update({ theme });
-    try { localStorage.setItem("cliproxy-theme", theme); } catch {}
+    try { localStorage.setItem("hyperrouter-theme", theme); } catch {}
   },
   notify(text: string, bad = false) {
     update({ toast: { text, bad } });

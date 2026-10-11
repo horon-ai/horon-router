@@ -30,7 +30,7 @@ const errors = [];
 
 async function open(url, device, theme) {
   const context = await browser.newContext({ ...device, colorScheme: theme });
-  await context.addInitScript((t) => localStorage.setItem("cliproxy-theme", t), theme);
+  await context.addInitScript((t) => localStorage.setItem("hyperrouter-theme", t), theme);
   const page = await context.newPage();
   page.on("pageerror", (e) => errors.push(String(e)));
   await page.goto(url);
@@ -186,7 +186,7 @@ try {
   }
   pass("after setup: Get started is gone and the overview shows traffic, in both themes and on a phone");
   const storage = await page.evaluate(() => ({ local: Object.keys(localStorage), session: Object.keys(sessionStorage) }));
-  assert.ok(storage.local.every((key) => ["cliproxy-theme", "cliproxy-lang"].includes(key)), JSON.stringify(storage.local));
+  assert.ok(storage.local.every((key) => ["hyperrouter-theme", "hyperrouter-lang"].includes(key)), JSON.stringify(storage.local));
   assert.deepEqual(storage.session, []);
   assert.deepEqual(errors, []);
   pass("no page errors");

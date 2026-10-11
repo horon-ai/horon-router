@@ -40,20 +40,20 @@ jobs:
           sys.path.insert(0, "packaging/homebrew")
           from render import render
           checksums = "\n".join(
-              f"{'1' * 64}  cliproxy-1.2.3-{target}.tar.gz"
+              f"{'1' * 64}  hyperrouter-1.2.3-{target}.tar.gz"
               for target in (
                   "aarch64-apple-darwin", "x86_64-apple-darwin",
                   "aarch64-unknown-linux-gnu", "x86_64-unknown-linux-gnu",
               )
           )
           tap = Path(subprocess.check_output(["brew", "--repository", "vayungodara/tap"], text=True).strip())
-          template = Path("packaging/homebrew/cliproxy-rs.rb").read_text()
-          (tap / "Formula/cliproxy-rs.rb").write_text(render("v1.2.3", checksums, template))
+          template = Path("packaging/homebrew/hyper-router.rb").read_text()
+          (tap / "Formula/hyper-router.rb").write_text(render("v1.2.3", checksums, template))
           PY
       - name: Style and offline audit (no binary build or install)
         run: |
           # Retain post_install for older Homebrew; only its deprecation cop is excluded.
-          brew style --except-cops FormulaAudit/InstallSteps "$(brew --repository vayungodara/tap)/Formula/cliproxy-rs.rb"
-          brew audit --skip-style --formula vayungodara/tap/cliproxy-rs
+          brew style --except-cops FormulaAudit/InstallSteps "$(brew --repository vayungodara/tap)/Formula/hyper-router.rb"
+          brew audit --skip-style --formula vayungodara/tap/hyper-router
       - name: Test config creation without starting the server
-        run: brew ruby packaging/homebrew/test_formula.rb vayungodara/tap/cliproxy-rs
+        run: brew ruby packaging/homebrew/test_formula.rb vayungodara/tap/hyper-router

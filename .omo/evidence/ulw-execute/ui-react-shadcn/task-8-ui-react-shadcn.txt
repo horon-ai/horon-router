@@ -1,5 +1,5 @@
 Task 8: React app shell, login, hash navigation, toast and theme
-Worktree: /Users/alpox/Desktop/dev/cliproxyapi-wt/ui-react-shadcn-wave1
+Worktree: /Users/alpox/Desktop/dev/hyper-router-wt/ui-react-shadcn-wave1
 
 Verification:
 - Vite build with --outDir .task8-build: exit 0; routeTree.gen.ts regenerated with all 13 pages, credential detail and aliases.

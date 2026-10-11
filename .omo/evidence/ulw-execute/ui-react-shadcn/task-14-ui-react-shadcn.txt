@@ -1,5 +1,5 @@
 Task 14: React dashboard dist and single-file Go panel
-Worktree: /Users/alpox/Desktop/dev/cliproxyapi-wt/ui-react-shadcn-wave1
+Worktree: /Users/alpox/Desktop/dev/hyper-router-wt/ui-react-shadcn-wave1
 
 Verification:
 - find ui/src -type f with *.svelte / *.svelte.ts: zero files.

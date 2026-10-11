@@ -1,27 +1,27 @@
 #!/bin/sh
-# Installs cliproxy-rs on macOS or Linux, sets it up and starts it.
+# Installs hyper-router on macOS or Linux, sets it up and starts it.
 #
-#   curl -fsSL https://raw.githubusercontent.com/alpoxdev/cliproxyapi/dev/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/alpoxdev/hyper-router/dev/install.sh | sh
 #
 # The first run downloads the release for this machine, checks it against the release's
-# SHA256SUMS and installs ~/.local/bin/cliproxy. It writes ~/.cliproxy-rs/config.yaml with
+# SHA256SUMS and installs ~/.local/bin/hyperrouter. It writes ~/.hyper-router/config.yaml with
 # a free port (8317, or the next free one) and new keys, which it saves in
-# ~/.cliproxy-rs/keys.env (mode 600) and never prints. Then it starts the server in the
+# ~/.hyper-router/keys.env (mode 600) and never prints. Then it starts the server in the
 # background and checks that it answers. Running it again upgrades the binary and
 # restarts the server; an existing config.yaml or keys.env is never changed.
 #
 # Options (when piping, pass them as: sh -s -- --service):
-#   --service      also start cliproxy-rs at login, with a systemd user unit or a launchd agent
+#   --service      also start hyper-router at login, with a systemd user unit or a launchd agent
 #   --binary-only  only install or upgrade the binary
 #   --check        report installed and available versions without changing anything
 #
 # Environment:
-#   CLIPROXY_VERSION      release tag to install, such as v0.1.0 (default: the latest)
-#   CLIPROXY_INSTALL_DIR  where the binary goes (default: $HOME/.local/bin)
-#   CLIPROXY_HOME         config, keys, credentials and log (default: $HOME/.cliproxy-rs)
-#   CLIPROXY_NO_OPEN=1    never open a browser
-#   CLIPROXY_RELEASES     release page base URL, for mirrors and tests
-#                         (default: https://github.com/alpoxdev/cliproxyapi/releases)
+#   HYPERROUTER_VERSION      release tag to install, such as v0.1.0 (default: the latest)
+#   HYPERROUTER_INSTALL_DIR  where the binary goes (default: $HOME/.local/bin)
+#   HYPERROUTER_HOME         config, keys, credentials and log (default: $HOME/.hyper-router)
+#   HYPERROUTER_NO_OPEN=1    never open a browser
+#   HYPERROUTER_RELEASES     release page base URL, for mirrors and tests
+#                         (default: https://github.com/alpoxdev/hyper-router/releases)
 set -eu
 
 fail() {
@@ -31,17 +31,17 @@ fail() {
 
 # Everything runs from main, so a download cut short cannot run half a script.
 main() {
-  releases="${CLIPROXY_RELEASES:-https://github.com/alpoxdev/cliproxyapi/releases}"
-  dir="${CLIPROXY_INSTALL_DIR:-$HOME/.local/bin}"
-  home="${CLIPROXY_HOME:-$HOME/.cliproxy-rs}"
-  bin="$dir/cliproxy"
-  config="$home/config.yaml" keys="$home/keys.env" log="$home/cliproxy.log" pidfile="$home/cliproxy.pid"
-  label=io.github.vayungodara.cliproxy-rs
+  releases="${HYPERROUTER_RELEASES:-https://github.com/alpoxdev/hyper-router/releases}"
+  dir="${HYPERROUTER_INSTALL_DIR:-$HOME/.local/bin}"
+  home="${HYPERROUTER_HOME:-$HOME/.hyper-router}"
+  bin="$dir/hyperrouter"
+  config="$home/config.yaml" keys="$home/keys.env" log="$home/hyperrouter.log" pidfile="$home/hyperrouter.pid"
+  label=io.github.vayungodara.hyper-router
   os=$(uname -s)
   if [ "$os" = Darwin ]; then
     unit="$HOME/Library/LaunchAgents/$label.plist"
   else
-    unit="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user/cliproxy.service"
+    unit="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user/hyperrouter.service"
   fi
 
   setup=1 service='' check='' requested_service=''
@@ -65,22 +65,22 @@ main() {
     *) fail "there is no release binary for $os $(uname -m); build from source (docs/INSTALL.md)" ;;
   esac
 
-  tag="${CLIPROXY_VERSION:-}"
+  tag="${HYPERROUTER_VERSION:-}"
   if [ -z "$tag" ]; then
     # /releases/latest redirects to /releases/tag/<tag> once a release exists.
     latest=$(curl -fsSLI --retry 3 -o /dev/null -w '%{url_effective}' "$releases/latest") || fail "cannot reach $releases"
     tag=${latest##*/tag/}
     [ "$tag" != "$latest" ] || fail "no release is published yet; build from source (docs/INSTALL.md)"
   fi
-  name="cliproxy-${tag#v}-$target"
+  name="hyperrouter-${tag#v}-$target"
 
   installed=$([ ! -x "$bin" ] || "$bin" --version 2>/dev/null | tail -n 1)
   current=
-  [ "$installed" != "cliproxy ${tag#v}" ] || current=1
+  [ "$installed" != "hyperrouter ${tag#v}" ] || current=1
   if [ -n "$current" ]; then
-    printf 'cliproxy %s is already current.\n' "${tag#v}"
+    printf 'hyperrouter %s is already current.\n' "${tag#v}"
   else
-    printf 'Installed: %s; available: cliproxy %s\n' "${installed:-not installed}" "${tag#v}"
+    printf 'Installed: %s; available: hyperrouter %s\n' "${installed:-not installed}" "${tag#v}"
   fi
   [ -z "$check" ] || return 0
   # A current file is not enough after --binary-only or an interrupted upgrade.
@@ -94,7 +94,7 @@ main() {
       elif [ ! "$bin" -nt "$unit" ]; then
         if [ "$os" = Darwin ]; then
           if launchctl print "gui/$(id -u)/$label" 2>/dev/null | grep -q 'state = running'; then return 0; fi
-        elif systemctl --user is-active --quiet cliproxy.service; then
+        elif systemctl --user is-active --quiet hyperrouter.service; then
           return 0
         fi
       fi
@@ -105,7 +105,7 @@ main() {
       fail "systemd user services are not available here; run this without --service"
   fi
   backup=
-  [ ! -f "$dir/cliproxy.prev" ] || backup=1
+  [ ! -f "$dir/hyperrouter.prev" ] || backup=1
   staged=
   if [ -z "$current" ]; then
     tmp=$(mktemp -d)
@@ -124,12 +124,12 @@ main() {
     tar -xzf "$tmp/$name.tar.gz" -C "$tmp"
     mkdir -p "$dir"
     # Renamed into place, so a running server keeps its old binary until it restarts.
-    install -m 0755 "$tmp/$name/cliproxy" "$dir/.cliproxy.new"
+    install -m 0755 "$tmp/$name/hyperrouter" "$dir/.hyperrouter.new"
     staged=1
   fi
   case ":$PATH:" in
     *":$dir:"*) ;;
-    *) printf 'Add %s to your PATH to run cliproxy by name.\n' "$dir" ;;
+    *) printf 'Add %s to your PATH to run hyperrouter by name.\n' "$dir" ;;
   esac
   if [ -z "$setup" ]; then
     swap_binary || fail "could not replace $bin"
@@ -147,11 +147,11 @@ main() {
     done
     client="sk-$(random_hex)" management=$(random_hex)
     cat >"$keys" <<EOF
-# cliproxy-rs keys. Sign in to the dashboard with CLIPROXY_MANAGEMENT_KEY;
-# your tools send CLIPROXY_CLIENT_KEY. Keep this file private.
-CLIPROXY_PORT=$port
-CLIPROXY_CLIENT_KEY=$client
-CLIPROXY_MANAGEMENT_KEY=$management
+# hyper-router keys. Sign in to the dashboard with HYPERROUTER_MANAGEMENT_KEY;
+# your tools send HYPERROUTER_CLIENT_KEY. Keep this file private.
+HYPERROUTER_PORT=$port
+HYPERROUTER_CLIENT_KEY=$client
+HYPERROUTER_MANAGEMENT_KEY=$management
 EOF
     cat >"$config" <<EOF
 # Written by install.sh. The plain keys are in keys.env next to this file.
@@ -207,7 +207,7 @@ EOF
       mkdir -p "$(dirname "$unit")" || return 1
       cat >"$unit" <<EOF || return 1
 [Unit]
-Description=cliproxy-rs
+Description=hyper-router
 
 [Service]
 ExecStart="$bin" --config "$config"
@@ -220,25 +220,25 @@ Restart=on-failure
 WantedBy=default.target
 EOF
       systemctl --user daemon-reload || return 1
-      systemctl --user enable --quiet cliproxy.service || return 1
-      systemctl --user restart cliproxy.service || return 1
-      how="systemctl --user disable --now cliproxy"
+      systemctl --user enable --quiet hyperrouter.service || return 1
+      systemctl --user restart hyperrouter.service || return 1
+      how="systemctl --user disable --now hyperrouter"
     fi
     return 0
   }
   swap_binary || upgrade_failed "could not replace $bin"
-  start_server || upgrade_failed "could not stop or start cliproxy-rs; see $log"
-  wait_healthy || upgrade_failed "cliproxy-rs did not start and answer at $base; see $log"
+  start_server || upgrade_failed "could not stop or start hyper-router; see $log"
+  wait_healthy || upgrade_failed "hyper-router did not start and answer at $base; see $log"
 
   url="$base/management.html"
-  printf '\ncliproxy-rs is running at %s\n' "$base"
+  printf '\nhyper-router is running at %s\n' "$base"
   printf '  Dashboard  %s\n' "$url"
   [ ! -f "$keys" ] || printf '  Keys       %s (show them with: cat %s)\n' "$keys" "$keys"
   printf '  Config     %s\n  Log        %s\n  Stop       %s\n' "$config" "$log" "$how"
   [ -n "$service" ] || printf 'It runs until this computer restarts. Run this again with --service to start it at login.\n'
 
   opened=
-  if [ -t 1 ] && [ -z "${CLIPROXY_NO_OPEN:-}" ]; then
+  if [ -t 1 ] && [ -z "${HYPERROUTER_NO_OPEN:-}" ]; then
     if [ "$os" = Darwin ]; then
       open "$url" && opened=1
     elif [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ] && command -v xdg-open >/dev/null 2>&1; then
@@ -252,7 +252,7 @@ EOF
     printf 'Tailscale works too; see docs/MULTI-ACCOUNT.md.\n'
   fi
   if [ -f "$keys" ]; then
-    printf '\nNext: open the dashboard, sign in with CLIPROXY_MANAGEMENT_KEY from keys.env, and choose Connect account.\n'
+    printf '\nNext: open the dashboard, sign in with HYPERROUTER_MANAGEMENT_KEY from keys.env, and choose Connect account.\n'
   else
     printf '\nNext: open the dashboard, sign in with your management key, and choose Connect account.\n'
   fi
@@ -261,7 +261,7 @@ EOF
 # Restore the same inode the old server used, then restart using its unchanged config.
 upgrade_failed() {
   if [ -n "$backup" ]; then
-    if mv -f "$dir/cliproxy.prev" "$bin" && start_server && wait_healthy; then
+    if mv -f "$dir/hyperrouter.prev" "$bin" && start_server && wait_healthy; then
       printf 'Upgrade failed; restored the previous binary and verified it is healthy.\n' >&2
     else
       printf 'Upgrade failed; rollback failed too. The server may not be running; see %s.\n' "$log" >&2
@@ -273,11 +273,11 @@ upgrade_failed() {
 swap_binary() {
   [ -n "$staged" ] || return 0
   if [ -f "$bin" ]; then
-    rm -f "$dir/cliproxy.prev" || return 1
-    ln "$bin" "$dir/cliproxy.prev" || return 1
+    rm -f "$dir/hyperrouter.prev" || return 1
+    ln "$bin" "$dir/hyperrouter.prev" || return 1
     backup=1
   fi
-  mv -f "$dir/.cliproxy.new" "$bin" || return 1
+  mv -f "$dir/.hyperrouter.new" "$bin" || return 1
   [ "$os" != Darwin ] || xattr -d com.apple.quarantine "$bin" 2>/dev/null || true
   printf 'Installed %s at %s\n' "$("$bin" --version 2>/dev/null | tail -n 1)" "$bin"
 }
@@ -326,7 +326,7 @@ wait_healthy() {
         managed_pid && pid_running "$pid" || return 1
       elif [ "$os" = Darwin ]; then
         launchctl print "gui/$(id -u)/$label" 2>/dev/null | grep -q 'state = running' || return 1
-      else systemctl --user is-active --quiet cliproxy.service || return 1; fi
+      else systemctl --user is-active --quiet hyperrouter.service || return 1; fi
       return 0
     fi
     tries=$((tries + 1))
@@ -379,7 +379,7 @@ managed_pid() {
     # Seatbelt refuses setuid ps; bash 3.2's substitution status is not reliable.
     if ! ps -p $$ -o pid= >/dev/null 2>&1; then
       # pgrep is not setuid. Never trust liveness alone for a stale pid file.
-      pgrep -x 'cliproxy([.]prev)?' 2>/dev/null | grep -qx "$pid"
+      pgrep -x 'hyperrouter([.]prev)?' 2>/dev/null | grep -qx "$pid"
       return $?
     fi
     command=$(ps -p "$pid" -o ucomm= 2>/dev/null) || return 1
@@ -388,7 +388,7 @@ managed_pid() {
     command=$(ps -p "$pid" -o comm= 2>/dev/null) || return 1
     command=$(printf '%s\n' "$command" | sed 's/^[ ]*//;s/[ ]*$//')
   fi
-  case "$command" in cliproxy | cliproxy.prev) return 0 ;; *) return 1 ;; esac
+  case "$command" in hyperrouter | hyperrouter.prev) return 0 ;; *) return 1 ;; esac
 }
 
 pid_running() {
@@ -399,7 +399,7 @@ pid_running() {
     case "$state" in '' | Z\ *) return 1 ;; esac
   else
     if [ "$os" = Darwin ] && ! ps -p $$ -o pid= >/dev/null 2>&1; then
-      pgrep -x 'cliproxy([.]prev)?' 2>/dev/null | grep -qx "$1"
+      pgrep -x 'hyperrouter([.]prev)?' 2>/dev/null | grep -qx "$1"
       return $?
     fi
     state=$(ps -p "$1" -o stat= 2>/dev/null) || return 1

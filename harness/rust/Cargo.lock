@@ -386,11 +386,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7704b5fdd17b18ae31c4c1da5a2e0305a2bf17b5249300a9ee9ed7b72114c636"
 
 [[package]]
-name = "cpa-common"
+name = "hr-common"
 version = "0.2.2"
 dependencies = [
  "base64 0.22.1",
- "cpa-core",
+ "hr-core",
  "gjson",
  "http",
  "memchr",
@@ -401,7 +401,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "cpa-core"
+name = "hr-core"
 version = "0.2.2"
 dependencies = [
  "anyhow",
@@ -419,20 +419,20 @@ dependencies = [
 ]
 
 [[package]]
-name = "cpa-differential-driver"
+name = "hr-differential-driver"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum",
- "cpa-core",
- "cpa-exec",
- "cpa-server",
+ "hr-core",
+ "hr-exec",
+ "hr-server",
  "tokio",
  "wreq",
 ]
 
 [[package]]
-name = "cpa-exec"
+name = "hr-exec"
 version = "0.2.2"
 dependencies = [
  "async-compression",
@@ -441,10 +441,10 @@ dependencies = [
  "btls",
  "bytes",
  "chrono",
- "cpa-common",
- "cpa-core",
- "cpa-home",
- "cpa-translate",
+ "hr-common",
+ "hr-core",
+ "hr-home",
+ "hr-translate",
  "flate2",
  "futures-util",
  "getrandom 0.3.4",
@@ -468,15 +468,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "cpa-home"
+name = "hr-home"
 version = "0.2.2"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
  "btls",
  "chrono",
- "cpa-common",
- "cpa-core",
+ "hr-common",
+ "hr-core",
  "serde",
  "serde_json",
  "serde_yaml_ng",
@@ -489,17 +489,17 @@ dependencies = [
 ]
 
 [[package]]
-name = "cpa-plugin"
+name = "hr-plugin"
 version = "0.2.2"
 dependencies = [
  "async-compression",
  "base64 0.22.1",
  "bytes",
  "chrono",
- "cpa-common",
- "cpa-core",
- "cpa-exec",
- "cpa-translate",
+ "hr-common",
+ "hr-core",
+ "hr-exec",
+ "hr-translate",
  "flate2",
  "futures-util",
  "http",
@@ -515,7 +515,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "cpa-server"
+name = "hr-server"
 version = "0.2.2"
 dependencies = [
  "anyhow",
@@ -526,11 +526,11 @@ dependencies = [
  "btls",
  "bytes",
  "chrono",
- "cpa-common",
- "cpa-core",
- "cpa-exec",
- "cpa-plugin",
- "cpa-translate",
+ "hr-common",
+ "hr-core",
+ "hr-exec",
+ "hr-plugin",
+ "hr-translate",
  "futures-util",
  "getrandom 0.3.4",
  "gjson",
@@ -558,13 +558,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "cpa-translate"
+name = "hr-translate"
 version = "0.2.2"
 dependencies = [
  "base64 0.22.1",
  "bytes",
- "cpa-common",
- "cpa-core",
+ "hr-common",
+ "hr-core",
  "rand",
  "regex",
  "serde_json",

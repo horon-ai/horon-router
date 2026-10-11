@@ -15,7 +15,7 @@ function Mark() {
     <path d="M11 11h0M20 11h0M29 11h0M11 20h0M29 20h0M11 29h0M20 29h0M29 29h0"
       stroke="var(--ink-3)" strokeWidth="7" strokeLinecap="round" />
     <circle cx="20" cy="20" r="4.5" fill="var(--accent)" />
-  </svg>cliproxy-rs</>;
+  </svg>HyperRouter</>;
 }
 function Theme() {
   return <Button variant="quiet" size="round" onClick={() => session.toggleTheme()}
@@ -59,7 +59,7 @@ function AppShell() {
   });
 
   useEffect(() => {
-    document.title = `${state.logged ? t(name) : t("app.signInTitle")} · cliproxy-rs`;
+    document.title = `${state.logged ? t(name) : t("app.signInTitle")} · HyperRouter`;
   }, [state.logged, name, currentLanguage]);
   useEffect(() => {
     if (previousPage.current === page) return;
