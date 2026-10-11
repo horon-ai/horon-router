@@ -4,12 +4,35 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
+  --color-input: var(--input);
   --color-ring: var(--ring);
-  --radius-lg: var(--radius);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --radius-sm: 6px;
   --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
   --radius-full: 999px;
   --font-sans: Host, system-ui, sans-serif;
 }
@@ -21,56 +44,116 @@
   font-display: swap;
 }
 
+/* shadcn/ui neutral. Source of truth: the pen.dev canvas Foundations frame b67W7z.
+   Values are shadcn's own neutral theme; every surface carries a light and a dark value. */
 :root {
-  --body: #e8e6e1;
-  --panel: #dddad3;
-  --raised: #f4f3ef;
-  --hover: #eeece7;
-  --line: #d3cfc7;
-  --line-2: #c2bdb3;
-  --ink: #1c1b19;
-  --ink-2: #5b5850;
-  --ink-3: #8d887e;
-  --hole: #c9c5bc;
-  --accent: #f2c230;
-  --ok: #2e9150;
-  --warn: #e2771f;
-  --warn-ink: #8f4006;
-  --bad: #d23e28;
-  --bad-ink: #a93120;
-  --focus: #1c1b19;
-  --sunk: inset 0 1px 2px rgb(0 0 0 / 0.1), inset 0 0 0 1px rgb(0 0 0 / 0.04);
-  --lift: 0 1px 0 rgb(255 255 255 / 0.7) inset, 0 1px 2px rgb(0 0 0 / 0.08);
+  --background: #ffffff;
+  --foreground: #0a0a0a;
+  --card: #ffffff;
+  --card-foreground: #0a0a0a;
+  --popover: #ffffff;
+  --popover-foreground: #0a0a0a;
+  --primary: #171717;
+  --primary-foreground: #fafafa;
+  --primary-hover: #0a0a0a;
+  --secondary: #f5f5f5;
+  --secondary-foreground: #171717;
+  --muted: #f5f5f5;
+  --muted-foreground: #737373;
+  --accent: #f5f5f5;
+  --accent-foreground: #171717;
+  --accent-pressed: #0a0a0a;
+  --destructive: #e7000b;
+  --destructive-foreground: #ffffff;
+  --border: #e5e5e5;
+  --input: #e5e5e5;
+  --ring: #a1a1a1;
+  --sidebar: #fafafa;
+  --sidebar-foreground: #0a0a0a;
+  --sidebar-primary: #171717;
+  --sidebar-primary-foreground: #fafafa;
+  --sidebar-accent: #f5f5f5;
+  --sidebar-accent-foreground: #171717;
+  --sidebar-border: #e5e5e5;
+  --sidebar-ring: #a1a1a1;
+  --chart-1: #171717;
+  --chart-2: #404040;
+  --chart-3: #737373;
+  --chart-4: #a1a1a1;
+  --chart-5: #d4d4d4;
+
+  /* Product surface names, mapped onto the neutral scale. */
+  --body: var(--background);
+  --panel: var(--muted);
+  --raised: var(--card);
+  --hover: var(--accent);
+  --line: var(--border);
+  --line-2: var(--input);
+  --ink: var(--foreground);
+  --ink-2: var(--muted-foreground);
+  --ink-3: #a1a1a1;
+  --hole: #e5e5e5;
+
+  /* Three status lamps keep their semantic colour; nothing else carries hue. */
+  --ok: #00a63e;
+  --warn: #e17100;
+  --warn-ink: #bb4d00;
+  --bad: var(--destructive);
+  --bad-ink: #c10007;
+  --focus: var(--ring);
+
+  /* Flat surfaces: no inset shadow and no drop shadow. A raised key, a segmented
+     track and a card sit on one plane and are told apart by fill and a hairline. */
+  --sunk: none;
+  --lift: none;
+
   --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
-  --background: var(--body);
-  --foreground: var(--ink);
-  --primary: var(--accent);
-  --primary-foreground: #1c1b19;
-  --border: var(--line);
-  --ring: var(--focus);
   --radius: 12px;
   color-scheme: light;
 }
 [data-theme="dark"] {
-  --body: #1a1917;
-  --panel: #121110;
-  --raised: #262420;
-  --hover: #222120;
-  --line: #2e2b27;
-  --line-2: #3d3a34;
-  --ink: #ece8e0;
-  --ink-2: #a39e94;
-  --ink-3: #6f6a61;
-  --hole: #34312c;
-  --ok: #47b26b;
-  --warn: #ee8a3c;
-  --warn-ink: #ee8a3c;
-  --bad: #ec5a43;
-  --bad-ink: #f07a66;
-  --focus: #f2c230;
-  --sunk: inset 0 1px 3px rgb(0 0 0 / 0.5), inset 0 0 0 1px rgb(255 255 255 / 0.03);
-  --lift: 0 1px 0 rgb(255 255 255 / 0.05) inset, 0 1px 2px rgb(0 0 0 / 0.4);
+  --background: #0a0a0a;
+  --foreground: #fafafa;
+  --card: #171717;
+  --card-foreground: #fafafa;
+  --popover: #171717;
+  --popover-foreground: #fafafa;
+  --primary: #e5e5e5;
+  --primary-foreground: #171717;
+  --primary-hover: #d4d4d4;
+  --secondary: #262626;
+  --secondary-foreground: #fafafa;
+  --muted: #262626;
+  --muted-foreground: #a1a1a1;
+  --accent: #262626;
+  --accent-foreground: #fafafa;
+  --accent-pressed: #fafafa;
+  --destructive: #ff6467;
+  --destructive-foreground: #0a0a0a;
+  --border: #ffffff1a;
+  --input: #ffffff26;
+  --ring: #737373;
+  --sidebar: #171717;
+  --sidebar-foreground: #fafafa;
+  --sidebar-primary: #1447e6;
+  --sidebar-primary-foreground: #fafafa;
+  --sidebar-accent: #262626;
+  --sidebar-accent-foreground: #fafafa;
+  --sidebar-border: #ffffff1a;
+  --sidebar-ring: #737373;
+  --chart-1: #fafafa;
+  --chart-2: #d4d4d4;
+  --chart-3: #a1a1a1;
+  --chart-4: #737373;
+  --chart-5: #404040;
+
+  --ink-3: #525252;
+  --hole: #2b2b2b;
+  --ok: #05df72;
+  --warn: #ffb900;
+  --warn-ink: #ffb900;
+  --bad-ink: #ff6467;
   color-scheme: dark;
 }
 
@@ -89,7 +172,7 @@ body {
 }
 /* Korean wraps between words, not inside them. */
 :lang(ko) { word-break: keep-all; overflow-wrap: break-word; }
-::selection { background: var(--accent); color: #1c1b19; }
+::selection { background: var(--primary); color: var(--primary-foreground); }
 h1, h2, h3, p { margin: 0; }
 p { text-wrap: pretty; }
 h1 { font-size: 24px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.2; }
@@ -124,8 +207,8 @@ button, .key { font: inherit; }
 .key:active:not(:disabled) { transform: translateY(1px); box-shadow: var(--sunk); }
 .key:disabled, .key[aria-disabled="true"], form[inert] { opacity: 0.45; cursor: not-allowed; }
 .key.danger:disabled { color: var(--ink-2); }
-.key.primary { background: var(--accent); border-color: rgb(0 0 0 / 0.12); color: #1c1b19; }
-.key.primary:hover { background: #e8b71c; }
+.key.primary { background: var(--primary); border-color: transparent; color: var(--primary-foreground); }
+.key.primary:hover { background: var(--primary-hover); }
 .key.quiet { background: none; border-color: transparent; box-shadow: none; color: var(--ink-2); padding: 0 10px; }
 .key.quiet:hover { color: var(--ink); background: var(--hover); }
 .key.danger { color: var(--bad-ink); }
@@ -168,7 +251,6 @@ input[type="checkbox"] { width: 16px; height: 16px; margin: 0; }
 .lamp {
   flex: none; display: inline-block; width: 10px; height: 10px; border-radius: 50%;
   background: var(--ink-3);
-  box-shadow: inset 0 -1px 1px rgb(0 0 0 / 0.25), inset 0 1px 1px rgb(255 255 255 / 0.35);
 }
 .lamp.ok { background: var(--ok); }
 .lamp.warn { background: var(--warn); }
@@ -206,7 +288,7 @@ input[type="checkbox"] { width: 16px; height: 16px; margin: 0; }
 .nav a:hover { color: var(--ink); }
 .nav a:hover::before { background: var(--hole); }
 .nav a[aria-current="page"] { color: var(--ink); font-weight: 600; }
-.nav a[aria-current="page"]::before { background: var(--accent); box-shadow: inset 0 -1px 1px rgb(0 0 0 / 0.2); }
+.nav a[aria-current="page"]::before { background: var(--primary); }
 .nav small { margin-left: auto; color: var(--ink-2); font-size: 12.5px; }
 .side-foot { margin-top: auto; display: flex; gap: 4px; }
 .main { min-width: 0; display: flex; flex-direction: column; }
@@ -270,7 +352,7 @@ input[type="checkbox"] { width: 16px; height: 16px; margin: 0; }
   position: fixed; left: 50%; bottom: 24px; z-index: 10; transform: translateX(-50%);
   display: flex; align-items: center; gap: 10px; max-width: calc(100vw - 32px);
   padding: 10px 18px; border-radius: 999px; background: var(--ink); color: var(--body);
-  box-shadow: 0 8px 24px rgb(0 0 0 / 0.18); animation: rise 0.2s var(--ease);
+  animation: rise 0.2s var(--ease);
 }
 @keyframes rise { from { opacity: 0; transform: translate(-50%, 8px); } }
 
@@ -355,7 +437,7 @@ pre.code-window { margin: 0; }
 .log .warn .lvl { color: var(--warn-ink); }
 .log .error, .log .fatal { color: var(--bad-ink); }
 .request { max-height: 50vh; padding: 14px 18px; }
-select { appearance: none; padding-right: 34px; background: var(--raised) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' stroke='%238d887e' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m3 4.5 3 3 3-3'/%3E%3C/svg%3E") no-repeat right 12px center; }
+select { appearance: none; padding-right: 34px; background: var(--raised) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' stroke='%23a1a1a1' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m3 4.5 3 3 3-3'/%3E%3C/svg%3E") no-repeat right 12px center; }
 
 /* Login */
 .login { min-height: 100vh; display: grid; place-items: center; padding: 24px; }

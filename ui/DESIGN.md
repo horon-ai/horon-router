@@ -2,30 +2,33 @@
 name: cliproxy-rs Instrument
 description: The proxy drawn as a well-made device, after Rams-era Braun.
 colors:
-  light-body: "#e8e6e1"
-  light-panel: "#dddad3"
-  light-raised: "#f4f3ef"
-  light-line: "#d3cfc7"
-  light-ink: "#1c1b19"
-  light-ink-2: "#5b5850"
-  light-hole: "#c9c5bc"
-  dark-body: "#1a1917"
-  dark-panel: "#121110"
-  dark-raised: "#262420"
-  dark-line: "#2e2b27"
-  dark-ink: "#ece8e0"
-  dark-ink-2: "#a39e94"
-  dark-hole: "#2b2925"
-  accent: "#f2c230"
-  accent-pressed: "#e8b71c"
-  ok: "#2e9150 / #47b26b"
-  warn: "#e2771f / #ee8a3c"
-  bad: "#d23e28 / #ec5a43"
-  warn-text: "#8f4006 / #ee8a3c"
+  light-background: "#ffffff"
+  light-panel: "#f5f5f5"
+  light-raised: "#ffffff"
+  light-line: "#e5e5e5"
+  light-ink: "#0a0a0a"
+  light-ink-2: "#737373"
+  light-hole: "#e5e5e5"
+  dark-background: "#0a0a0a"
+  dark-panel: "#262626"
+  dark-raised: "#171717"
+  dark-line: "#ffffff1a"
+  dark-ink: "#fafafa"
+  dark-ink-2: "#a1a1a1"
+  dark-hole: "#2b2b2b"
+  primary: "#171717 / #e5e5e5"
+  primary-foreground: "#fafafa / #171717"
+  ring: "#a1a1a1 / #737373"
+  ok: "#00a63e / #05df72"
+  warn: "#e17100 / #ffb900"
+  bad: "#e7000b / #ff6467"
+  warn-text: "#bb4d00 / #ffb900"
 rounded:
-  key: "999px"
+  sm: "6px"
   field: "8px"
   window: "12px"
+  lg: "16px"
+  key: "999px"
 typography:
   ui:
     fontFamily: "Host"
@@ -39,7 +42,7 @@ typography:
 
 The dashboard is drawn as the face of a calm, precise device, after Dieter Rams' Braun work: the ET66 calculator, the T3 radio, the SK4. The device vocabulary is the component vocabulary: a recessed **display window** for readings, round **keys** for actions, small **lamps** for state, and a perforated **grille** for traffic. Everything else is space, alignment and hairlines.
 
-Light theme is the grey device body for daytime. Dark theme is the black ET66 for late-night work. Both use the same structure and the same accent.
+Light theme is white with ink text for daytime. Dark theme is near-black for late-night work. Both use the same structure and the same neutral primary.
 
 ## Anti-references
 
@@ -51,15 +54,16 @@ Light theme is the grey device body for daytime. Dark theme is the black ET66 fo
 
 ## Colour
 
-`src/style.css` is the source of truth. Strategy: restrained. Neutrals carry 95% of the surface.
+`src/style.css` is the source of truth. The pen.dev canvas Foundations frame `b67W7z` is the source of the values: the shadcn/ui neutral theme. Strategy: restrained. One neutral grey scale carries every surface, and the primary action is neutral ink.
 
-- **Body** is the device shell. **Panel** is recessed (display windows, segmented controls, code). **Raised** is a key or field face.
-- **Accent** (Braun yellow `#f2c230`) appears in exactly three places: the primary key, the current-page dot, and text selection. Never on a status.
+- **Body** is the page. **Panel** is the muted surface (display windows, segmented tracks, code). **Raised** is a key or field face.
+- **Primary** is neutral ink (`#171717` light, `#e5e5e5` dark). It appears in exactly three places: the primary key, the current-page dot, and text selection. There is no second accent colour.
 - **Lamps**: green ready, orange cooling, red failing, hollow ring disabled or not available. A lamp always has a word next to it or an accessible label.
 - **Grille**: unlit holes use `--hole`; lit holes are ink at four strengths; a hole is red when its bucket had failures.
 - Text uses `--ink` or `--ink-2` (5:1 or better on body and panel in both themes, checked with axe-core). `--ink-3` is never text: it draws hole edges, hollow lamps and hover borders.
-- Warning text in logs uses `--warn-text`, a darker orange in the light theme, because the lamp orange is too light for small text.
-- Depth comes from two shadow tokens only: `--sunk` (inset, for recessed windows, tracks and nav holes) and `--lift` (a 1 px top highlight and a soft drop, for key faces). Lamps add a small inner highlight. The yellow key darkens to `#e8b71c` on hover.
+- Warning text in logs uses `--warn-ink`, a darker orange in the light theme, because the lamp orange is too light for small text.
+- **Flat surfaces**: there is no depth cue. `--sunk` and `--lift` are both `none`, so a raised key, a segmented track and a card all sit on one plane and are told apart by fill and a 1 px hairline border only. No inset shadow, no drop shadow, no glow.
+- `border` and `input` are solid in the light theme and translucent white in the dark theme, so they sit on any surface.
 
 ## Type
 
@@ -84,10 +88,10 @@ Monospace is for data only: keys, file names in detail views, paths, log lines a
 
 ## Components
 
-- **Key**: pill, raised face with a 1 px border and a faint top highlight; pressing moves it down 1 px and sinks the shadow. Primary is yellow with dark text. Quiet keys have no border. Danger is red text, never a red fill.
-- **Display window**: 12 px radius, inset shadow, readings separated by hairlines. Used on Overview and the live Usage view only.
+- **Key**: pill, raised face with a 1 px hairline border; pressing moves it down 1 px. Primary is neutral ink with light text. Quiet keys have no border. Danger is red text, never a red fill.
+- **Display window**: 12 px radius, muted fill with a hairline, readings separated by hairlines. Used on Overview and the live Usage view only.
 - **Grille**: SVG circles, 20 ten-minute buckets, oldest left. Rows use 7 px holes; the Overview display stacks five holes per bucket like a level meter. Each grille has an accessible summary ("86 requests in 200 minutes, 86 failed").
-- **Segmented control**: recessed track, the selected option is a raised key face, `aria-pressed`.
+- **Segmented control**: muted track, the selected option is a raised key face, `aria-pressed`.
 - **Fields**: raised face, 8 px radius, label above in `--ink-2`. Focus is a 1 px ink ring plus the border.
 - **States**: loading is one breathing skeleton row; empty explains what to do next; not available names the route and status code; errors keep the last good data visible when there is any.
 - **Toast**: an ink pill at the bottom centre. Success clears itself after four seconds; errors stay until dismissed and use `role=alert`.
