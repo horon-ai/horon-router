@@ -27,6 +27,7 @@ pub mod model_updater;
 mod models;
 pub mod observability;
 mod openai;
+pub mod openapi;
 pub mod persist;
 pub mod plugins;
 mod quota_routing;
@@ -124,6 +125,7 @@ fn api(rt: Arc<Runtime>) -> Router {
         .route("/antigravity/callback", get(callback))
         .route("/callback", get(devin_callback))
         .route("/devin/callback", get(devin_callback))
+        .merge(openapi::docs::routes())
         .merge(v1)
         .merge(realtime::routes(&rt))
         .merge(relay::routes(&rt))
@@ -137,9 +139,11 @@ fn api(rt: Arc<Runtime>) -> Router {
 }
 
 /// gin registers HEAD for `/healthz` only, so a HEAD never falls back to a GET handler;
-/// it is NoRoute's bare 404.
+/// it is NoRoute's bare 404. The docs surface is the one addition: its three routes
+/// register HEAD too, so they are exempted here.
 async fn head_only_healthz(req: axum::extract::Request, next: middleware::Next) -> Response {
-    if req.method() == Method::HEAD && req.uri().path() != "/healthz" {
+    const HEAD_PATHS: [&str; 4] = ["/healthz", "/docs", "/docs/assets/scalar.js", "/openapi.json"];
+    if req.method() == Method::HEAD && !HEAD_PATHS.contains(&req.uri().path()) {
         return StatusCode::NOT_FOUND.into_response();
     }
     next.run(req).await

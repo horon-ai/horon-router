@@ -28,10 +28,16 @@
 # 2026-10-11: React 19 + Base UI dashboard embed. Measured on the Ubuntu runner at
 # 2780f82: binary +1_136_096, text +652_992, rodata +368_640, archive +423_109 over the
 # previous budgets.
-size.x86_64-unknown-linux-gnu.binary_bytes   41_443_152  2
-size.x86_64-unknown-linux-gnu.text_bytes     27_023_479  2
-size.x86_64-unknown-linux-gnu.rodata_bytes    8_861_152  2
-size.x86_64-unknown-linux-gnu.archive_bytes  17_525_451  2
+# 2026-10-11: OpenAPI 3.1 + embedded Scalar 1.73.1 documentation. Ubuntu 22.04,
+# Rust 1.99.0, HEAD 6fa4eb9, CI run 38175768469 / job 114577717628.
+# Measured binary 46_682_032, text 27_721_463, rodata 13_317_600, archive 19_040_254.
+# Relative to the previous accepted budgets: binary +5_238_880, text +697_984,
+# rodata +4_456_448, archive +1_514_803 bytes. Includes the pinned Scalar bundle
+# and HTTP contract builders. Keep the same 2% regression allowance.
+size.x86_64-unknown-linux-gnu.binary_bytes   46_682_032  2
+size.x86_64-unknown-linux-gnu.text_bytes     27_721_463  2
+size.x86_64-unknown-linux-gnu.rodata_bytes   13_317_600  2
+size.x86_64-unknown-linux-gnu.archive_bytes  19_040_254  2
 # Crates linked into the binary in two or more versions; a new one fails until it is
 # justified here. 2026-10-05: base64, block-buffer, cpufeatures, crypto-common, digest,
 # getrandom, hashbrown (3), rand, rand_core, sha2, thiserror.
