@@ -3,11 +3,15 @@
 //! availability gate (internal/api/server_management.go, server_reload.go) and the
 //! global CORS middleware (internal/api/server_middleware.go).
 //!
-//! Order matters and is Go's: availability (404, empty body) -> version headers ->
-//! active ban (403) -> remote policy (403) -> missing secret (403) -> missing key
-//! (401, counted) -> local password -> MANAGEMENT_PASSWORD -> bcrypt (401, counted).
-//! The fifth counted failure bans the client IP for 30 minutes. "Local" means the
-//! client IP text is exactly `127.0.0.1` or `::1`, after trusted-proxy resolution.
+//! Order is Go's, with one intentional difference (docs/DIFFERENCES-FROM-GO.md):
+//! management is always available and, when no password is set anywhere (the
+//! ADMIN_PASSWORD environment variable, the config `management.secret-key`, or a
+//! `--password`), every request is accepted without a key. Go instead turns management
+//! off (404) without a secret. Otherwise: version headers -> active ban (403) -> remote
+//! policy (403) -> missing key (401, counted) -> local password -> ADMIN_PASSWORD ->
+//! bcrypt (401, counted). The fifth counted failure bans the client IP for 30 minutes.
+//! "Local" means the client IP text is exactly `127.0.0.1` or `::1`, after
+//! trusted-proxy resolution.
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -59,12 +63,8 @@ pub(crate) struct Access {
     /// Raw bytes, as Go keeps arbitrary environment strings.
     env_secret: Vec<u8>,
     local_password: String,
-    /// The standalone TUI's local password counts as a configured secret for loopback
-    /// clients.
-    local_secret: bool,
     /// Startup-only, as gin's `SetTrustedProxies` is called once in `NewServer`.
     trusted: TrustedProxies,
-    enabled: AtomicBool,
     attempts: Mutex<Attempts>,
     warned_untrusted_forwarding: AtomicBool,
 }
@@ -101,36 +101,26 @@ pub(super) fn start_purge(state: &std::sync::Arc<Management>) {
 impl Access {
     pub(crate) fn new(cfg: &Config, options: super::Options) -> Self {
         // Go: os.LookupEnv + TrimSpace; empty means unset.
-        let raw: Vec<u8> = match options.management_password {
+        let raw: Vec<u8> = match options.admin_password {
             Some(value) => value.into_bytes(),
-            None => env_bytes("MANAGEMENT_PASSWORD"),
+            None => env_bytes("ADMIN_PASSWORD"),
         };
         let env_secret = go_trim_space(&raw).to_vec();
         let local_password = options.local_password;
-        let local_secret = options.standalone && !local_password.is_empty();
-        let enabled = !cfg.management.secret_key.is_empty() || !env_secret.is_empty() || !local_password.is_empty();
         Self {
             env_secret,
             local_password,
-            local_secret,
             trusted: TrustedProxies::new(&cfg.trusted_proxies),
-            enabled: AtomicBool::new(enabled),
             attempts: Mutex::new(Attempts { by_ip: HashMap::new() }),
             warned_untrusted_forwarding: AtomicBool::new(false),
         }
     }
 
-    /// Go's reload rule: MANAGEMENT_PASSWORD keeps routes on; otherwise availability
-    /// follows the config secret alone. A `--password` that enabled routes at startup
-    /// no longer counts after the first reload, exactly as in server_reload.go, except
-    /// in the standalone TUI.
-    pub(crate) fn config_published(&self, cfg: &Config) {
-        let enabled = !self.env_secret.is_empty() || !cfg.management.secret_key.is_empty() || self.local_secret;
-        self.enabled.store(enabled, Ordering::SeqCst);
-    }
-
+    /// Management is always available, whatever the password. Go turns it off (404) when
+    /// no secret is configured; hyper-router leaves it open and accepts any key
+    /// (docs/DIFFERENCES-FROM-GO.md).
     pub(crate) fn available(&self) -> bool {
-        self.enabled.load(Ordering::SeqCst)
+        true
     }
 
     pub(crate) fn client_ip(&self, peer: Option<SocketAddr>, headers: &HeaderMap) -> String {
@@ -219,8 +209,12 @@ impl Access {
             return Err((StatusCode::FORBIDDEN, "remote management disabled".into()));
         }
         let secret = cfg.management.secret_key.clone();
-        if secret.is_empty() && self.env_secret.is_empty() && !(local && self.local_secret) {
-            return Err((StatusCode::FORBIDDEN, "remote management key not set".into()));
+        // No password anywhere: management is open, and every request is accepted whether
+        // or not it carries a key. Go refuses with "remote management key not set" instead
+        // (docs/DIFFERENCES-FROM-GO.md).
+        if secret.is_empty() && self.env_secret.is_empty() && self.local_password.is_empty() {
+            self.reset(ip);
+            return Ok(());
         }
         if provided.is_empty() {
             self.fail(ip);
@@ -391,36 +385,62 @@ mod tests {
         assert!(access.attempts().by_ip["203.0.113.9"].blocked_until.is_none());
     }
 
-    /// Without a configured secret, Go refuses even the local password. The standalone
-    /// TUI's password is accepted from loopback only, and keeps routes on after reloads.
+    /// With no password configured anywhere, management is open: any request is accepted,
+    /// key or not, and no failure is counted. Go refuses with "remote management key not
+    /// set" instead (docs/DIFFERENCES-FROM-GO.md). The remote policy still applies.
     #[tokio::test]
-    async fn standalone_local_password_works_without_a_secret() {
-        let cfg = Config::parse("management:\n  allow-remote: true\n").unwrap();
-        let options = |standalone| super::super::Options {
-            local_password: "fake-local".into(),
-            management_password: Some(String::new()),
-            standalone,
-            ..Default::default()
-        };
-        let plain = Access::new(&cfg, options(false));
-        let refused = plain.authenticate(&cfg, "127.0.0.1", true, b"fake-local").await;
-        assert_eq!(refused.unwrap_err().1, "remote management key not set");
-        plain.config_published(&cfg);
-        assert!(!plain.available());
+    async fn no_password_anywhere_opens_management() {
+        let cfg = Config::parse("management:\n  allow-remote: false\n").unwrap();
+        let access = Access::new(
+            &cfg,
+            super::super::Options {
+                admin_password: Some(String::new()),
+                ..Default::default()
+            },
+        );
+        assert!(access.available());
+        assert!(access.authenticate(&cfg, "127.0.0.1", true, b"").await.is_ok());
+        assert!(access.authenticate(&cfg, "127.0.0.1", true, b"anything").await.is_ok());
+        // A remote client is still refused unless allow-remote is on.
+        let remote = access.authenticate(&cfg, "203.0.113.9", false, b"").await;
+        assert_eq!(remote.unwrap_err().1, "remote management disabled");
+        let open = Config::parse("management:\n  allow-remote: true\n").unwrap();
+        let access = Access::new(
+            &open,
+            super::super::Options {
+                admin_password: Some(String::new()),
+                ..Default::default()
+            },
+        );
+        assert!(access.authenticate(&open, "203.0.113.9", false, b"").await.is_ok());
+    }
 
-        let access = Access::new(&cfg, options(true));
+    /// A `--password` (or the standalone TUI's generated one) is the only password: it is
+    /// required from loopback and refused from other hosts, with no configured secret.
+    #[tokio::test]
+    async fn local_password_is_required_when_it_is_the_only_password() {
+        let cfg = Config::parse("management:\n  allow-remote: true\n").unwrap();
+        let access = Access::new(
+            &cfg,
+            super::super::Options {
+                local_password: "fake-local".into(),
+                admin_password: Some(String::new()),
+                ..Default::default()
+            },
+        );
+        assert!(access.available());
         assert!(
             access
                 .authenticate(&cfg, "127.0.0.1", true, b"fake-local")
                 .await
                 .is_ok()
         );
+        let missing = access.authenticate(&cfg, "127.0.0.1", true, b"").await;
+        assert_eq!(missing.unwrap_err().1, "missing management key");
         let wrong = access.authenticate(&cfg, "127.0.0.1", true, b"wrong").await;
         assert_eq!(wrong.unwrap_err().1, "invalid management key");
         let remote = access.authenticate(&cfg, "203.0.113.9", false, b"fake-local").await;
-        assert_eq!(remote.unwrap_err().1, "remote management key not set");
-        access.config_published(&cfg);
-        assert!(access.available());
+        assert_eq!(remote.unwrap_err().1, "invalid management key");
     }
 
     #[test]

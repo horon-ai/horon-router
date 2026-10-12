@@ -22,9 +22,9 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
 /// The pinned management password, bcrypt-hashed into each fixture config and passed
-/// explicitly as `Options::management_password` so the process `MANAGEMENT_PASSWORD`
+/// explicitly as `Options::admin_password` so the process `ADMIN_PASSWORD`
 /// environment variable can never change what these tests authenticate against.
-const MANAGEMENT_PASSWORD: &str = "fake-management-only";
+const ADMIN_PASSWORD: &str = "fake-management-only";
 const CLIENT_KEY: &str = "fake-client";
 const PINNED_ASSET: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/assets/scalar/scalar-standalone.js");
 /// The SHA-256 recorded for the bundle in `assets/scalar/PROVENANCE.md`.
@@ -262,7 +262,7 @@ impl Fixture {
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(dir.join("auth")).unwrap();
         let path = dir.join("config.yaml");
-        let hash = bcrypt::hash(MANAGEMENT_PASSWORD, 4).unwrap();
+        let hash = bcrypt::hash(ADMIN_PASSWORD, 4).unwrap();
         std::fs::write(&path, yaml(&dir, &hash)).unwrap();
         let config = Config::load(&path).unwrap();
         let rt = Arc::new(hr_server::testing::runtime(
@@ -274,7 +274,7 @@ impl Fixture {
             rt.clone(),
             path,
             Options {
-                management_password: Some(MANAGEMENT_PASSWORD.to_owned()),
+                admin_password: Some(ADMIN_PASSWORD.to_owned()),
                 ..Default::default()
             },
         );
@@ -605,7 +605,7 @@ async fn docs_spec_and_asset_are_public_and_truthful() {
         assert!(html.contains(option), "the page must configure {option}: {html}");
     }
     assert!(!html.contains(CLIENT_KEY), "no client key may be injected");
-    assert!(!html.contains(MANAGEMENT_PASSWORD), "no management key may be injected");
+    assert!(!html.contains(ADMIN_PASSWORD), "no management key may be injected");
 
     let (status, headers, body) = request(&base, wreq::Method::HEAD, "/docs", None).await;
     assert_eq!(status, 200);
@@ -700,13 +700,7 @@ async fn management_auth_rejections_use_a_fresh_state() {
         let (status, _, _) = request(&base, wreq::Method::GET, "/v8/management/config", bearer).await;
         assert_eq!(status, 401, "{bearer:?}");
     }
-    let (status, _, _) = request(
-        &base,
-        wreq::Method::GET,
-        "/v8/management/config",
-        Some(MANAGEMENT_PASSWORD),
-    )
-    .await;
+    let (status, _, _) = request(&base, wreq::Method::GET, "/v8/management/config", Some(ADMIN_PASSWORD)).await;
     assert_eq!(status, 200);
 
     server.abort();
@@ -996,7 +990,7 @@ async fn management_inventory_is_registered_and_gated() {
             f.rt.clone(),
             config_path.clone(),
             Options {
-                management_password: Some(MANAGEMENT_PASSWORD.to_owned()),
+                admin_password: Some(ADMIN_PASSWORD.to_owned()),
                 ..Default::default()
             },
         );
@@ -1032,7 +1026,7 @@ async fn management_inventory_is_registered_and_gated() {
         f.rt.clone(),
         config_path.clone(),
         Options {
-            management_password: Some(MANAGEMENT_PASSWORD.to_owned()),
+            admin_password: Some(ADMIN_PASSWORD.to_owned()),
             ..Default::default()
         },
     );
@@ -1047,10 +1041,10 @@ async fn management_inventory_is_registered_and_gated() {
     server.abort();
 }
 
-/// A management state with no configured secret answers 404 with an empty body for every
-/// path, the availability gate the contract describes.
+/// A management state with no configured secret keeps management on and answers keyless
+/// requests, unlike Go's 404 availability gate (docs/DIFFERENCES-FROM-GO.md).
 #[tokio::test]
-async fn disabled_management_answers_404_with_an_empty_body() {
+async fn no_password_keeps_management_open() {
     let dir = std::env::temp_dir().join(format!("cpa-openapi-disabled-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(dir.join("auth")).unwrap();
@@ -1072,20 +1066,15 @@ async fn disabled_management_answers_404_with_an_empty_body() {
         rt.clone(),
         path.clone(),
         Options {
-            management_password: Some(String::new()),
+            admin_password: Some(String::new()),
             ..Default::default()
         },
     );
     let (base, server) = serve(app(rt.clone(), management::router(state))).await;
 
-    for (method, path) in [
-        (wreq::Method::GET, "/v8/management/config"),
-        (wreq::Method::GET, "/v0/management/config"),
-        (wreq::Method::GET, "/v8/management/oauth/callback"),
-    ] {
-        let (status, _, body) = request(&base, method.clone(), path, None).await;
-        assert_eq!(status, 404, "{method} {path} with management disabled");
-        assert!(body.is_empty(), "{method} {path} must have an empty body");
+    for path in ["/v8/management/config", "/v0/management/config"] {
+        let (status, _, _) = request(&base, wreq::Method::GET, path, None).await;
+        assert_eq!(status, 200, "{path} with no password is open, not 404");
     }
     server.abort();
     let _ = std::fs::remove_dir_all(&dir);

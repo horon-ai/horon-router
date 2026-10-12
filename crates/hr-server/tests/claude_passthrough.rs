@@ -382,7 +382,7 @@ async fn request_log_masks_upstream_credentials() {
         dir.join("config.yaml"),
         hr_server::management::Options {
             log_dir: Some(logs.clone()),
-            management_password: Some(String::new()),
+            admin_password: Some(String::new()),
             auth_dir: Some(dir.clone()),
             ..Default::default()
         },

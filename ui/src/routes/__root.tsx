@@ -39,10 +39,20 @@ function AppShell() {
   const [secret, setSecret] = useState("");
   const [failure, setFailure] = useState("");
   const [connecting, setConnecting] = useState(false);
+  // A server with no password opens straight into the dashboard; one that needs a key
+  // answers 401 and the sign-in form appears.
+  const [checking, setChecking] = useState(true);
   const menuButton = useRef<HTMLButtonElement>(null);
   const previousPage = useRef(page);
+  const checked = useRef(false);
   const creds = useQuery({ ...queries.creds(), enabled: state.logged });
   const version = /^\d/.test(state.meta.version) ? `v${state.meta.version}` : state.meta.version;
+
+  useEffect(() => {
+    if (checked.current) return;
+    checked.current = true;
+    session.login("").catch(() => {}).finally(() => setChecking(false));
+  }, []);
 
   // Match the Svelte store.sync(): ask before an in-app navigation drops a dirty draft.
   // The beforeunload listener below owns browser close, so enableBeforeUnload stays off.
@@ -103,6 +113,10 @@ function AppShell() {
     {state.toast.bad && <Button variant="quiet" size="round" className="small" aria-label={t("app.dismiss")}
       onClick={() => session.dismiss()}><svg className="i" aria-hidden="true"><use href="#i-close" /></svg></Button>}
   </div>;
+
+  if (checking) return <main className="login"><div className="window">
+    <p className="small muted" role="status">{t("app.connecting")}</p>
+  </div></main>;
 
   if (!state.logged) return <>
     <main className="login"><form onSubmit={login}>

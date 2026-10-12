@@ -253,7 +253,7 @@ if($script:removed.Count -ne 1 -or $script:removed[0] -ne '/long/path/hyperroute
             for path, key, expected in [
                 ("/v1/models", None, 401),
                 ("/v1/models", keys["HYPERROUTER_CLIENT_KEY"], 200),
-                ("/v8/management/config", keys["HYPERROUTER_MANAGEMENT_KEY"], 200),
+                ("/v8/management/config", None, 200),
             ]:
                 request = urllib.request.Request("http://127.0.0.1:8317" + path)
                 if key:

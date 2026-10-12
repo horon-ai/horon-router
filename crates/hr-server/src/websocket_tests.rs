@@ -225,7 +225,7 @@ async fn request_log_records_the_websocket_timeline_and_each_turn() {
         dir.join("config.yaml"),
         crate::management::Options {
             log_dir: Some(dir.clone()),
-            management_password: Some(String::new()),
+            admin_password: Some(String::new()),
             ..Default::default()
         },
     );
@@ -454,7 +454,7 @@ async fn the_socket_closes_before_the_request_log_is_delivered() {
         dir.join("config.yaml"),
         crate::management::Options {
             log_dir: Some(dir.clone()),
-            management_password: Some(String::new()),
+            admin_password: Some(String::new()),
             ..Default::default()
         },
     );
@@ -521,7 +521,7 @@ async fn logged_failure(status: u16, body: &'static str) -> (Vec<String>, String
         dir.join("config.yaml"),
         crate::management::Options {
             log_dir: Some(dir.clone()),
-            management_password: Some(String::new()),
+            admin_password: Some(String::new()),
             ..Default::default()
         },
     );

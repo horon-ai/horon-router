@@ -23,11 +23,11 @@ irm https://raw.githubusercontent.com/alpoxdev/hyper-router/dev/install.ps1 | ie
 
 1. 내 시스템에 맞는 릴리스 압축 파일을 고르고, 릴리스의 `SHA256SUMS`와 함께 내려받습니다. 검사값이 맞지 않으면 아무것도 설치하지 않고 멈춥니다.
 2. 실행 파일을 설치합니다. macOS와 Linux에서는 `~/.local/bin/hyperrouter`, Windows에서는 `%LOCALAPPDATA%\Programs\hyper-router\hyperrouter.exe`입니다.
-3. `~/.hyper-router/config.yaml`이 없으면(Windows에서는 `%USERPROFILE%\.hyper-router`) 이 파일을 새로 씁니다. 서버는 `127.0.0.1`에서 8317 포트로 요청을 받습니다. CLIProxyAPI처럼 다른 프로그램이 8317을 이미 쓰고 있으면 그다음으로 비어 있는 포트를 씁니다. 인증 파일을 두는 폴더는 `auth`이고 세션 고정(같은 대화가 같은 계정으로 가도록 묶는 기능)은 켜 둡니다. 클라이언트 키와 관리 키를 만들어 설정 파일 옆의 `keys.env`에 저장합니다. 이 폴더는 나만 읽을 수 있고, 스크립트는 키를 절대 출력하지 않습니다.
+3. `~/.hyper-router/config.yaml`이 없으면(Windows에서는 `%USERPROFILE%\.hyper-router`) 이 파일을 새로 씁니다. 서버는 `127.0.0.1`에서 8317 포트로 요청을 받습니다. CLIProxyAPI처럼 다른 프로그램이 8317을 이미 쓰고 있으면 그다음으로 비어 있는 포트를 씁니다. 인증 파일을 두는 폴더는 `auth`이고 세션 고정(같은 대화가 같은 계정으로 가도록 묶는 기능)은 켜 둡니다. 클라이언트 키를 만들어 설정 파일 옆의 `keys.env`에 저장합니다. 이 폴더는 나만 읽을 수 있고, 스크립트는 키를 절대 출력하지 않습니다.
 4. 서버를 백그라운드에서 켜고 `hyperrouter.log`에 기록합니다. 그다음 `/healthz`가 응답하는지 확인합니다.
 5. 대시보드 주소를 출력하고, 브라우저가 있으면 브라우저에서 엽니다.
 
-대시보드에는 `keys.env`의 `HYPERROUTER_MANAGEMENT_KEY` 값으로 로그인합니다(`cat ~/.hyper-router/keys.env`, Windows에서는 `Get-Content ~\.hyper-router\keys.env`). 내 도구는 `HYPERROUTER_CLIENT_KEY`를 씁니다.
+대시보드는 비밀번호 없이 바로 열립니다. 내 도구는 `HYPERROUTER_CLIENT_KEY`를 씁니다(`cat ~/.hyper-router/keys.env`, Windows에서는 `Get-Content ~\.hyper-router\keys.env`).
 
 같은 스크립트를 다시 실행하면 실행 파일을 최신 릴리스로 올리고 서버를 다시 시작합니다. macOS와 Linux에서는 관리 중인 서버가 실행 중이고 그 마지막 시작 표시가 실행 파일보다 오래되지 않았을 때만 이미 최신인 실행 파일을 그냥 둡니다. `--binary-only`를 쓴 뒤이거나 업그레이드가 중간에 끊긴 뒤에 다시 실행하면, 다시 내려받지 않고 설치된 버전을 시작합니다. Unix 업그레이드는 `hyperrouter.prev`에 하드 링크를 남깁니다. Windows는 실행 중인 실행 파일 이름을 바꾸기 전에 교체본을 준비하고 검사합니다. 두 경우 모두 시작에 실패하면 이전 실행 파일로 되돌리고 응답하는지 확인합니다. 두 스크립트 모두 이미 있는 `config.yaml`이나 `keys.env`를 바꾸지 않습니다. 상태 확인과 출력되는 대시보드 주소는 설정된 host, port, TLS 설정을 따릅니다. 와일드카드 host를 쓰면 루프백 주소를 씁니다. Windows 설치 프로그램은 `--log-file`과 `--working-dir`을 지원하는 릴리스를 요구합니다. 더 오래된 릴리스는 기존 설치를 건드리기 전에 거부합니다.
 
@@ -105,7 +105,7 @@ brew services start hyper-router
 
 처음 설치하면 `$(brew --prefix)/etc/hyper-router/config.yaml`을 만듭니다. 이 설정은 `127.0.0.1:8317`에서만 요청을 받습니다. 만들어 낸 클라이언트 키와 관리 키는 그 옆의 `keys.env`에 넣습니다. 이 폴더는 사설 폴더이고 설정과 키는 설치한 사용자만 읽을 수 있습니다. 로그인 인증 정보는 그 아래 `auth` 폴더에 들어갑니다. 업그레이드는 이미 있는 설정이나 키를 절대 바꾸지 않습니다. 설정이 없어졌지만 `keys.env`가 남아 있으면 formula는 그 키를 다시 씁니다.
 
-`http://127.0.0.1:8317/management.html`을 열고 `keys.env`의 `HYPERROUTER_MANAGEMENT_KEY`로 로그인합니다. 내 도구는 `HYPERROUTER_CLIENT_KEY`를 씁니다. 다른 서버가 8317 포트를 쓰면 서비스를 시작하기 전에 설정에서 `server.port`를 바꾸십시오. 서비스는 `sudo` 없이 내 사용자로 실행하십시오.
+`http://127.0.0.1:8317/management.html`을 엽니다(비밀번호 없이 바로 열립니다). 내 도구는 `HYPERROUTER_CLIENT_KEY`를 씁니다. 다른 서버가 8317 포트를 쓰면 서비스를 시작하기 전에 설정에서 `server.port`를 바꾸십시오. 서비스는 `sudo` 없이 내 사용자로 실행하십시오.
 
 이 서비스는 설정 경로를 직접 넘기므로 현재 폴더에 기대지 않습니다. 로그는 `$(brew --prefix)/var/log/hyper-router.log`에 남습니다. 멈추려면 `brew services stop hyper-router`, 실행 파일을 지우려면 `brew uninstall hyper-router`를 실행합니다. 내 설정, 키, 로그인 인증 정보는 직접 지울 때까지 남습니다.
 
@@ -204,7 +204,7 @@ docker exec -it hyperrouter hyperrouter --config /data/config.yaml --codex-devic
 
 실행 파일을 다른 방법으로 설치했다면 손으로 설정합니다.
 
-1. 예를 들어 `openssl rand -hex 24`로 무작위 키 두 개를 만들고 `config.yaml`을 씁니다.
+1. 예를 들어 `openssl rand -hex 24`로 무작위 클라이언트 키를 만들고 `config.yaml`을 씁니다.
 
    ```yaml
    server:
@@ -213,13 +213,13 @@ docker exec -it hyperrouter hyperrouter --config /data/config.yaml --codex-devic
    access:
      api-keys:
        - "PASTE-CLIENT-KEY"     # 내 도구가 프록시로 보내는 키입니다
-   management:
-     secret-key: "PASTE-MANAGEMENT-KEY"  # 대시보드 비밀번호입니다
+   # management:
+   #   secret-key: "PASTE-MANAGEMENT-KEY"  # 선택: 대시보드 비밀번호. 없으면 대시보드가 바로 열립니다
    oauth:
      auth-dir: "~/.hyper-router/auth"     # 계정 로그인 정보를 저장하는 곳입니다
    ```
 
-   관리 키는 사본을 남겨 두십시오. 처음 시작할 때 서버가 `config.yaml`에 있는 그 값을 bcrypt 해시로 바꿉니다. CLIProxyAPI의 [`config.example.yaml`](https://github.com/router-for-me/CLIProxyAPI/blob/main/config.example.yaml)에 있는 모든 설정을 받습니다. 다만 아직 지원하지 않는다고 표시된 기능의 설정은 효과가 없습니다. 자주 쓰는 설정은 [CONFIGURATION.md](CONFIGURATION.md)가 설명합니다.
+   관리 키를 설정했다면 사본을 남겨 두십시오. 처음 시작할 때 서버가 `config.yaml`에 있는 그 값을 bcrypt 해시로 바꿉니다. 관리 키가 없으면 대시보드와 관리 API가 인증 없이 열립니다(Go CLIProxyAPI는 이때 관리 API를 끕니다). CLIProxyAPI의 [`config.example.yaml`](https://github.com/router-for-me/CLIProxyAPI/blob/main/config.example.yaml)에 있는 모든 설정을 받습니다. 다만 아직 지원하지 않는다고 표시된 기능의 설정은 효과가 없습니다. 자주 쓰는 설정은 [CONFIGURATION.md](CONFIGURATION.md)가 설명합니다.
 2. 서버를 시작합니다. `hyperrouter --config config.yaml`을 실행합니다. `--config`를 주지 않으면 현재 폴더의 `config.yaml`을 읽습니다. `curl http://127.0.0.1:8317/healthz`로 확인하면 `{"status":"ok"}`를 돌려줍니다.
 3. `--claude-login`, `--codex-login`, `--codex-device-login`, `--kimi-login`, `--kimi-ai-login`, `--meta-login`, `--xai-login`, `--devin-login`으로 계정을 연결합니다. `--vertex-import key.json`으로 Vertex AI 서비스 계정을 가져오거나, `/management.html`의 대시보드에서 계정을 연결합니다. 브라우저가 없는 컴퓨터에서는 `--no-browser`를 붙이십시오.
 

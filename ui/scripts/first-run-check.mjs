@@ -1,13 +1,14 @@
 // First-time user walkthrough on fresh servers. Disposable servers only; run inside
 // scripts/isolated.sh so nothing leaves the machine.
 //
-//   <off-url>   a server with no management key (management API off)
+//   <off-url>   a server with no password anywhere (management stays open)
 //   <fresh-url> the login-harness build on an empty config with a management key, no
 //               accounts and no client keys; scripts/fake-logins.mjs answers its Meta
 //               sign-in and mints a key whose base URL is the mock upstream on 9101.
 //
-// The walk: the sign-in page explains a server with management off; on the fresh server
-// the overview's Get started list starts at 0 of 3; creating a client key leaves
+// The walk: a server with no password opens straight into the dashboard; on the fresh
+// server (which still sets a management key) the sign-in form appears and the overview's
+// Get started list starts at 0 of 3; creating a client key leaves
 // the tool-setup step unfinished until a tool is used. Signing in to Meta removes
 // the card, and a request reaches the proxy.
 // Screenshots cover desktop and phone width in both themes.
@@ -45,19 +46,13 @@ const shot = (page, name) => page.screenshot({ path: `${out}/${name}.png`, fullP
 const overflow = (page) => page.evaluate(() => document.documentElement.scrollWidth > innerWidth);
 
 try {
-  // 1. A server started without a management key.
+  // 1. A server started without any password: the dashboard opens straight in.
   {
     const page = await open(offUrl, desktop, "light");
-    await page.getByLabel("Management key").fill("anything");
-    await page.getByRole("button", { name: "Connect", exact: true }).click();
-    const alert = page.locator('.login [role="alert"]');
-    await alert.waitFor();
-    const message = await alert.textContent();
-    assert.match(message, /management API is off/i);
-    assert.match(message, /secret-key/);
-    assert.equal(await page.locator(".toast").count(), 0, "no second message as a toast");
-    await shot(page, "01-login-management-off-desktop-light");
-    pass(`management off: "${message.trim()}"`);
+    await page.locator("main h1", { hasText: "Overview" }).waitFor();
+    assert.equal(await page.locator(".login").count(), 0, "no sign-in form when no password is set");
+    await shot(page, "01-open-no-password-desktop-light");
+    pass("no password: the dashboard opens without a sign-in form");
     await page.context().close();
   }
 

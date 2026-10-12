@@ -21,11 +21,11 @@ struct Server {
     _dir: std::path::PathBuf,
 }
 
-async fn server(management_password: Option<&str>) -> Server {
-    server_with(management_password, Vec::new()).await
+async fn server(admin_password: Option<&str>) -> Server {
+    server_with(admin_password, Vec::new()).await
 }
 
-async fn server_with(management_password: Option<&str>, credentials: Vec<hr_core::credential::Credential>) -> Server {
+async fn server_with(admin_password: Option<&str>, credentials: Vec<hr_core::credential::Credential>) -> Server {
     static NEXT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
     let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let dir = std::env::temp_dir().join(format!("cpa-resp-{}-{n}", std::process::id()));
@@ -46,7 +46,7 @@ async fn server_with(management_password: Option<&str>, credentials: Vec<hr_core
         executors,
     ));
     let options = Options {
-        management_password: Some(management_password.unwrap_or_default().to_owned()),
+        admin_password: Some(admin_password.unwrap_or_default().to_owned()),
         ..Default::default()
     };
     let management = Management::with_options(rt.clone(), path, options);
@@ -127,17 +127,16 @@ async fn auth(conn: &mut BufReader<TcpStream>) {
     assert_eq!(line(conn).await, "+OK");
 }
 
-/// Go `TestRedisProtocol_ManagementDisabled_RejectsConnection`: closed, not ignored.
+/// No management key configured: management stays on, so the protocol answers rather than
+/// refusing the connection. An unauthenticated command still asks for AUTH.
 #[tokio::test]
-async fn management_disabled_rejects_connection() {
+async fn management_without_a_key_still_answers() {
     let s = server(None).await;
     let mut conn = connect(s.addr).await;
-    command(&mut conn, &["PING"]).await;
-    let mut buf = [0u8; 1];
-    let read = tokio::time::timeout(Duration::from_secs(2), conn.read(&mut buf))
-        .await
-        .expect("closed, not timed out");
-    assert!(matches!(read, Ok(0) | Err(_)), "{read:?}");
+    command(&mut conn, &["LPOP", "usage"]).await;
+    assert_eq!(line(&mut conn).await, "-NOAUTH Authentication required.");
+    command(&mut conn, &["AUTH", "anything"]).await;
+    assert_eq!(line(&mut conn).await, "+OK");
 }
 
 /// A Home control plane that is never asked: the RESP refusal comes first.

@@ -12,7 +12,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 /// A fresh management state whose auth-dir is a throwaway temp directory. `secret` pins
-/// `management_password` (or leaves management disabled when empty); the config's own
+/// `admin_password` (or leaves management disabled when empty); the config's own
 /// `management.secret-key` is left empty so availability follows the pinned option alone.
 fn state(name: &str, secret: &str) -> (PathBuf, Arc<Management>) {
     let dir = std::env::temp_dir().join(format!("openapi-mgmt-{name}-{}", std::process::id()));
@@ -39,7 +39,7 @@ fn state(name: &str, secret: &str) -> (PathBuf, Arc<Management>) {
         },
     ));
     let options = Options {
-        management_password: Some(secret.to_owned()),
+        admin_password: Some(secret.to_owned()),
         ..Default::default()
     };
     let state = Management::with_options(rt, path, options);
@@ -61,24 +61,24 @@ async fn serve(state: Arc<Management>) -> (String, tokio::task::JoinHandle<()>) 
     (base, handle)
 }
 
-/// The documented availability gate: no management key configured means the whole tree is
-/// 404 with an empty body, key or not.
+/// A server with no management key configured stays open, not off: unlike Go's 404
+/// availability gate, a keyless request is accepted (docs/DIFFERENCES-FROM-GO.md).
 #[tokio::test]
-async fn disabled_management_answers_404_with_an_empty_body() {
+async fn no_password_keeps_management_open() {
     let (dir, state) = state("disabled", "");
     let (base, server) = serve(state).await;
     let client = wreq::Client::new();
+    // hyper-router intentionally differs from Go here: with no password configured anywhere,
+    // management is open instead of off (docs/DIFFERENCES-FROM-GO.md). A keyless request is
+    // accepted, and the OAuth callback route stays reachable.
     let response = client.get(format!("{base}/v8/management/config")).send().await.unwrap();
-    assert_eq!(response.status(), 404);
-    let body = response.bytes().await.unwrap();
-    assert!(body.is_empty(), "availability 404 must have an empty body");
-    // A public callback is gated too: disabled management hides it as 404.
+    assert_eq!(response.status(), 200);
     let callback = client
         .get(format!("{base}/v8/management/oauth/callback?state=x"))
         .send()
         .await
         .unwrap();
-    assert_eq!(callback.status(), 404);
+    assert_ne!(callback.status(), 404, "the callback route stays available");
     server.abort();
     let _ = std::fs::remove_dir_all(dir);
 }

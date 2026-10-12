@@ -87,7 +87,7 @@ async fn start(dir: &Path, upstream_url: &str) -> String {
         dir.join("config.yaml"),
         crate::management::Options {
             log_dir: Some(dir.to_owned()),
-            management_password: Some(String::new()),
+            admin_password: Some(String::new()),
             ..Default::default()
         },
     );

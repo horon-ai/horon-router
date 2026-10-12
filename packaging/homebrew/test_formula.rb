@@ -18,14 +18,11 @@ Dir.mktmpdir("hyperrouter-homebrew-test") do |directory|
   settings = YAML.safe_load(config.read)
   keys = keys_file.read.lines.to_h { |line| line.strip.split("=", 2) }
   raise "not localhost-only" unless settings.fetch("server") == { "host" => "127.0.0.1", "port" => 8317 }
-  raise "remote management enabled" unless settings.fetch("management").fetch("allow-remote") == false
+  raise "management key generated" if settings.key?("management")
   client_key = keys.fetch("HYPERROUTER_CLIENT_KEY")
-  management_key = keys.fetch("HYPERROUTER_MANAGEMENT_KEY")
   raise "invalid client key" unless client_key.match?(/\A[0-9a-f]{48}\z/)
-  raise "invalid management key" unless management_key.match?(/\A[0-9a-f]{48}\z/)
-  raise "keys match" if client_key == management_key
+  raise "management key generated" if keys.key?("HYPERROUTER_MANAGEMENT_KEY")
   raise "client key mismatch" unless settings.fetch("access").fetch("api-keys") == [client_key]
-  raise "management key mismatch" unless settings.fetch("management").fetch("secret-key") == management_key
   raise "wrong auth directory" unless settings.fetch("oauth").fetch("auth-dir") == "#{config_dir}/auth"
   raise "missing private auth directory" unless (config_dir/"auth").directory?
   raise "public config directory" unless (config_dir.stat.mode & 0777) == 0700
@@ -40,7 +37,7 @@ Dir.mktmpdir("hyperrouter-homebrew-test") do |directory|
   formula.post_install
   raise "existing keys replaced" unless keys_file.read == original_keys
   restored = YAML.safe_load(config.read)
-  raise "existing keys not reused" unless restored.fetch("management").fetch("secret-key") == management_key
+  raise "existing keys not reused" unless restored.fetch("access").fetch("api-keys") == [client_key]
 
   config.unlink
   config.write "user-owned config\n"

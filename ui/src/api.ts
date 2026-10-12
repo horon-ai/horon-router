@@ -50,9 +50,11 @@ export const endpoint = () => `${base}/v8/management`;
 export const route = (path: string) => path.split("?")[0];
 
 async function send(path: string, method: string, body?: unknown) {
-  if (!key) throw new Error(t("api.signIn"));
   const at = revision;
-  const headers: Record<string, string> = { Authorization: `Bearer ${key}` };
+  // No key is a valid state: a server with no password accepts the request, and one that
+  // needs a key answers 401. Omitting the header lets the server tell the two apart.
+  const headers: Record<string, string> = {};
+  if (key) headers.Authorization = `Bearer ${key}`;
   const yaml = path === "/config.yaml";
   if (body !== undefined && !(body instanceof FormData))
     headers["Content-Type"] = yaml ? "application/yaml" : "application/json";

@@ -1367,7 +1367,6 @@ async fn serve(
     // Go `Server.Start`: TLS is validated after the listener is open.
     let tls = hr_server::listener::tls_acceptor(&config)?;
     tracing::info!(addr = %listener.local_addr()?, tls = tls.is_some(), "listening");
-    let standalone = listening.is_some();
     if let Some(listening) = listening {
         let _ = listening.send((listener.local_addr()?, tls.is_some()));
     }
@@ -1398,7 +1397,6 @@ async fn serve(
     rt.start_auto_refresh();
     let options = hr_server::management::Options {
         local_password: password,
-        standalone,
         store: store.map(|store| store.persister),
         ..Default::default()
     };

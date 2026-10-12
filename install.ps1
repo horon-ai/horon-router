@@ -207,11 +207,7 @@ function Install-HyperRouter([bool]$Service, [bool]$BinaryOnly) {
     Start-Process $url
   }
   Write-Host ''
-  if (Test-Path $keys) {
-    Write-Host 'Next: open the dashboard, sign in with HYPERROUTER_MANAGEMENT_KEY from keys.env, and choose Connect account.'
-  } else {
-    Write-Host 'Next: open the dashboard, sign in with your management key, and choose Connect account.'
-  }
+  Write-Host 'Next: open the dashboard (no password is needed), and choose Connect account.'
 }
 
 # Runs a download up to three times, for a brief network or server error.
@@ -248,17 +244,15 @@ function Initialize-HyperRouterHome($data, $config, $keys) {
     $port = 8317..8336 | Where-Object { $listening -notcontains $_ } | Select-Object -First 1
     if (-not $port) { throw 'install.ps1: ports 8317 to 8336 are all in use; free one and run this again' }
     $client = 'sk-' + (New-Hex)
-    $management = New-Hex
     $authDir = (Join-Path $data 'auth') -replace "'", "''"
     [IO.File]::WriteAllText($keys, (@(
-          '# hyper-router keys. Sign in to the dashboard with HYPERROUTER_MANAGEMENT_KEY;'
-          '# your tools send HYPERROUTER_CLIENT_KEY. Keep this file private.'
+          '# hyper-router keys. Your tools send HYPERROUTER_CLIENT_KEY. Keep this file private.'
           "HYPERROUTER_PORT=$port"
           "HYPERROUTER_CLIENT_KEY=$client"
-          "HYPERROUTER_MANAGEMENT_KEY=$management"
         ) -join "`n") + "`n")
     [IO.File]::WriteAllText($config, (@(
           '# Written by install.ps1. The plain keys are in keys.env next to this file.'
+          '# The dashboard needs no password; set ADMIN_PASSWORD to require one.'
           'config-version: 8'
           'server:'
           '  host: "127.0.0.1"'
@@ -266,8 +260,6 @@ function Initialize-HyperRouterHome($data, $config, $keys) {
           'access:'
           '  api-keys:'
           "    - `"$client`""
-          'management:'
-          "  secret-key: `"$management`""
           'oauth:'
           "  auth-dir: '$authDir'"
           'routing:'

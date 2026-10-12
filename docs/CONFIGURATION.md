@@ -53,7 +53,7 @@ observability:
 
 | 설정 | 하는 일 |
 |---|---|
-| `secret-key` | 대시보드와 관리 API의 비밀번호입니다. 평문 값은 처음 시작할 때 bcrypt 해시로 바뀝니다. `MANAGEMENT_PASSWORD` 환경 변수로도 설정할 수 있습니다. 둘 다 없으면 관리 API가 꺼집니다. |
+| `secret-key` | 대시보드와 관리 API의 비밀번호입니다. 평문 값은 처음 시작할 때 bcrypt 해시로 바뀝니다. `ADMIN_PASSWORD` 환경 변수로도 설정할 수 있습니다. 이 값들과 `--password`가 모두 없으면 관리 API가 인증 없이 열립니다. |
 | `allow-remote` | 기본값 `false`에서는 이 컴퓨터에서 온 관리 요청만 받습니다. |
 | `disable-control-panel` | `true`이면 `/management.html`에서 대시보드를 제공하지 않습니다. 관리 API는 계속 동작합니다. |
 
@@ -154,7 +154,7 @@ Claude 계정은 `HTTPS_PROXY`와 `HTTP_PROXY`를 무시합니다. 프록시를 
 <a id="environment"></a>
 ## 환경 변수
 
-- `MANAGEMENT_PASSWORD`: `management.secret-key` 대신 쓰는 관리 키입니다.
+- `ADMIN_PASSWORD`: `management.secret-key` 대신 쓰는 관리 키입니다. 이것도 없고 `management.secret-key`도 없으면 관리 API가 인증 없이 열립니다.
 - `TOKIO_WORKER_THREADS`: `worker-threads` 대신 쓰는 요청 스레드 수입니다.
 - `RUST_LOG`: 로그 수준을 덮어씁니다. 예를 들어 `RUST_LOG=debug`입니다.
 - 작업 디렉터리의 `.env` 파일은 CLIProxyAPI와 마찬가지로 시작할 때 읽습니다.

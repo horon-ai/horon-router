@@ -145,7 +145,7 @@ async fn serve(path: &std::path::Path) -> (String, tokio::task::JoinHandle<()>) 
         rt,
         path.to_path_buf(),
         Options {
-            management_password: Some(String::new()),
+            admin_password: Some(String::new()),
             auth_dir: Some(auth),
             // Sign-in flows that start a device login hit this closed port, never a provider.
             login_base: Some("http://127.0.0.1:1".into()),
@@ -488,13 +488,16 @@ async fn v0_config_yaml_put_writes_like_go() {
     assert_eq!(res.status().as_u16(), 200);
     assert_eq!(res.text().await.unwrap(), r#"{"changed":["config"],"ok":true}"#);
     assert_eq!(std::fs::read_to_string(&path).unwrap(), keyless);
+    // The keyless config leaves management open, not off: unlike Go, which would now
+    // answer 404 for the whole tree, the route is reachable without a key
+    // (docs/DIFFERENCES-FROM-GO.md).
     let res = client
         .get(format!("{base}/v0/management/debug"))
         .bearer_auth("fake-secret")
         .send()
         .await
         .unwrap();
-    assert_eq!(res.status().as_u16(), 404);
+    assert_eq!(res.status().as_u16(), 200);
     server.abort();
     let _ = std::fs::remove_dir_all(&dir);
 }

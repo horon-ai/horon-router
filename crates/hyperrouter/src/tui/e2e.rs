@@ -54,7 +54,7 @@ async fn serve(dir: &std::path::Path) -> String {
         path,
         Options {
             local_password: LOCAL_PASSWORD.into(),
-            management_password: Some(String::new()),
+            admin_password: Some(String::new()),
             log_dir: Some(dir.join("logs")),
             ..Options::default()
         },

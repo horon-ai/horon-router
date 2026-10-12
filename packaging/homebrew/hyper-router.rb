@@ -44,15 +44,13 @@ class HyperRouter < Formula
     unless keys_file.exist?
       keys_file.write <<~EOS
         HYPERROUTER_CLIENT_KEY=#{SecureRandom.hex(24)}
-        HYPERROUTER_MANAGEMENT_KEY=#{SecureRandom.hex(24)}
       EOS
       keys_file.chmod 0600
     end
     keys = keys_file.read.lines.reject { |line| line.strip.empty? || line.lstrip.start_with?("#") }
                     .to_h { |line| line.strip.split("=", 2) }
     client_key = keys.fetch("HYPERROUTER_CLIENT_KEY")
-    management_key = keys.fetch("HYPERROUTER_MANAGEMENT_KEY")
-    unless [client_key, management_key].all? { |key| key.match?(/\A[0-9a-f]{48}\z/) }
+    unless client_key.match?(/\A[0-9a-f]{48}\z/)
       odie "Invalid keys in #{keys_file}; restore the keys or write config.yaml yourself."
     end
     config.write <<~EOS
@@ -62,9 +60,6 @@ class HyperRouter < Formula
       access:
         api-keys:
           - "#{client_key}"
-      management:
-        allow-remote: false
-        secret-key: "#{management_key}"
       oauth:
         auth-dir: "#{config_dir}/auth"
     EOS
@@ -74,7 +69,8 @@ class HyperRouter < Formula
   def caveats
     <<~EOS
       Config and sign-in credentials are kept in #{etc}/hyper-router.
-      Client and management keys are saved in #{etc}/hyper-router/keys.env.
+      The client key is saved in #{etc}/hyper-router/keys.env.
+      The dashboard needs no password; set ADMIN_PASSWORD to require one.
       The default server listens only on 127.0.0.1:8317.
       Start it with brew services start hyper-router, then open:
         http://127.0.0.1:8317/management.html

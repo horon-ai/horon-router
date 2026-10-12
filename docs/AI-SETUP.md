@@ -8,7 +8,7 @@
 ## 에이전트가 지킬 규칙
 
 - 사용자 대신 제공자 계정에 로그인하지 않습니다. 사용자의 비밀번호를 입력하거나 붙여넣거나 읽지도 않습니다. 로그인은 사용자가 할 일입니다(7단계).
-- 관리 키와 클라이언트 키를 출력하거나 로그에 남기거나 다시 옮겨 적지 않습니다. 두 키는 `~/.hyper-router/keys.env`에 있으니 그 파일을 가리키십시오.
+- 관리 키와 클라이언트 키를 출력하거나 로그에 남기거나 다시 옮겨 적지 않습니다. 클라이언트 키는 `~/.hyper-router/keys.env`에 있으니 그 파일을 가리키십시오.
 - 사용자가 옮겨 달라고 요청하지 않는 한, 이미 있는 CLIProxyAPI(Go)나 hyper-router 설치를 멈추거나 바꾸거나 다시 설정하지 않습니다(이 문서 끝을 보십시오).
 - **주의:** 프록시를 인터넷에 열지 않습니다. `server.host`를 `127.0.0.1`로 유지합니다.
 - 로그인 시 자동 시작을 설정하기 전에 물어봅니다(5단계).
@@ -57,7 +57,7 @@ irm https://raw.githubusercontent.com/alpoxdev/hyper-router/dev/install.ps1 | ie
 설치 프로그램은 다음을 합니다.
 
 1. 릴리스 실행 파일을 내려받아 릴리스의 체크섬과 대조해 확인하고, `~/.local/bin/hyperrouter`로 설치합니다(Windows에서는 `%LOCALAPPDATA%\Programs\hyper-router\hyperrouter.exe`).
-2. `~/.hyper-router/config.yaml`(Windows에서는 `%USERPROFILE%\.hyper-router`)을 씁니다. 8317부터 시작해 비어 있는 포트를 고르고 세션 고정을 켭니다. 클라이언트 키와 관리 키를 만들어 `~/.hyper-router/keys.env`에 저장하고, 이 파일은 사용자만 읽을 수 있게 합니다.
+2. `~/.hyper-router/config.yaml`(Windows에서는 `%USERPROFILE%\.hyper-router`)을 씁니다. 8317부터 시작해 비어 있는 포트를 고르고 세션 고정을 켭니다. 클라이언트 키를 만들어 `~/.hyper-router/keys.env`에 저장하고, 이 파일은 사용자만 읽을 수 있게 합니다.
 3. 서버를 백그라운드에서 켜고 `~/.hyper-router/hyperrouter.log`에 로그를 남기며 `/healthz`에 응답이 오는지 기다립니다.
 
 대시보드 주소와 파일 위치를 출력합니다. 키는 절대 출력하지 않습니다. 실패하면 이유를 한 줄로 알려 줍니다. `hyperrouter.log`의 마지막 몇 줄을 읽고(키는 들어 있지 않습니다) 알려 주는 문제를 고치십시오.
@@ -67,10 +67,11 @@ irm https://raw.githubusercontent.com/alpoxdev/hyper-router/dev/install.ps1 | ie
 ```sh
 HYPERROUTER_PORT=8317
 HYPERROUTER_CLIENT_KEY=sk-...
-HYPERROUTER_MANAGEMENT_KEY=...
 ```
 
-그 시스템에 맞는 릴리스 실행 파일이 없으면 소스에서 빌드합니다. `git`, Rust 도구 모음(`cargo`), `cmake`, `clang`, `perl`이 필요합니다. 설치하기 전에 사용자에게 물어보십시오. 그다음 [설치 스크립트 없이 처음 실행하기](INSTALL.md#first-run-without-the-install-script)를 따라 하고, 위 형식대로 키 두 개를 `~/.hyper-router/keys.env`에 쓰고 `chmod 600`을 실행하십시오.
+대시보드는 비밀번호 없이 바로 열립니다. 관리 키를 요구하려면 서버를 `ADMIN_PASSWORD=...`로 시작하거나 `config.yaml`에 `management.secret-key`를 적으십시오.
+
+그 시스템에 맞는 릴리스 실행 파일이 없으면 소스에서 빌드합니다. `git`, Rust 도구 모음(`cargo`), `cmake`, `clang`, `perl`이 필요합니다. 설치하기 전에 사용자에게 물어보십시오. 그다음 [설치 스크립트 없이 처음 실행하기](INSTALL.md#first-run-without-the-install-script)를 따라 하고, 위 형식대로 클라이언트 키를 `~/.hyper-router/keys.env`에 쓰고 `chmod 600`을 실행하십시오.
 
 ```sh
 git clone https://github.com/alpoxdev/hyper-router.git ~/hyper-router-src
@@ -128,7 +129,7 @@ URL="http://127.0.0.1:$HYPERROUTER_PORT/management.html"
 
 터널을 쓸 때는 `server.host`를 `127.0.0.1`로 유지하십시오. `access.api-keys`가 비어 있는 동안에는 `server.host`를 `0.0.0.0`이나 `""`로 설정하지 마십시오.
 
-사용자에게 이렇게 알려 주십시오. 로그인에 쓸 관리 키는 `~/.hyper-router/keys.env`의 `HYPERROUTER_MANAGEMENT_KEY` 줄입니다. 사용자는 자기 터미널에서 `cat ~/.hyper-router/keys.env`로 이 값을 볼 수 있습니다.
+사용자에게 이렇게 알려 주십시오. 대시보드는 `~/.hyper-router/management.html`에서 비밀번호 없이 바로 열립니다. 관리 키를 요구하려면 서버를 `ADMIN_PASSWORD=...`로 시작하십시오.
 
 <a id="7-hand-over-the-sign-in-to-the-user"></a>
 ## 7. 로그인은 사용자에게 맡기기

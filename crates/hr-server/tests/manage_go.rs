@@ -460,7 +460,7 @@ mod access {
         ));
         let options = Options {
             local_password: scenario["local_password"].as_str().unwrap_or_default().into(),
-            management_password: Some(scenario["env"].as_str().unwrap_or_default().into()),
+            admin_password: Some(scenario["env"].as_str().unwrap_or_default().into()),
             ..Options::default()
         };
         Management::with_options(rt, path, options)
@@ -500,9 +500,20 @@ mod access {
                 let status = res.status().as_u16();
                 let version = res.headers().contains_key("x-cpa-version");
                 let body = res.text().await.unwrap();
-                assert_eq!(status, step["status"], "{name}[{i}] {body}");
+                // `rust_status`/`rust_body` mark a step where hyper-router intentionally
+                // differs from Go: management stays open without a password, while Go turns
+                // it off. See docs/DIFFERENCES-FROM-GO.md.
+                let want = step
+                    .get("rust_status")
+                    .and_then(Value::as_u64)
+                    .unwrap_or(step["status"].as_u64().unwrap()) as u16;
+                assert_eq!(status, want, "{name}[{i}] {body}");
                 if status != 200 {
-                    assert_eq!(body, step["body"].as_str().unwrap(), "{name}[{i}]");
+                    let want_body = step
+                        .get("rust_body")
+                        .and_then(Value::as_str)
+                        .unwrap_or_else(|| step["body"].as_str().unwrap());
+                    assert_eq!(body, want_body, "{name}[{i}]");
                 }
                 assert_eq!(version, step["x_cpa_version"] != "", "{name}[{i}] version header");
                 steps += 1;
@@ -557,7 +568,7 @@ mod routes {
                 path.clone(),
                 Options {
                     local_password: scenario["local_password"].as_str().unwrap_or_default().into(),
-                    management_password: Some(scenario["env"].as_str().unwrap_or_default().into()),
+                    admin_password: Some(scenario["env"].as_str().unwrap_or_default().into()),
                     auth_dir: Some(auth),
                     ..Options::default()
                 },
@@ -603,9 +614,21 @@ mod routes {
                 }
                 assert!(!res.headers().contains_key("allow"), "{name}[{i}]: gin sends no Allow");
                 let body = res.text().await.unwrap();
-                assert_eq!(status, step["status"], "{name}[{i}] {body}");
+                // `rust_status`/`rust_body` mark a step where hyper-router intentionally
+                // differs from Go: management stays open without a password, while Go turns
+                // it off (docs/DIFFERENCES-FROM-GO.md). Go's recorded headers are for Go's
+                // status, so they are not compared on such a step.
+                let want_status = step
+                    .get("rust_status")
+                    .and_then(Value::as_u64)
+                    .unwrap_or(step["status"].as_u64().unwrap()) as u16;
+                assert_eq!(status, want_status, "{name}[{i}] {body}");
                 if status != 200 {
-                    assert_eq!(body, step["resp_body"].as_str().unwrap(), "{name}[{i}]");
+                    let want_body = step
+                        .get("rust_body")
+                        .and_then(Value::as_str)
+                        .unwrap_or_else(|| step["resp_body"].as_str().unwrap());
+                    assert_eq!(body, want_body, "{name}[{i}]");
                 }
                 let mut want = step["resp_headers"].as_object().unwrap().clone();
                 // The goldens come from Go's cgo build, which loads native plugins; this
@@ -613,7 +636,9 @@ mod routes {
                 if want.contains_key("X-CPA-SUPPORT-PLUGIN") {
                     want.insert("X-CPA-SUPPORT-PLUGIN".into(), hr_plugin::SUPPORT_PLUGIN.into());
                 }
-                assert_eq!(Value::Object(headers), Value::Object(want), "{name}[{i}] headers");
+                if step.get("rust_status").is_none() {
+                    assert_eq!(Value::Object(headers), Value::Object(want), "{name}[{i}] headers");
+                }
                 compared += 1;
             }
             server.abort();
@@ -759,7 +784,7 @@ mod config_writes {
                 },
             ));
             let options = Options {
-                management_password: Some(String::new()),
+                admin_password: Some(String::new()),
                 auth_dir: Some(auth),
                 ..Options::default()
             };
@@ -980,7 +1005,7 @@ mod creds {
                 );
             }
             let options = Options {
-                management_password: Some(String::new()),
+                admin_password: Some(String::new()),
                 log_dir: Some(log_dir.clone()),
                 // Go parsed log line timestamps in UTC: the generator runs with TZ=UTC.
                 log_zone: chrono::FixedOffset::east_opt(0),
@@ -1273,7 +1298,7 @@ mod creds {
             },
         ));
         let options = Options {
-            management_password: Some(String::new()),
+            admin_password: Some(String::new()),
             ..Options::default()
         };
         let (base, server) = super::access::serve(Management::with_options(rt.clone(), path.clone(), options)).await;

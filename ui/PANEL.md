@@ -8,7 +8,7 @@ Tested against unmodified CLIProxyAPI at commit `6fecc6e` (v8.0.10), both the re
 
 - Every screen: overview, credentials and account sign-in (OAuth, device codes, callback paste, Vertex import), provider API keys, client keys, models, payload rules, quotas, configuration (JSON and YAML with a reviewed diff), logs, usage, plugins and system.
 - It talks only to the server that serves it: the v8 Management API (`/v8/management/...`), plus `GET /v1/models` with a client key when the Use with tools page tests that key. JavaScript, CSS, the font and the icons are inside the file. It makes no other requests: no CDN, no web fonts, no analytics, no update checks of its own.
-- The management key is kept in the tab's memory only, never in browser storage. Reloading the page signs you out. The theme choice is the only thing stored.
+- When a management key is needed it is kept in the tab's memory only, never in browser storage. A server with no password opens straight in. The theme choice is the only thing stored.
 - It recognises the server from its `X-CPA-VERSION`, `X-CPA-COMMIT` and `X-CPA-BUILD-DATE` headers. On Go it assumes the full v8 API and sends no capability probes; every request it makes is one you triggered or a read for the screen you are on.
 
 ## What it does not do
@@ -27,13 +27,13 @@ Tested against unmodified CLIProxyAPI at commit `6fecc6e` (v8.0.10), both the re
 
    ```yaml
    management:
-     secret-key: "your management key"   # required; Go hashes it on start
+     secret-key: "your management key"   # optional; with no key the dashboard opens straight in
      disable-control-panel: false
      disable-auto-update-panel: true
    ```
 
    In the older layout the same keys live under `remote-management:`.
-4. Open `http://<host>:<port>/management.html` and sign in with the management key. For access from another machine, also set `allow-remote: true` and use HTTPS.
+4. Open `http://<host>:<port>/management.html`. A server with no password opens straight in; otherwise sign in with the management key. For access from another machine, also set `allow-remote: true` and use HTTPS.
 
 Place the file before the first visit to `/management.html`: if the file is missing on that visit, Go downloads the official panel into the same place.
 
@@ -55,7 +55,7 @@ The updater only sees published releases, not drafts. Until the first release is
 
 SHA-256 of the `dist-panel/management.html` built from this commit:
 
-<!-- sha256 -->`e0f2a6d486797ce125debca56f2844dc510b83eb595806c836c48326021a58bf`<!-- /sha256 -->
+<!-- sha256 -->`d726eb1755b22dda2f7233435a251e4eab5838876edae542b26baa561271dd43`<!-- /sha256 -->
 
 ```sh
 sha256sum static/management.html

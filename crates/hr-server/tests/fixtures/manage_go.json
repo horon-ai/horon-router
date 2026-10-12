@@ -33322,7 +33322,8 @@
       "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
-     }
+     },
+     "rust_status": 200
     },
     {
      "method": "OPTIONS",
@@ -33378,9 +33379,11 @@
       "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
-     }
+     },
+     "rust_status": 200
     }
-   ]
+   ],
+   "note": "hyper-router opens management without a password (Go turns it off); rust_status/rust_body hold hyper-router's answers. See docs/DIFFERENCES-FROM-GO.md."
   },
   {
    "name": "local_password_only_until_reload",
@@ -33408,7 +33411,8 @@
       "X-CPA-COMMIT": "none",
       "X-CPA-SUPPORT-PLUGIN": "1",
       "X-CPA-VERSION": "present"
-     }
+     },
+     "rust_status": 200
     },
     {
      "update": "remote-management:\n  allow-remote: false\nport: 0\n",
@@ -33427,9 +33431,11 @@
       "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id"
-     }
+     },
+     "rust_status": 200
     }
-   ]
+   ],
+   "note": "hyper-router keeps the local password working after a reload (management stays on), so the matching key is accepted; Go drops availability without a config secret. See docs/DIFFERENCES-FROM-GO.md."
   },
   {
    "name": "env_secret_survives_reload",
@@ -34118,15 +34124,19 @@
      },
      "status": 403,
      "body": "{\"error\":\"remote management key not set\"}",
-     "x_cpa_version": "dev"
+     "x_cpa_version": "dev",
+     "rust_status": 200
     },
     {
      "remote": "127.0.0.1:40000",
      "status": 403,
      "body": "{\"error\":\"remote management key not set\"}",
-     "x_cpa_version": "dev"
+     "x_cpa_version": "dev",
+     "rust_status": 401,
+     "rust_body": "{\"error\":\"missing management key\"}"
     }
-   ]
+   ],
+   "note": "hyper-router opens management without a password (Go turns it off); rust_status/rust_body hold hyper-router's answers. See docs/DIFFERENCES-FROM-GO.md."
   },
   {
    "name": "trusted_loopback_proxy_uses_forwarded_ip",

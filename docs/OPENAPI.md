@@ -27,9 +27,9 @@ hyper-router 서버는 자기가 아는 HTTP 경로를 OpenAPI 3.1 명세로 내
 화면 자체는 공개지만, 화면에서 보내는 시험 요청은 서버의 기존 인증을 그대로 받습니다.
 
 - 일반 API(고정 일반 경로와 `/v1`, `/v1beta` 등)는 설정한 클라이언트 키를 씁니다. `Authorization` 헤더(`Bearer <key>` 또는 키 그대로), `X-Goog-Api-Key` 헤더, `X-Api-Key` 헤더, `key` 쿼리 값, `auth_token` 쿼리 값 다섯 가지가 서로 대안(OR)입니다. 키를 설정하지 않으면 API는 열립니다. 실시간 통화와 사이드밴드 경로는 여기에 더해 `POST /v1/realtime/client_secrets`(또는 예전 `/v1/realtime/sessions`)가 발급하는 임시 `ek_...` 클라이언트 비밀값도 받습니다.
-- 관리 API(`/v8/management`와 폐기 예정인 `/v0/management`)는 클라이언트 키와 다른 관리 키를 씁니다. `Authorization` 헤더(`Bearer <key>` 또는 키 그대로) 또는 `X-Management-Key` 헤더이며, 관리 키가 설정되지 않으면 이 트리 전체가 빈 본문 404로 답합니다. `GET`·`POST /v8/management/oauth/callback`(그리고 v0의 `oauth-callback`)은 키를 요구하지 않지만, 관리 기능이 켜져 있어야 합니다.
+- 관리 API(`/v8/management`와 폐기 예정인 `/v0/management`)는 클라이언트 키와 다른 관리 키를 씁니다. `Authorization` 헤더(`Bearer <key>` 또는 키 그대로) 또는 `X-Management-Key` 헤더입니다. 관리 키가 없으면 이 트리가 인증 없이 열립니다(Go CLIProxyAPI는 이때 빈 본문 404로 답합니다). `GET`·`POST /v8/management/oauth/callback`(그리고 v0의 `oauth-callback`)은 키를 요구하지 않습니다.
 
-관리 키는 `management.secret-key`로 설정하며 `MANAGEMENT_PASSWORD` 환경 변수로도 줄 수 있습니다. 평문 값은 처음 시작할 때 bcrypt 해시로 바뀝니다. 자세한 내용은 [CONFIGURATION.md](CONFIGURATION.md#management)를 보십시오.
+관리 키는 `management.secret-key`로 설정하며 `ADMIN_PASSWORD` 환경 변수로도 줄 수 있습니다. 평문 값은 처음 시작할 때 bcrypt 해시로 바뀝니다. 자세한 내용은 [CONFIGURATION.md](CONFIGURATION.md#management)를 보십시오.
 
 <a id="what-the-document-covers"></a>
 ## 명세가 다루는 범위

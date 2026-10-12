@@ -145,16 +145,15 @@ main() {
       port=$((port + 1))
       [ "$port" -le 8336 ] || fail "ports 8317 to 8336 are all in use; free one and run this again"
     done
-    client="sk-$(random_hex)" management=$(random_hex)
+    client="sk-$(random_hex)"
     cat >"$keys" <<EOF
-# hyper-router keys. Sign in to the dashboard with HYPERROUTER_MANAGEMENT_KEY;
-# your tools send HYPERROUTER_CLIENT_KEY. Keep this file private.
+# hyper-router keys. Your tools send HYPERROUTER_CLIENT_KEY. Keep this file private.
 HYPERROUTER_PORT=$port
 HYPERROUTER_CLIENT_KEY=$client
-HYPERROUTER_MANAGEMENT_KEY=$management
 EOF
     cat >"$config" <<EOF
 # Written by install.sh. The plain keys are in keys.env next to this file.
+# The dashboard needs no password; set ADMIN_PASSWORD to require one.
 config-version: 8
 server:
   host: "127.0.0.1"
@@ -162,8 +161,6 @@ server:
 access:
   api-keys:
     - "$client"
-management:
-  secret-key: "$management"
 oauth:
   auth-dir: "$home/auth"
 routing:
@@ -251,11 +248,7 @@ EOF
     printf '  ssh -L %s:127.0.0.1:%s %s@%s\n' "$port" "$port" "$(id -un)" "$(hostname)"
     printf 'Tailscale works too; see docs/MULTI-ACCOUNT.md.\n'
   fi
-  if [ -f "$keys" ]; then
-    printf '\nNext: open the dashboard, sign in with HYPERROUTER_MANAGEMENT_KEY from keys.env, and choose Connect account.\n'
-  else
-    printf '\nNext: open the dashboard, sign in with your management key, and choose Connect account.\n'
-  fi
+  printf '\nNext: open the dashboard (no password is needed), and choose Connect account.\n'
 }
 
 # Restore the same inode the old server used, then restart using its unchanged config.

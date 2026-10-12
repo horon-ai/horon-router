@@ -82,12 +82,8 @@ pub struct Management {
 pub struct Options {
     /// `--password`: accepted from loopback clients only, like Go's local password.
     pub local_password: String,
-    /// `-tui -standalone`: the local password alone keeps management on, across
-    /// reloads, for loopback clients. Go refuses every request without a configured
-    /// secret, so its standalone TUI cannot sign in with a keyless config.
-    pub standalone: bool,
-    /// Overrides the `MANAGEMENT_PASSWORD` environment variable when set.
-    pub management_password: Option<String>,
+    /// Overrides the `ADMIN_PASSWORD` environment variable when set.
+    pub admin_password: Option<String>,
     /// Overrides [`observability::LATEST_RELEASE_URL`] (tests point it at a local server).
     pub latest_release_url: Option<String>,
     /// Overrides HYPERROUTER_NO_UPDATE_CHECK (tests only).
@@ -121,6 +117,8 @@ impl Management {
     }
 
     /// Go `AuthenticateManagementKey` for callers outside HTTP (the RESP protocol).
+    /// Management is always enabled, so this never refuses because no key is configured:
+    /// with no password anywhere the empty-key check succeeds and the caller is let in.
     pub(crate) async fn authenticate_key(
         &self,
         ip: &str,
@@ -211,10 +209,10 @@ impl Management {
     }
 
     /// Publishes a config and everything Go derives from it on reload: scheduler
-    /// policy, management availability, and the credential set (auth-dir files plus
+    /// policy and the credential set (auth-dir files plus
     /// config API keys). `files` replaces the auth-dir scan when the caller already
-    /// has a reconciled list. Callers hold `disk`. Infallible on purpose: access
-    /// settings of a valid config (a rotated or removed secret) always take effect.
+    /// has a reconciled list. Callers hold `disk`. Infallible on purpose: the
+    /// credentials of a valid config always take effect.
     pub(crate) fn publish(&self, cfg: Config, files: Option<Vec<Credential>>) {
         let mut cfg = cfg;
         self.lock_auth_dir(&mut cfg);
@@ -242,7 +240,6 @@ impl Management {
         });
         drop(fallbacks);
         all.extend(credentials::from_config(&cfg));
-        self.access.config_published(&cfg);
         crate::logging::configure(&cfg);
         self.rt.usage_queue().configure(self.access.available(), &cfg);
         let policy = policy(&cfg);

@@ -148,8 +148,8 @@ fn e503(description: &str) -> (&'static str, Value) {
 }
 
 /// The statuses every guarded management route shares: a missing or wrong key, a refused
-/// remote client or a ban, and a disabled management API (empty 404) or a missing
-/// resource.
+/// remote client or a ban, and a missing resource. With no management key configured the
+/// routes are open, not disabled (docs/DIFFERENCES-FROM-GO.md).
 fn auth_responses() -> Vec<(&'static str, Value)> {
     vec![
         (
@@ -159,16 +159,13 @@ fn auth_responses() -> Vec<(&'static str, Value)> {
         (
             "403",
             resp(
-                "Remote management is disabled, no management key is configured, or the client IP is banned after repeated failures",
+                "Remote management is disabled or the client IP is banned after repeated failures",
                 &[(JSON, r("ManagementError"))],
             ),
         ),
         (
             "404",
-            resp(
-                "The management API is disabled (empty body), or the resource was not found",
-                &[(JSON, r("ManagementError"))],
-            ),
+            resp("The resource was not found", &[(JSON, r("ManagementError"))]),
         ),
     ]
 }
@@ -248,8 +245,9 @@ fn tags_list() -> Vec<Value> {
             "description": "Fixed v8 management API under `/v8/management`. Authentication \
         uses a management key (the `Authorization` header, `Bearer <key>` or the raw key, or \
         the `X-Management-Key` header) and is distinct from the client keys of the general \
-        API. When no management key is configured the whole tree answers 404 with an empty \
-        body. The static control panel (`/ui`, `/management.html`, `/assets/*`, `/fonts/*`, \
+        API. When no management key is configured (`management.secret-key`, the \
+        `ADMIN_PASSWORD` environment variable, or `--password`) the whole tree is open \
+        without a key. The static control panel (`/ui`, `/management.html`, `/assets/*`, `/fonts/*`, \
         `/favicon.svg`) is served as files, not as API operations, and the dynamic HTTP routes \
         a plugin registers at runtime are outside this contract.",
         }),

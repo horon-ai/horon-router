@@ -21,9 +21,9 @@ Codex CLI, Claude Code 같은 도구를 하나의 로컬 주소에 연결해 Dee
    irm https://raw.githubusercontent.com/alpoxdev/hyper-router/dev/install.ps1 | iex
    ```
 
-   설치 스크립트는 릴리스 파일의 체크섬을 확인하고 `~/.hyper-router/config.yaml`을 만든 다음 프록시를 시작하고 대시보드를 엽니다. Windows 설정 경로는 `%USERPROFILE%\.hyper-router\config.yaml`입니다. 새 키는 화면에 출력하지 않고 `keys.env`에 저장합니다.
+   설치 스크립트는 릴리스 파일의 체크섬을 확인하고 `~/.hyper-router/config.yaml`을 만든 다음 프록시를 시작하고 대시보드를 엽니다. Windows 설정 경로는 `%USERPROFILE%\.hyper-router\config.yaml`입니다. 새 클라이언트 키는 화면에 출력하지 않고 `keys.env`에 저장합니다.
 
-2. 설정 파일 옆의 `keys.env`에 있는 `HYPERROUTER_MANAGEMENT_KEY`로 대시보드에 로그인합니다. 본인 계정을 연결하거나 제공자의 API 키를 추가합니다. 구독 계정을 연결하기 전에 [계정과 제공자 이용약관](#accounts-and-provider-terms)을 읽습니다.
+2. 대시보드는 비밀번호 없이 바로 열립니다. 본인 계정을 연결하거나 제공자의 API 키를 추가합니다. 구독 계정을 연결하기 전에 [계정과 제공자 이용약관](#accounts-and-provider-terms)을 읽습니다.
 3. 대시보드의 **Use with tools** 페이지에서 Codex CLI 또는 Claude Code 설정을 복사합니다. 도구에는 관리 키가 아닌 `HYPERROUTER_CLIENT_KEY`를 사용합니다.
 
 ### 다른 설치 방법과 업데이트

@@ -145,7 +145,7 @@ async fn proxy(name: &str, strategy: &str) -> Proxy {
     let path = dir.join("config.yaml");
     std::fs::write(&path, &yaml).unwrap();
     let options = Options {
-        management_password: Some(PASSWORD.into()),
+        admin_password: Some(PASSWORD.into()),
         ..Default::default()
     };
     let management = Management::with_options(rt.clone(), path, options);
