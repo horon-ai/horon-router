@@ -67,7 +67,9 @@ async fn guard(State(rt): State<Arc<Runtime>>, request: Request, next: Next) -> 
     {
         return next.run(request).await;
     }
-    if matches!(path.as_str(), "/" | "/management.html" | "/ui") && matches!(*request.method(), Method::GET | Method::HEAD) {
+    if matches!(path.as_str(), "/" | "/management.html" | "/ui")
+        && matches!(*request.method(), Method::GET | Method::HEAD)
+    {
         let mut response = Response::new(axum::body::Body::from(if request.method() == Method::HEAD {
             String::new()
         } else {
