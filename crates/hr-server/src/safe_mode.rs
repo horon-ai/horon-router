@@ -61,13 +61,13 @@ async fn guard(State(rt): State<Arc<Runtime>>, request: Request, next: Next) -> 
         return next.run(request).await;
     }
     let path = crate::management::percent_decode(request.uri().path());
-    if path == "/management.html"
+    if matches!(path.as_str(), "/management.html" | "/ui")
         && crate::access::query_get(request.uri().query().unwrap_or_default(), "safe-mode").as_deref()
             == Some(b"configure")
     {
         return next.run(request).await;
     }
-    if matches!(path.as_str(), "/" | "/management.html") && matches!(*request.method(), Method::GET | Method::HEAD) {
+    if matches!(path.as_str(), "/" | "/management.html" | "/ui") && matches!(*request.method(), Method::GET | Method::HEAD) {
         let mut response = Response::new(axum::body::Body::from(if request.method() == Method::HEAD {
             String::new()
         } else {
@@ -149,6 +149,8 @@ mod tests {
                     ("GET", "/healthz", false, false),
                     ("GET", "/", false, true),
                     ("HEAD", "/management.html", false, true),
+                    ("GET", "/ui", false, true),
+                    ("GET", "/ui?safe-mode=configure", false, false),
                     ("GET", "/management.html?safe-mode=configure", false, false),
                     ("GET", "/management.html?safe-mode=bad&safe-mode=configure", false, true),
                     ("OPTIONS", "/v1/responses", false, false),

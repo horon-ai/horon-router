@@ -369,7 +369,8 @@ pub async fn gate(
         .iter()
         .any(|base| path == *base || path.strip_prefix(base).is_some_and(|rest| rest.starts_with('/')))
         || path.starts_with("/v0/resource/plugins/")
-        || path == "/management.html";
+        || path == "/management.html"
+        || path == "/ui";
     if !exempt
         && let Some(remote) = rt.remote_dispatch()
         && !remote.available()
