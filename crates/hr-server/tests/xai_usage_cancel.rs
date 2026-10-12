@@ -113,7 +113,7 @@ struct Proxy {
 
 async fn proxy(behaviour: Upstream) -> Proxy {
     let (upstream, ready) = mock(behaviour).await;
-    // A private auth-dir: without one, credential loading reads the real ~/.cli-proxy-api.
+    // A private auth-dir: without one, credential loading reads the real ~/.hyper-router.
     static NEXT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
     let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let auth_dir = std::env::temp_dir().join(format!("cpa-xai-cancel-{}-{n}", std::process::id()));

@@ -537,7 +537,7 @@ mod routes {
             let path = dir.join("config.yaml");
             let write = |yaml: &str| std::fs::write(&path, yaml.replace("$HASH", &hash)).unwrap();
             write(scenario["yaml"].as_str().unwrap());
-            // The fixtures set no auth-dir; never fall back to the real ~/.cli-proxy-api.
+            // The fixtures set no auth-dir; never fall back to the real ~/.hyper-router.
             let auth = dir.join("auth");
             let mut cfg = Config::load(&path).unwrap();
             cfg.auth_dir = auth.clone();
@@ -743,7 +743,7 @@ mod config_writes {
             std::fs::create_dir_all(&dir).unwrap();
             let path = dir.join("config.yaml");
             std::fs::write(&path, scenario["yaml"].as_str().unwrap().replace("$HASH", &hash)).unwrap();
-            // The fixtures set no auth-dir; never fall back to the real ~/.cli-proxy-api.
+            // The fixtures set no auth-dir; never fall back to the real ~/.hyper-router.
             let auth = dir.join("auth");
             let mut cfg = Config::load(&path).unwrap();
             cfg.auth_dir = auth.clone();

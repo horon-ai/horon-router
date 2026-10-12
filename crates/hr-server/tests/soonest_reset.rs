@@ -110,7 +110,7 @@ struct Proxy {
 }
 
 /// A private `auth-dir`: without one, credential loading reads the user's real
-/// `~/.cli-proxy-api`.
+/// `~/.hyper-router`.
 fn yaml(base: &str, strategy: &str, auth_dir: &std::path::Path) -> String {
     format!(
         "auth-dir: {}\napi-keys:\n  - client-key\nrouting:\n  strategy: {strategy}\nclaude-api-key:\n  - api-key: sk-fake-1\n    base-url: {base}\n  - api-key: sk-fake-2\n    base-url: {base}\n",

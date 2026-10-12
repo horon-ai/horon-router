@@ -130,7 +130,7 @@ struct Conductor {
 }
 
 /// A private, empty `auth-dir`, removed when dropped: credential loading never falls back
-/// to `~/.cli-proxy-api`.
+/// to `~/.hyper-router`.
 struct AuthDir(std::path::PathBuf);
 
 impl AuthDir {

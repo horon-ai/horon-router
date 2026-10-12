@@ -47,7 +47,7 @@ npm test
 npm run build
 ```
 
-- 테스트는 로컬 모의 제공자만 사용하며 실제 제공자, 계정, 키에 접근하지 않습니다. 테스트마다 별도의 `auth-dir`를 지정합니다. 생략하면 실제 로그인 정보가 있는 `~/.cli-proxy-api`를 읽을 수 있습니다.
+- 테스트는 로컬 모의 제공자만 사용하며 실제 제공자, 계정, 키에 접근하지 않습니다. 테스트마다 별도의 `auth-dir`를 지정합니다. 생략하면 실제 로그인 정보가 있는 `~/.hyper-router`를 읽을 수 있습니다.
 - 서버 테스트 런타임은 `hr_server::testing::runtime`으로 만듭니다. 이 보호 장치를 모든 네트워크 경로의 차단으로 간주하지 말고 직접 접속하는 기능도 로컬 모의 서버로 연결합니다.
 - Go 플러그인과 PostgreSQL 테스트는 도구가 없으면 생략될 수 있습니다. CI는 Go, PostgreSQL, `CPA_TEST_NO_SKIP=1`을 준비하고 외부 네트워크를 차단한 공간에서 실행합니다. 로컬 통과를 전체 비교 테스트 통과로 보고하지 않습니다.
 - Linux의 Go/Rust 비교는 [harness/README.md](harness/README.md)를 읽고 `./harness/run`을 사용합니다. Linux 격리가 필요하며 macOS에서 무제한 실행으로 대체하지 않습니다.

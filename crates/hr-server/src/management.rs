@@ -102,7 +102,7 @@ pub struct Options {
     /// Parses log line timestamps in this zone instead of the local one (tests only).
     pub log_zone: Option<chrono::FixedOffset>,
     /// Scans this directory for credentials on every reload instead of the config's
-    /// auth-dir, so a config without one never reads the default `~/.cli-proxy-api`
+    /// auth-dir, so a config without one never reads the default `~/.hyper-router`
     /// (tests only). A configured store still wins.
     pub auth_dir: Option<PathBuf>,
     /// The only plugin store registry (Go `pluginStoreRegistryURL`; tests only).
