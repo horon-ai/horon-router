@@ -44,7 +44,7 @@
               "fill": "$ink-2",
               "textGrowth": "fixed-width",
               "width": "fill_container",
-              "content": "cliproxy-rs management dashboard. Device-body neutrals carry the surface, one Braun-yellow accent, three status lamps. Every value below is a .pen variable the components reference.",
+              "content": "HyperRouter management dashboard. shadcn/ui neutral carries every surface; emphasis is neutral ink, not a hue. Three status lamps keep their semantic colour. Every value below is a .pen variable the components reference.",
               "fontFamily": "$font-ui",
               "fontSize": 14,
               "fontWeight": "normal"
@@ -86,7 +86,7 @@
                   "fill": "$ink-2",
                   "textGrowth": "fixed-width",
                   "width": "fill_container",
-                  "content": "Body is the device shell. Panel is recessed (display windows, segmented tracks, code). Raised is a key or field face.",
+                  "content": "Body is the page surface. Panel is a recessed track (display windows, segmented tracks, code). Raised is a key or field face.",
                   "fontFamily": "$font-ui",
                   "fontSize": "$size-meta",
                   "fontWeight": "normal"
@@ -155,7 +155,7 @@
                               "fill": "$ink-2",
                               "textGrowth": "fixed-width",
                               "width": "fill_container",
-                              "content": "#e8e6e1 / #1a1917",
+                              "content": "#ffffff / #0a0a0a",
                               "fontFamily": "$font-mono",
                               "fontSize": 11,
                               "fontWeight": "normal"
@@ -211,7 +211,7 @@
                               "fill": "$ink-2",
                               "textGrowth": "fixed-width",
                               "width": "fill_container",
-                              "content": "#dddad3 / #121110",
+                              "content": "#f5f5f5 / #262626",
                               "fontFamily": "$font-mono",
                               "fontSize": 11,
                               "fontWeight": "normal"
@@ -267,7 +267,7 @@
                               "fill": "$ink-2",
                               "textGrowth": "fixed-width",
                               "width": "fill_container",
-                              "content": "#f4f3ef / #262420",
+                              "content": "#ffffff / #171717",
                               "fontFamily": "$font-mono",
                               "fontSize": 11,
                               "fontWeight": "normal"
@@ -323,7 +323,7 @@
                               "fill": "$ink-2",
                               "textGrowth": "fixed-width",
                               "width": "fill_container",
-                              "content": "#eeece7 / #222120",
+                              "content": "#f5f5f5 / #262626",
                               "fontFamily": "$font-mono",
                               "fontSize": 11,
                               "fontWeight": "normal"
@@ -379,7 +379,7 @@
                               "fill": "$ink-2",
                               "textGrowth": "fixed-width",
                               "width": "fill_container",
-                              "content": "#d3cfc7 / #2e2b27",
+                              "content": "#e5e5e5 / #ffffff1a",
                               "fontFamily": "$font-mono",
                               "fontSize": 11,
                               "fontWeight": "normal"
@@ -454,7 +454,7 @@
                               "fill": "$ink-2",
                               "textGrowth": "fixed-width",
                               "width": "fill_container",
-                              "content": "#c2bdb3 / #3d3a34",
+                              "content": "#e5e5e5 / #ffffff26",
                               "fontFamily": "$font-mono",
                               "fontSize": 11,
                               "fontWeight": "normal"
@@ -510,7 +510,7 @@
                               "fill": "$ink-2",
                               "textGrowth": "fixed-width",
                               "width": "fill_container",
-                              "content": "#1c1b19 / #ece8e0",
+                              "content": "#0a0a0a / #fafafa",
                               "fontFamily": "$font-mono",
                               "fontSize": 11,
                               "fontWeight": "normal"
@@ -566,7 +566,7 @@
                               "fill": "$ink-2",
                               "textGrowth": "fixed-width",
                               "width": "fill_container",
-                              "content": "#5b5850 / #a39e94",
+                              "content": "#737373 / #a1a1a1",
                               "fontFamily": "$font-mono",
                               "fontSize": 11,
                               "fontWeight": "normal"
@@ -622,7 +622,7 @@
                               "fill": "$ink-2",
                               "textGrowth": "fixed-width",
                               "width": "fill_container",
-                              "content": "#8d887e / #6f6a61",
+                              "content": "#a1a1a1 / #525252",
                               "fontFamily": "$font-mono",
                               "fontSize": 11,
                               "fontWeight": "normal"
@@ -678,7 +678,7 @@
                               "fill": "$ink-2",
                               "textGrowth": "fixed-width",
                               "width": "fill_container",
-                              "content": "#c9c5bc / #34312c",
+                              "content": "#e5e5e5 / #2b2b2b",
                               "fontFamily": "$font-mono",
                               "fontSize": 11,
                               "fontWeight": "normal"
@@ -728,7 +728,7 @@
                   "fill": "$ink-2",
                   "textGrowth": "fixed-width",
                   "width": "fill_container",
-                  "content": "Accent appears in exactly three places: the primary key, the current-page dot, and text selection. Never on a status. Lamps always carry a word or an accessible label.",
+                  "content": "Primary is neutral ink: the primary key and the current-page dot. Accent is the quiet selected surface (a chosen provider row, a routing row, an on key). Lamps always carry a word or an accessible label.",
                   "fontFamily": "$font-ui",
                   "fontSize": "$size-meta",
                   "fontWeight": "normal"
@@ -797,7 +797,7 @@
                               "fill": "$ink-2",
                               "textGrowth": "fixed-width",
                               "width": "fill_container",
-                              "content": "#f2c230",
+                              "content": "#f5f5f5 / #262626",
                               "fontFamily": "$font-mono",
                               "fontSize": 11,
                               "fontWeight": "normal"
@@ -853,7 +853,7 @@
                               "fill": "$ink-2",
                               "textGrowth": "fixed-width",
                               "width": "fill_container",
-                              "content": "#e8b71c",
+                              "content": "#0a0a0a / #fafafa",
                               "fontFamily": "$font-mono",
                               "fontSize": 11,
                               "fontWeight": "normal"
@@ -909,7 +909,7 @@
                               "fill": "$ink-2",
                               "textGrowth": "fixed-width",
                               "width": "fill_container",
-                              "content": "#2e9150 / #47b26b",
+                              "content": "#00a63e / #05df72",
                               "fontFamily": "$font-mono",
                               "fontSize": 11,
                               "fontWeight": "normal"
@@ -965,7 +965,7 @@
                               "fill": "$ink-2",
                               "textGrowth": "fixed-width",
                               "width": "fill_container",
-                              "content": "#e2771f / #ee8a3c",
+                              "content": "#e17100 / #ffb900",
                               "fontFamily": "$font-mono",
                               "fontSize": 11,
                               "fontWeight": "normal"
@@ -1021,7 +1021,7 @@
                               "fill": "$ink-2",
                               "textGrowth": "fixed-width",
                               "width": "fill_container",
-                              "content": "#d23e28 / #ec5a43",
+                              "content": "#e7000b / #ff6467",
                               "fontFamily": "$font-mono",
                               "fontSize": 11,
                               "fontWeight": "normal"
@@ -1096,7 +1096,7 @@
                               "fill": "$ink-2",
                               "textGrowth": "fixed-width",
                               "width": "fill_container",
-                              "content": "#8f4006 / #ee8a3c",
+                              "content": "#bb4d00 / #ffb900",
                               "fontFamily": "$font-mono",
                               "fontSize": 11,
                               "fontWeight": "normal"
@@ -1152,7 +1152,7 @@
                               "fill": "$ink-2",
                               "textGrowth": "fixed-width",
                               "width": "fill_container",
-                              "content": "#a93120 / #f07a66",
+                              "content": "#c10007 / #ff6467",
                               "fontFamily": "$font-mono",
                               "fontSize": 11,
                               "fontWeight": "normal"
@@ -1208,7 +1208,7 @@
                               "fill": "$ink-2",
                               "textGrowth": "fixed-width",
                               "width": "fill_container",
-                              "content": "#1c1b19 / #f2c230",
+                              "content": "#a1a1a1 / #737373",
                               "fontFamily": "$font-mono",
                               "fontSize": 11,
                               "fontWeight": "normal"
@@ -6089,7 +6089,7 @@
                                   "type": "ellipse",
                                   "id": "b9viLM",
                                   "name": "Dot",
-                                  "fill": "$accent",
+                                  "fill": "$primary",
                                   "width": 6,
                                   "height": 6
                                 }
@@ -145886,13 +145886,13 @@
       "type": "color",
       "value": [
         {
-          "value": "#e8e6e1",
+          "value": "#ffffff",
           "theme": {
             "mode": "light"
           }
         },
         {
-          "value": "#1a1917",
+          "value": "#0a0a0a",
           "theme": {
             "mode": "dark"
           }
@@ -145903,13 +145903,13 @@
       "type": "color",
       "value": [
         {
-          "value": "#dddad3",
+          "value": "#f5f5f5",
           "theme": {
             "mode": "light"
           }
         },
         {
-          "value": "#121110",
+          "value": "#262626",
           "theme": {
             "mode": "dark"
           }
@@ -145920,13 +145920,13 @@
       "type": "color",
       "value": [
         {
-          "value": "#f4f3ef",
+          "value": "#ffffff",
           "theme": {
             "mode": "light"
           }
         },
         {
-          "value": "#262420",
+          "value": "#171717",
           "theme": {
             "mode": "dark"
           }
@@ -145937,13 +145937,13 @@
       "type": "color",
       "value": [
         {
-          "value": "#eeece7",
+          "value": "#f5f5f5",
           "theme": {
             "mode": "light"
           }
         },
         {
-          "value": "#222120",
+          "value": "#262626",
           "theme": {
             "mode": "dark"
           }
@@ -145954,13 +145954,13 @@
       "type": "color",
       "value": [
         {
-          "value": "#d3cfc7",
+          "value": "#e5e5e5",
           "theme": {
             "mode": "light"
           }
         },
         {
-          "value": "#2e2b27",
+          "value": "#ffffff1a",
           "theme": {
             "mode": "dark"
           }
@@ -145971,13 +145971,13 @@
       "type": "color",
       "value": [
         {
-          "value": "#c2bdb3",
+          "value": "#e5e5e5",
           "theme": {
             "mode": "light"
           }
         },
         {
-          "value": "#3d3a34",
+          "value": "#ffffff26",
           "theme": {
             "mode": "dark"
           }
@@ -145988,13 +145988,13 @@
       "type": "color",
       "value": [
         {
-          "value": "#1c1b19",
+          "value": "#0a0a0a",
           "theme": {
             "mode": "light"
           }
         },
         {
-          "value": "#ece8e0",
+          "value": "#fafafa",
           "theme": {
             "mode": "dark"
           }
@@ -146005,13 +146005,13 @@
       "type": "color",
       "value": [
         {
-          "value": "#5b5850",
+          "value": "#737373",
           "theme": {
             "mode": "light"
           }
         },
         {
-          "value": "#a39e94",
+          "value": "#a1a1a1",
           "theme": {
             "mode": "dark"
           }
@@ -146022,13 +146022,13 @@
       "type": "color",
       "value": [
         {
-          "value": "#8d887e",
+          "value": "#a1a1a1",
           "theme": {
             "mode": "light"
           }
         },
         {
-          "value": "#6f6a61",
+          "value": "#525252",
           "theme": {
             "mode": "dark"
           }
@@ -146039,13 +146039,13 @@
       "type": "color",
       "value": [
         {
-          "value": "#c9c5bc",
+          "value": "#e5e5e5",
           "theme": {
             "mode": "light"
           }
         },
         {
-          "value": "#34312c",
+          "value": "#2b2b2b",
           "theme": {
             "mode": "dark"
           }
@@ -146054,23 +146054,49 @@
     },
     "accent": {
       "type": "color",
-      "value": "#f2c230"
-    },
-    "accent-pressed": {
-      "type": "color",
-      "value": "#e8b71c"
-    },
-    "ok": {
-      "type": "color",
       "value": [
         {
-          "value": "#2e9150",
+          "value": "#f5f5f5",
           "theme": {
             "mode": "light"
           }
         },
         {
-          "value": "#47b26b",
+          "value": "#262626",
+          "theme": {
+            "mode": "dark"
+          }
+        }
+      ]
+    },
+    "accent-pressed": {
+      "type": "color",
+      "value": [
+        {
+          "value": "#0a0a0a",
+          "theme": {
+            "mode": "light"
+          }
+        },
+        {
+          "value": "#fafafa",
+          "theme": {
+            "mode": "dark"
+          }
+        }
+      ]
+    },
+    "ok": {
+      "type": "color",
+      "value": [
+        {
+          "value": "#00a63e",
+          "theme": {
+            "mode": "light"
+          }
+        },
+        {
+          "value": "#05df72",
           "theme": {
             "mode": "dark"
           }
@@ -146081,13 +146107,13 @@
       "type": "color",
       "value": [
         {
-          "value": "#e2771f",
+          "value": "#e17100",
           "theme": {
             "mode": "light"
           }
         },
         {
-          "value": "#ee8a3c",
+          "value": "#ffb900",
           "theme": {
             "mode": "dark"
           }
@@ -146098,13 +146124,13 @@
       "type": "color",
       "value": [
         {
-          "value": "#8f4006",
+          "value": "#bb4d00",
           "theme": {
             "mode": "light"
           }
         },
         {
-          "value": "#ee8a3c",
+          "value": "#ffb900",
           "theme": {
             "mode": "dark"
           }
@@ -146115,13 +146141,13 @@
       "type": "color",
       "value": [
         {
-          "value": "#d23e28",
+          "value": "#e7000b",
           "theme": {
             "mode": "light"
           }
         },
         {
-          "value": "#ec5a43",
+          "value": "#ff6467",
           "theme": {
             "mode": "dark"
           }
@@ -146132,13 +146158,13 @@
       "type": "color",
       "value": [
         {
-          "value": "#a93120",
+          "value": "#c10007",
           "theme": {
             "mode": "light"
           }
         },
         {
-          "value": "#f07a66",
+          "value": "#ff6467",
           "theme": {
             "mode": "dark"
           }
@@ -146149,13 +146175,13 @@
       "type": "color",
       "value": [
         {
-          "value": "#1c1b19",
+          "value": "#a1a1a1",
           "theme": {
             "mode": "light"
           }
         },
         {
-          "value": "#f2c230",
+          "value": "#737373",
           "theme": {
             "mode": "dark"
           }
@@ -146276,11 +146302,37 @@
     },
     "primary": {
       "type": "color",
-      "value": "$accent"
+      "value": [
+        {
+          "value": "#171717",
+          "theme": {
+            "mode": "light"
+          }
+        },
+        {
+          "value": "#e5e5e5",
+          "theme": {
+            "mode": "dark"
+          }
+        }
+      ]
     },
     "primary-foreground": {
       "type": "color",
-      "value": "#1c1b19"
+      "value": [
+        {
+          "value": "#fafafa",
+          "theme": {
+            "mode": "light"
+          }
+        },
+        {
+          "value": "#171717",
+          "theme": {
+            "mode": "dark"
+          }
+        }
+      ]
     },
     "destructive": {
       "type": "color",
@@ -146674,7 +146726,7 @@
           }
         },
         {
-          "value": "#2b2b2b",
+          "value": "#262626",
           "theme": {
             "mode": "dark"
           }
@@ -146685,7 +146737,7 @@
       "type": "color",
       "value": [
         {
-          "value": "#c9c9c9",
+          "value": "#d4d4d4",
           "theme": {
             "mode": "light"
           }
@@ -146702,13 +146754,13 @@
       "type": "color",
       "value": [
         {
-          "value": "#9a9a9a",
+          "value": "#a1a1a1",
           "theme": {
             "mode": "light"
           }
         },
         {
-          "value": "#5e5e5e",
+          "value": "#525252",
           "theme": {
             "mode": "dark"
           }
@@ -146719,13 +146771,13 @@
       "type": "color",
       "value": [
         {
-          "value": "#5c5c5c",
+          "value": "#737373",
           "theme": {
             "mode": "light"
           }
         },
         {
-          "value": "#8f8f8f",
+          "value": "#a1a1a1",
           "theme": {
             "mode": "dark"
           }
@@ -146736,13 +146788,30 @@
       "type": "color",
       "value": [
         {
-          "value": "#0a0a0a",
+          "value": "#171717",
           "theme": {
             "mode": "light"
           }
         },
         {
           "value": "#fafafa",
+          "theme": {
+            "mode": "dark"
+          }
+        }
+      ]
+    },
+    "destructive-foreground": {
+      "type": "color",
+      "value": [
+        {
+          "value": "#ffffff",
+          "theme": {
+            "mode": "light"
+          }
+        },
+        {
+          "value": "#0a0a0a",
           "theme": {
             "mode": "dark"
           }
