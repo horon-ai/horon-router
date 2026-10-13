@@ -248,6 +248,8 @@ impl Management {
         let policy = policy(&cfg);
         self.rt.publish_config_and_policy(cfg, policy);
         self.rt.store().reconcile(all);
+        // Newly reconciled credentials' regexes are precompiled too.
+        self.rt.precompile_request_regexes();
         // Go's watcher calls redisqueue.NotifyUsageRefresh after every client reload.
         self.rt.usage_queue().notify_usage_refresh();
     }
@@ -278,7 +280,7 @@ pub fn policy(cfg: &Config) -> Policy {
                         .filter(|s| !s.is_empty())
                         .collect()
                 };
-                let rule = ErrorRule {
+                let mut rule = ErrorRule {
                     status: r.get("status").and_then(serde_yaml_ng::Value::as_i64).unwrap_or(0),
                     r#match: words("match"),
                     match_regex: words("match-regexr"),
@@ -288,7 +290,10 @@ pub fn policy(cfg: &Config) -> Policy {
                         .unwrap_or_default()
                         .trim()
                         .to_lowercase(),
+                    compiled: Vec::new(),
                 };
+                // Compile `match-regexr` at publish so the error path never compiles one.
+                rule.compile();
                 (rule.status > 0
                     && !(rule.r#match.is_empty() && rule.match_regex.is_empty())
                     && !rule.action.is_empty())

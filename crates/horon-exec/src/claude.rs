@@ -113,6 +113,39 @@ pub struct Delegation {
     pub request_log_provider: Option<&'static str>,
 }
 
+/// Precompiles every Claude sensitive-word matcher the current config and credential
+/// set can request, so a later request only looks one up (config publish calls this).
+/// The word-sets come from `api-keys.claude[].keys[].cloak.sensitive-words` and each
+/// credential's `cloak_sensitive_words` attribute, the same two sources `wire_policy`
+/// reads. Returns how many matchers are now ready.
+pub fn precompile_sensitive_words(cfg: &Config, credentials: &[Arc<Credential>]) -> usize {
+    let settings = settings::Settings::from_config(cfg);
+    let mut compiled = 0;
+    for key in &settings.keys {
+        if let Some(cloak) = &key.cloak
+            && !cloak.sensitive_words.is_empty()
+        {
+            compiled += usize::from(cloak::SensitiveWords::precompile(&cloak.sensitive_words).is_some());
+        }
+    }
+    for credential in credentials {
+        let attr = |k: &str| {
+            let a = credential.attributes.get(k).map(|s| s.trim()).unwrap_or_default();
+            if a.is_empty() {
+                credential.str(k).unwrap_or_default().trim().to_owned()
+            } else {
+                a.to_owned()
+            }
+        };
+        let raw = attr("cloak_sensitive_words");
+        if !raw.is_empty() {
+            let words: Vec<String> = raw.split(',').map(|w| w.trim().to_owned()).collect();
+            compiled += usize::from(cloak::SensitiveWords::precompile(&words).is_some());
+        }
+    }
+    compiled
+}
+
 pub struct ClaudeExecutor {
     native: Native,
     /// Go standard-transport clients for every other origin.
@@ -1303,7 +1336,7 @@ impl<'a> Ctx<'a> {
         }
         if cloaked
             && !words.is_empty()
-            && let Some(m) = cloak::SensitiveWords::new(&words)
+            && let Some(m) = cloak::SensitiveWords::get(&words)
         {
             body = m.obfuscate(&body);
         }
@@ -1381,7 +1414,7 @@ impl<'a> Ctx<'a> {
             }
             body = cloak::relocate_system_for_count(&body, strict);
             if !words.is_empty()
-                && let Some(m) = cloak::SensitiveWords::new(&words)
+                && let Some(m) = cloak::SensitiveWords::get(&words)
             {
                 body = m.obfuscate(&body);
             }

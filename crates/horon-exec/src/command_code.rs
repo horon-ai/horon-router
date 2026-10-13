@@ -99,9 +99,21 @@ fn wire_effort(model: &str, requested: &str) -> Option<String> {
     (requested == "xhigh" && ladder.contains(&"max")).then(|| "max".to_owned())
 }
 
-fn effort_rejected(body: &[u8]) -> bool {
+/// A rejected `reasoning_effort` parameter in an error body. Fixed pattern, compiled
+/// once for the process lifetime.
+static EFFORT_REJECTED: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
     regex::Regex::new(r"(?i)reasoning[_ -]?effort|unsupported effort|invalid effort")
-        .is_ok_and(|re| re.is_match(&String::from_utf8_lossy(body)))
+        .expect("static effort-rejection pattern is valid")
+});
+
+/// Forces [`EFFORT_REJECTED`] to compile now (startup and every config publish), so no
+/// request compiles it.
+pub fn precompile_effort_regex() {
+    let _ = &*EFFORT_REJECTED;
+}
+
+fn effort_rejected(body: &[u8]) -> bool {
+    EFFORT_REJECTED.is_match(&String::from_utf8_lossy(body))
 }
 
 fn text_of(content: &Value) -> String {
