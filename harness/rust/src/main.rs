@@ -1,4 +1,4 @@
-//! Only test wiring. Mirrors crates/horonrouter/src/main.rs (config, credential synthesis,
+//! Only test wiring. Mirrors crates/horon-router/src/main.rs (config, credential synthesis,
 //! auto-refresh, routes, management, CORS and the access log) except the listener and
 //! two hooks: the ephemeral test CA replaces the trust store, and the logical
 //! first-party hosts are dialed at 127.0.0.3. The executor still builds its production
@@ -8,10 +8,10 @@ use std::net::SocketAddr;
 use std::path::Path;
 use std::sync::Arc;
 
-use hr_core::config::Config;
-use hr_exec::Executors;
-use hr_exec::claude::{ClaudeExecutor, DEFAULT_BASE_URL, Hooks};
-use hr_server::Runtime;
+use horon_core::config::Config;
+use horon_exec::Executors;
+use horon_exec::claude::{ClaudeExecutor, DEFAULT_BASE_URL, Hooks};
+use horon_server::Runtime;
 use wreq::tls::trust::CertStore;
 
 #[tokio::main]
@@ -20,7 +20,7 @@ async fn main() -> anyhow::Result<()> {
     anyhow::ensure!(args.len() == 3, "usage: driver CONFIG TEST_CA");
     let config_path = Path::new(&args[1]);
     let config = Config::load(config_path)?;
-    let credentials = hr_core::config::credentials::load(&config);
+    let credentials = horon_core::config::credentials::load(&config);
     let upstream: SocketAddr = "127.0.0.3:443".parse()?;
     let hooks = Hooks {
         trust: Some(CertStore::from_pem_stack(std::fs::read(&args[2])?)?),
@@ -38,18 +38,18 @@ async fn main() -> anyhow::Result<()> {
     };
     let listener = tokio::net::TcpListener::bind((config.host.as_str(), config.port)).await?;
     let rt = Arc::new(Runtime::new(config, credentials, executors));
-    hr_server::install_registry(&rt);
+    horon_server::install_registry(&rt);
     rt.start_auto_refresh();
-    let management = hr_server::management::Management::with_options(
+    let management = horon_server::management::Management::with_options(
         rt.clone(),
         config_path.to_owned(),
-        hr_server::management::Options::default(),
+        horon_server::management::Options::default(),
     );
-    let _watcher = hr_server::watching::start(&management);
-    let app = hr_server::app(rt.clone(), hr_server::management::router(management.clone()))
-        .layer(axum::middleware::from_fn(hr_server::management::cors));
-    let app = hr_server::observability::router(&rt, app);
-    // The production listener (crates/horonrouter uses the same call), plain HTTP.
-    hr_server::listener::serve_with_resp(listener, app, None, Some(management)).await?;
+    let _watcher = horon_server::watching::start(&management);
+    let app = horon_server::app(rt.clone(), horon_server::management::router(management.clone()))
+        .layer(axum::middleware::from_fn(horon_server::management::cors));
+    let app = horon_server::observability::router(&rt, app);
+    // The production listener (crates/horon-router uses the same call), plain HTTP.
+    horon_server::listener::serve_with_resp(listener, app, None, Some(management)).await?;
     Ok(())
 }

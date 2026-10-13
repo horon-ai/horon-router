@@ -2,7 +2,7 @@
 
 The management dashboard for horon-router, written in React 19 with Tailwind CSS and shadcn-style Base UI components. It talks to the v8 Management API defined by Go CLIProxyAPI, and it has two outputs built from one source tree:
 
-- `dist/` is embedded by the Rust binary (`crates/hr-server/build.rs`) and served at `/management.html`.
+- `dist/` is embedded by the Rust binary (`crates/horon-server/build.rs`) and served at `/management.html`.
 - `dist-panel/management.html` is one self-contained file for existing Go CLIProxyAPI servers. See [PANEL.md](PANEL.md).
 
 Product rules are in [PRODUCT.md](PRODUCT.md) and the visual system in [DESIGN.md](DESIGN.md).

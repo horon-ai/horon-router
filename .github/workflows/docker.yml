@@ -1,7 +1,7 @@
 # Builds the Docker image, without pushing it, when a pull request or a push to dev
 # changes what the image build depends on besides the source: the Dockerfile, the build
 # context filter, the manifests, the vendored crates and the dashboard that the binary
-# embeds (ui/dist, read by crates/hr-server/build.rs). release.yml builds the same image
+# embeds (ui/dist, read by crates/horon-server/build.rs). release.yml builds the same image
 # before every release; this catches a Dockerfile that misses a new input before a tag
 # does.
 # One run per change: pushes to dev, and pull requests through `pull_request` only.

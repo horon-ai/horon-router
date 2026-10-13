@@ -12,7 +12,7 @@ management for the requests after it. A 5 s timeout counts as routed (a handler 
 running). Nothing leaves localhost: no upstream credential exists. Run it with external
 network denied all the same.
 
-Usage: cargo build -p horonrouter && python3 docs/parity-audit/probe.py [target/debug/horonrouter]
+Usage: cargo build -p horon-router && python3 docs/parity-audit/probe.py [target/debug/horonrouter]
 Writes docs/parity-audit/routes.json.
 """
 

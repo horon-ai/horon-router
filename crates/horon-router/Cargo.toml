@@ -1,0 +1,47 @@
+[package]
+name = "horon-router"
+description = "CLIProxyAPI rebuilt in Rust: one binary that turns AI subscriptions into standard APIs"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+# The shipped binary keeps its established name (install scripts, Docker, releases).
+[[bin]]
+name = "horonrouter"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+axum.workspace = true
+clap.workspace = true
+horon-common.workspace = true
+horon-core.workspace = true
+horon-exec.workspace = true
+horon-home.workspace = true
+horon-plugin.workspace = true
+horon-server.workspace = true
+horon-store.workspace = true
+getrandom = "0.3"
+libc.workspace = true
+# The -tui management client: the crossterm backend only.
+ratatui = { version = "0.30", default-features = false, features = ["crossterm"] }
+serde_json.workspace = true
+serde_yaml_ng.workspace = true
+# `all` for SO_REUSEPORT, which Go sets on mDNS sockets outside Linux.
+socket2 = { workspace = true, features = ["all"] }
+tokio.workspace = true
+tracing.workspace = true
+tokio-util = "0.7"
+futures-util.workspace = true
+# Already in the tree through axum and horon-server; the heap-trim response hook.
+http-body = "1"
+tower = { version = "0.5", features = ["util"] }
+# Already in the tree through horon-exec; the TUI client follows redirects itself.
+url = "2"
+# The TUI's management API client.
+wreq.workspace = true
+
+[dev-dependencies]
+horon-plugin = { workspace = true, features = ["test-support"] }
+horon-home = { workspace = true, features = ["fake"] }

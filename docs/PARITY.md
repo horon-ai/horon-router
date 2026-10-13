@@ -10,7 +10,7 @@ horon-router는 커밋 [`6fecc6e`](https://github.com/router-for-me/CLIProxyAPI/
 - 클라이언트 API: `POST /v1/messages`와 `/v1/messages/count_tokens`(Anthropic), `POST /v1/chat/completions`, `/v1/completions`, `/v1/responses`, `/v1/responses/compact`(OpenAI), `/v1beta/models/...`와 `/v1beta/interactions`(Gemini), `GET /v1/models`, 그리고 `/backend-api/codex/` 아래의 Codex 경로입니다. 스트리밍(SSE: 서버가 결과를 조금씩 흘려 보내는 방식)과 비스트리밍을 모두 지원하고, 세 프로토콜 사이에서 형식을 변환합니다.
 - 이미지와 영상: Codex 계정, xAI, OpenAI 호환 업스트림을 통한 `POST /v1/images/generations`와 `/v1/images/edits`, xAI 영상용 `/v1/videos`와 `/openai/v1/videos` 경로입니다.
 - WebSocket: `GET /v1/responses`와 `GET /backend-api/codex/responses`의 Responses WebSocket입니다. Codex 클라이언트가 쓰며 응답 조향(`oauth.providers.codex.response-steering`)을 포함합니다.
-- Codex 계정을 통한 실시간과 라이브: `/v1/realtime`(WebSocket과 WebRTC 호출), `/v1/live`, 콜 사이드밴드, 로컬 임시 키(`/v1/realtime/client_secrets`)입니다. WebRTC 미디어 릴레이는 선택 빌드 기능이고(`cargo build --release -p horonrouter --features hr-server/media-relay`) 릴리스 실행 파일에는 들어 있지 않습니다.
+- Codex 계정을 통한 실시간과 라이브: `/v1/realtime`(WebSocket과 WebRTC 호출), `/v1/live`, 콜 사이드밴드, 로컬 임시 키(`/v1/realtime/client_secrets`)입니다. WebRTC 미디어 릴레이는 선택 빌드 기능이고(`cargo build --release -p horon-router --features horon-server/media-relay`) 릴리스 실행 파일에는 들어 있지 않습니다.
 - 제공자: Claude(OAuth와 API 키), Codex(OAuth와 API 키), Kimi, Meta, xAI, Devin, Gemini API 키와 Gemini Interactions, Vertex AI(`-vertex-import`로 가져온 서비스 계정과 API 키), AI Studio(`/v1/ws` 브라우저 릴레이를 통함), OpenRouter 같은 OpenAI 호환 업스트림입니다.
 - 명령줄이나 대시보드에서 하는 계정 로그인: Claude, Codex(브라우저 또는 기기 코드), Kimi, Meta, xAI, Devin입니다.
 - 라우팅: 라운드 로빈, 가중치, fill-first 선택, 재시도, 쿨다운, 세션 고정, 모델 별칭과 제외, 페이로드 규칙, 인증 정보별 프록시와 전역 프록시입니다.

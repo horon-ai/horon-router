@@ -74,7 +74,7 @@ HORONROUTER_MANAGEMENT_KEY=...
 
 ```sh
 git clone https://github.com/alpoxdev/horon-router.git ~/horon-router-src
-cd ~/horon-router-src && cargo build --release -p horonrouter
+cd ~/horon-router-src && cargo build --release -p horon-router
 mkdir -p ~/.local/bin && install -m 0755 target/release/horonrouter ~/.local/bin/horonrouter
 ```
 

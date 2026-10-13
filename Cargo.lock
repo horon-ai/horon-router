@@ -1389,13 +1389,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "hr-common"
+name = "horon-common"
 version = "0.2.2"
 dependencies = [
  "base64 0.22.1",
  "flate2",
  "gjson",
- "hr-core",
+ "horon-core",
  "http",
  "memchr",
  "serde_json",
@@ -1405,7 +1405,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "hr-core"
+name = "horon-core"
 version = "0.2.2"
 dependencies = [
  "anyhow",
@@ -1423,7 +1423,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "hr-exec"
+name = "horon-exec"
 version = "0.2.2"
 dependencies = [
  "async-compression",
@@ -1437,10 +1437,10 @@ dependencies = [
  "futures-util",
  "getrandom 0.3.4",
  "gjson",
- "hr-common",
- "hr-core",
- "hr-home",
- "hr-translate",
+ "horon-common",
+ "horon-core",
+ "horon-home",
+ "horon-translate",
  "http",
  "http2",
  "httpdate",
@@ -1462,15 +1462,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "hr-home"
+name = "horon-home"
 version = "0.2.2"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
  "btls",
  "chrono",
- "hr-common",
- "hr-core",
+ "horon-common",
+ "horon-core",
  "serde",
  "serde_json",
  "serde_yaml_ng",
@@ -1484,7 +1484,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "hr-plugin"
+name = "horon-plugin"
 version = "0.2.2"
 dependencies = [
  "async-compression",
@@ -1493,11 +1493,11 @@ dependencies = [
  "chrono",
  "flate2",
  "futures-util",
- "hr-common",
- "hr-core",
- "hr-exec",
- "hr-plugin",
- "hr-translate",
+ "horon-common",
+ "horon-core",
+ "horon-exec",
+ "horon-plugin",
+ "horon-translate",
  "http",
  "libc",
  "serde_json",
@@ -1511,7 +1511,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "hr-server"
+name = "horon-server"
 version = "0.2.2"
 dependencies = [
  "anyhow",
@@ -1526,11 +1526,11 @@ dependencies = [
  "futures-util",
  "getrandom 0.3.4",
  "gjson",
- "hr-common",
- "hr-core",
- "hr-exec",
- "hr-plugin",
- "hr-translate",
+ "horon-common",
+ "horon-core",
+ "horon-exec",
+ "horon-plugin",
+ "horon-translate",
  "http-body",
  "hyper",
  "hyper-util",
@@ -1558,7 +1558,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "hr-store"
+name = "horon-store"
 version = "0.2.2"
 dependencies = [
  "anyhow",
@@ -1568,7 +1568,7 @@ dependencies = [
  "bytes",
  "chrono",
  "futures-util",
- "hr-server",
+ "horon-server",
  "serde",
  "serde_json",
  "sha2 0.10.9",
@@ -1581,13 +1581,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "hr-translate"
+name = "horon-translate"
 version = "0.2.2"
 dependencies = [
  "base64 0.22.1",
  "bytes",
- "hr-common",
- "hr-core",
+ "horon-common",
+ "horon-core",
  "rand 0.9.5",
  "regex",
  "serde_json",
@@ -1704,7 +1704,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "horonrouter"
+name = "horon-router"
 version = "0.2.2"
 dependencies = [
  "anyhow",
@@ -1712,13 +1712,13 @@ dependencies = [
  "clap",
  "futures-util",
  "getrandom 0.3.4",
- "hr-common",
- "hr-core",
- "hr-exec",
- "hr-home",
- "hr-plugin",
- "hr-server",
- "hr-store",
+ "horon-common",
+ "horon-core",
+ "horon-exec",
+ "horon-home",
+ "horon-plugin",
+ "horon-server",
+ "horon-store",
  "http-body",
  "libc",
  "ratatui",

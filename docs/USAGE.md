@@ -42,24 +42,24 @@ Codex는 WebSocket으로 연결했을 때 `codex.rate_limits` 이벤트와 오�
 - 같은 이름이 여러 번 오면 마지막 값을 씁니다.
 - 한 스냅샷에 최대 64개만 남깁니다. 우선순위가 높은 것부터 남기며, 순서는 `retry-after`, 요금제와 크레딧, 5시간·주간 창, 코드 리뷰 한도, 그 밖의 `x-codex-`입니다.
 
-Claude 응답은 `retry-after`와 `anthropic-ratelimit-unified-` 헤더만 남기고 모두 이름 순으로 정렬합니다. 구현은 `crates/hr-exec/src/quota.rs`의 `claude_signals`와 `crates/hr-exec/src/codex_quota.rs`의 `collect_signals`에 있습니다.
+Claude 응답은 `retry-after`와 `anthropic-ratelimit-unified-` 헤더만 남기고 모두 이름 순으로 정렬합니다. 구현은 `crates/horon-exec/src/quota.rs`의 `claude_signals`와 `crates/horon-exec/src/codex_quota.rs`의 `collect_signals`에 있습니다.
 
 <a id="how-it-is-stored"></a>
 ### 어떻게 저장하는가
 
-계정마다 스냅샷을 두 종류 가집니다. 하나는 계정 전체의 최신 스냅샷이고, 하나는 모델별 최신 스냅샷입니다(`crates/hr-exec/src/codex_quota.rs`의 `QuotaSignals`).
+계정마다 스냅샷을 두 종류 가집니다. 하나는 계정 전체의 최신 스냅샷이고, 하나는 모델별 최신 스냅샷입니다(`crates/horon-exec/src/codex_quota.rs`의 `QuotaSignals`).
 
 - 새 응답에 한도 신호가 있으면 이전 스냅샷을 **통째로 덮어씁니다**. 이전 값과 합치지 않습니다.
 - 한도 신호가 없는 응답은 스냅샷을 건드리지 않습니다.
 - 스냅샷은 서버 메모리에만 있습니다. 재시작하면 사라지고, 계정으로 첫 요청이 성공하면 다시 채워집니다.
 - 한 번이라도 쓴 계정마다 항목이 하나 남습니다. 계정을 지워도 서버를 재시작하기 전에는 항목이 남을 수 있습니다.
 
-관리 API가 계정 목록을 돌려줄 때 이 값이 `quota`(`observed_at`과 `signals`)와 `model_quotas`로 들어갑니다(`crates/hr-server/src/management/auth_files.rs`). 대시보드의 Credentials, Quotas, Overview 페이지가 이 값을 읽어 그립니다.
+관리 API가 계정 목록을 돌려줄 때 이 값이 `quota`(`observed_at`과 `signals`)와 `model_quotas`로 들어갑니다(`crates/horon-server/src/management/auth_files.rs`). 대시보드의 Credentials, Quotas, Overview 페이지가 이 값을 읽어 그립니다.
 
 <a id="where-it-is-used"></a>
 ### 어디에 쓰는가
 
-한도 관찰은 화면에 보여 주는 데서 끝나지 않고 계정 선택에도 쓰입니다(`crates/hr-server/src/scheduler.rs`의 `Windows::observed`).
+한도 관찰은 화면에 보여 주는 데서 끝나지 않고 계정 선택에도 쓰입니다(`crates/horon-server/src/scheduler.rs`의 `Windows::observed`).
 
 1. 관찰한 헤더에서 "긴 창(주간)"과 "짧은 창(5시간)"을 읽습니다. Claude는 `7d`와 `5h`를 쓰고, Codex는 창 길이가 더 긴 쪽을 주간으로 봅니다.
 2. 창이 소진됐는지 판단합니다. Claude는 상태가 `rejected`이거나 사용 비율(`utilization`)이 1.0 이상이면 소진으로 봅니다. Codex는 `used-percent`가 100 이상이면 소진으로 봅니다. `x-codex-limit-reached: true`도 소진 표시입니다.
@@ -88,7 +88,7 @@ Claude 응답은 `retry-after`와 `anthropic-ratelimit-unified-` 헤더만 남�
 ### 호출 경로
 
 1. 대시보드가 `POST /requests/api-call`을 보냅니다. 요청에 인증 헤더 값으로 `Bearer $TOKEN$`을 적고 계정의 `authIndex`를 함께 넘깁니다.
-2. 서버가 `$TOKEN$`을 그 계정의 실제 토큰으로 바꿉니다. 바뀐 토큰은 제공자에게만 가고 대시보드로 돌아오지 않습니다. 요청은 그 계정에 설정한 프록시를 거칩니다(`crates/hr-server/src/management/api_call.rs`).
+2. 서버가 `$TOKEN$`을 그 계정의 실제 토큰으로 바꿉니다. 바뀐 토큰은 제공자에게만 가고 대시보드로 돌아오지 않습니다. 요청은 그 계정에 설정한 프록시를 거칩니다(`crates/horon-server/src/management/api_call.rs`).
 3. 제한은 60초 시간 제한과 응답 본문 64 MiB입니다.
 4. Claude에는 `anthropic-beta: oauth-2025-04-20`과 Claude CLI의 `User-Agent`를, Codex에는 `codex-tui`의 `User-Agent`와 `Chatgpt-Account-Id`를 붙입니다.
 5. 대시보드가 응답을 창 목록으로 바꿔 그립니다. Command Code는 서버가 모은 본문을 쓰며, 5시간 창과 주간 창에 더해 결제 기간 전체 한도("Period limit" / "전체 한도")와 월간·구매·무료 크레딧 합계("Credits left")를 보여 줍니다. `quota/fetch`가 없는 서버에서는 예전처럼 credits 주소만 호출합니다. Claude는 Claude Code의 `/usage`와 같은 행(5시간, 주간, 모델별 주간, 초과 사용)을 보여 줍니다. 초과 사용 금액은 센트 단위 값을 달러로 바꿔 표시합니다.
@@ -99,7 +99,7 @@ Claude 응답은 `retry-after`와 `anthropic-ratelimit-unified-` 헤더만 남�
 ### 제공자에 사용량 주소가 없을 때
 
 - 그 제공자를 위한 사용 한도 플러그인(`quota_provider`)이 있으면 `POST /plugins/{id}/quota`로 플러그인에게 묻습니다.
-- 플러그인이 없으면 계정 파일의 선언형 `quota_probe`를 씁니다. 계정 파일에 URL, 메서드, 헤더, 응답에서 값을 꺼낼 경로를 적어 두면 서버가 그대로 호출해서 결과를 한도 모양으로 바꿉니다(`crates/hr-server/src/management/quota_probe.rs`).
+- 플러그인이 없으면 계정 파일의 선언형 `quota_probe`를 씁니다. 계정 파일에 URL, 메서드, 헤더, 응답에서 값을 꺼낼 경로를 적어 두면 서버가 그대로 호출해서 결과를 한도 모양으로 바꿉니다(`crates/horon-server/src/management/quota_probe.rs`).
 - 둘 다 없으면 대시보드는 "이 제공자의 한도 출처가 없다"고 표시합니다. 이 경우에도 한도 관찰 값이 있으면 그 값이 보입니다.
 
 <a id="what-the-screen-shows"></a>
@@ -120,7 +120,7 @@ observability:
 ```
 
 - `usage-statistics-enabled`: 기본값은 꺼짐입니다. 꺼져 있으면 기록을 만들지 않습니다. 관리 API가 꺼져 있을 때도 기록하지 않습니다.
-- `redis-usage-queue-retention-seconds`: 큐에 기록을 두는 시간(초)입니다. 값이 없거나 0 이하이면 60초, 3600을 넘으면 3600으로 맞춥니다(`crates/hr-server/src/usage.rs`).
+- `redis-usage-queue-retention-seconds`: 큐에 기록을 두는 시간(초)입니다. 값이 없거나 0 이하이면 60초, 3600을 넘으면 3600으로 맞춥니다(`crates/horon-server/src/usage.rs`).
 
 <a id="what-a-record-holds"></a>
 ### 기록에 들어 있는 것
@@ -135,7 +135,7 @@ observability:
 <a id="how-tokens-are-counted"></a>
 ### 토큰 수를 세는 방식
 
-제공자마다 `usage`의 모양이 다르므로, 서버는 제공자별 규칙으로 읽어서 같은 모양으로 맞춥니다(`crates/hr-server/src/usage_record.rs`).
+제공자마다 `usage`의 모양이 다르므로, 서버는 제공자별 규칙으로 읽어서 같은 모양으로 맞춥니다(`crates/horon-server/src/usage_record.rs`).
 
 - **포함형(Subset):** 캐시 토큰이 입력 토큰 안에 들어 있고, 추론 토큰이 출력 토큰 안에 들어 있는 제공자입니다. 캐시가 입력보다 크거나 추론이 출력보다 크면 모순으로 봅니다.
 - **독립형(Independent):** 입력, 캐시 읽기, 캐시 쓰기가 따로 세어지는 제공자입니다. 입력 합계는 세 값을 더해서 만듭니다.
@@ -155,7 +155,7 @@ observability:
 두 가지 방법이 있습니다. 같은 큐를 함께 쓰므로 한쪽이 읽으면 다른 쪽은 그 기록을 못 봅니다.
 
 1. **관리 API로 꺼내 가기:** `GET /observability/usage/queue?count=N`이 가장 오래된 기록 N건을 꺼내 돌려줍니다. `count`를 생략하면 1건이고, 양의 정수가 아니면 400을 돌려줍니다. 꺼낸 기록은 큐에서 사라집니다. 대시보드의 Usage 페이지 실시간 보기가 이 방법을 씁니다. 그래서 켜기 전에 다른 수집기가 같은 큐를 읽고 있지 않은지 확인하는 안내가 나옵니다.
-2. **Redis 프로토콜로 구독하기:** 같은 포트에서 Redis 프로토콜(RESP) 연결을 받습니다. 관리 키로 `AUTH`한 뒤 `LPOP`/`RPOP`으로 꺼내거나, `usage`와 `errors` 채널을 `SUBSCRIBE`합니다. 구독자가 한 명이라도 연결되어 있으면 기록은 큐에 쌓이지 않고 구독자에게만 전달됩니다. 구독자 버퍼는 256건이고, 가득 차면 그 구독이 끊깁니다(`crates/hr-server/src/resp.rs`). Home 모드에서는 이 연결을 거부합니다.
+2. **Redis 프로토콜로 구독하기:** 같은 포트에서 Redis 프로토콜(RESP) 연결을 받습니다. 관리 키로 `AUTH`한 뒤 `LPOP`/`RPOP`으로 꺼내거나, `usage`와 `errors` 채널을 `SUBSCRIBE`합니다. 구독자가 한 명이라도 연결되어 있으면 기록은 큐에 쌓이지 않고 구독자에게만 전달됩니다. 구독자 버퍼는 256건이고, 가득 차면 그 구독이 끊깁니다(`crates/horon-server/src/resp.rs`). Home 모드에서는 이 연결을 거부합니다.
 
 기록은 메모리에만 있습니다. 보관 시간이 지난 기록은 큐에 접근할 때마다 지워지고, 관리 API를 끄면 큐가 비워집니다. 장기 보관과 합산은 서버 밖에서 하며, 구독 도구로 받아서 직접 쌓아야 합니다.
 
@@ -168,7 +168,7 @@ observability:
 <a id="when-a-limit-is-hit"></a>
 ## 한도에 걸렸을 때
 
-업스트림이 429를 돌려주면 서버가 오류의 범위를 정하고 계정을 쉬게 합니다(`crates/hr-exec/src/quota.rs`의 `classify`).
+업스트림이 429를 돌려주면 서버가 오류의 범위를 정하고 계정을 쉬게 합니다(`crates/horon-exec/src/quota.rs`의 `classify`).
 
 | 상황 | 쉬는 범위 |
 |---|---|
@@ -178,7 +178,7 @@ observability:
 
 `oauth.providers.claude.model-level-cooling`과 `oauth.providers.codex.model-level-cooling`은 기본값이 `false`입니다. `true`로 바꾸면 Claude의 창 전체 거부와 Codex의 `usage_limit_reached`도 요청한 모델에만 쿨다운을 겁니다.
 
-다시 시도할 시점은 `Retry-After` 헤더나 `anthropic-ratelimit-unified-*-reset` 같은 초기화 시각에서 읽습니다. 서버는 이 시각을 `routing.cooldown.max-trusted-cooldown`(기본 1시간)만큼만 믿고, 그 뒤에 요청을 한 번 보내 확인합니다. 쿨다운 기록에는 `observed_at`도 함께 남습니다(`crates/hr-server/src/cooldown_store.rs`). `routing.cooldown.save-cooldown-status`를 켜면 쿨다운이 `auth-dir`의 `.cds` 파일에 저장되어 재시작해도 이어집니다. 자세한 규칙은 [여러 계정](MULTI-ACCOUNT.md#cooldowns-and-limits)에 있습니다.
+다시 시도할 시점은 `Retry-After` 헤더나 `anthropic-ratelimit-unified-*-reset` 같은 초기화 시각에서 읽습니다. 서버는 이 시각을 `routing.cooldown.max-trusted-cooldown`(기본 1시간)만큼만 믿고, 그 뒤에 요청을 한 번 보내 확인합니다. 쿨다운 기록에는 `observed_at`도 함께 남습니다(`crates/horon-server/src/cooldown_store.rs`). `routing.cooldown.save-cooldown-status`를 켜면 쿨다운이 `auth-dir`의 `.cds` 파일에 저장되어 재시작해도 이어집니다. 자세한 규칙은 [여러 계정](MULTI-ACCOUNT.md#cooldowns-and-limits)에 있습니다.
 
 Credentials와 Quotas 페이지의 Reset cooldown은 서버가 가진 쿨다운 기록만 지웁니다. 제공자의 한도가 되돌아오지는 않습니다.
 
@@ -188,7 +188,7 @@ Credentials와 Quotas 페이지의 Reset cooldown은 서버가 가진 쿨다운 
 "남은 한도"와 다른 기능으로, 요청 본문이 몇 토큰인지 세는 기능이 있습니다. `POST /v1/messages/count_tokens`가 그 경로입니다.
 
 - Claude의 정식 API 키 계정은 요청을 Anthropic의 `/v1/messages/count_tokens`로 전달합니다. Kimi도 업스트림으로 전달합니다.
-- Claude OAuth 계정이나 정식 주소가 아닌 `base-url`을 쓰는 Claude 키는 서버 안에서 tiktoken 방식으로 직접 셉니다(`crates/hr-exec/src/claude.rs`의 `count_tokens`). Codex, Meta, xAI, OpenAI 호환 제공자의 계산과, 비 Claude 업스트림을 쓸 때의 Claude `message_start` 추정치도 같은 방식입니다. 모델에 따라 `o200k_base`나 `cl100k_base`를 고릅니다(`crates/hr-exec/src/tokenizer.rs`).
+- Claude OAuth 계정이나 정식 주소가 아닌 `base-url`을 쓰는 Claude 키는 서버 안에서 tiktoken 방식으로 직접 셉니다(`crates/horon-exec/src/claude.rs`의 `count_tokens`). Codex, Meta, xAI, OpenAI 호환 제공자의 계산과, 비 Claude 업스트림을 쓸 때의 Claude `message_start` 추정치도 같은 방식입니다. 모델에 따라 `o200k_base`나 `cl100k_base`를 고릅니다(`crates/horon-exec/src/tokenizer.rs`).
 - 인코더는 처음 필요할 때 한 번 만들어 프로세스 안에서 공유합니다. 만드는 데 `o200k_base`는 약 0.15초, `cl100k_base`는 약 0.06초가 걸리고, 메모리(RSS)는 각각 약 47 MB와 24 MB를 씁니다.
 - 업스트림에 토큰 세기 주소가 없어서 생긴 404는 계정과 모델의 상태를 바꾸지 않습니다. 쿨다운도 걸리지 않습니다.
 

@@ -20,8 +20,8 @@ on:
   push:
     branches: [dev]
     paths:
-      - crates/hr-server/src/fs_events.rs
-      - crates/hr-server/src/watching.rs
+      - crates/horon-server/src/fs_events.rs
+      - crates/horon-server/src/watching.rs
       - bench/idle.sh
       - bench/idle-other.sh
       - bench/gate.sh
@@ -29,8 +29,8 @@ on:
       - .github/workflows/idle.yml
   pull_request:
     paths:
-      - crates/hr-server/src/fs_events.rs
-      - crates/hr-server/src/watching.rs
+      - crates/horon-server/src/fs_events.rs
+      - crates/horon-server/src/watching.rs
       - bench/idle.sh
       - bench/idle-other.sh
       - bench/gate.sh
@@ -88,10 +88,10 @@ jobs:
         with:
           save-if: ${{ github.ref == 'refs/heads/dev' }}
       - name: Build
-        run: cargo build --release --locked -p horonrouter --target ${{ matrix.target }}
+        run: cargo build --release --locked -p horon-router --target ${{ matrix.target }}
       # kqueue on macOS and ReadDirectoryChangesW on Windows are only exercised here.
       - name: File-watch tests
-        run: cargo test --release --locked -p hr-server --lib --target ${{ matrix.target }} -- fs_events watching
+        run: cargo test --release --locked -p horon-server --lib --target ${{ matrix.target }} -- fs_events watching
       - name: Idle gate
         run: |
           exe=horonrouter; os=macos
@@ -116,7 +116,7 @@ jobs:
         with:
           save-if: ${{ github.ref == 'refs/heads/dev' }}
       - name: Build
-        run: cargo build --release --locked -p horonrouter
+        run: cargo build --release --locked -p horon-router
       - name: CLIProxyAPI release binary
         run: |
           curl -sSfL -o go.tar.gz "https://github.com/router-for-me/CLIProxyAPI/releases/download/$GO_RELEASE/$GO_ARCHIVE"

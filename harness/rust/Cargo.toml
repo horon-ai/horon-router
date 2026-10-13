@@ -1,5 +1,5 @@
 [package]
-name = "hr-differential-driver"
+name = "horon-differential-driver"
 version = "0.1.0"
 edition = "2024"
 publish = false
@@ -10,9 +10,9 @@ publish = false
 [dependencies]
 anyhow = "1"
 axum = "0.8.9"
-hr-core = { path = "../../crates/hr-core" }
-hr-exec = { path = "../../crates/hr-exec" }
-hr-server = { path = "../../crates/hr-server" }
+horon-core = { path = "../../crates/horon-core" }
+horon-exec = { path = "../../crates/horon-exec" }
+horon-server = { path = "../../crates/horon-server" }
 tokio = { version = "1.53", features = ["full"] }
 wreq = { version = "=6.0.0-rc.31", features = ["stream", "json"] }
 
