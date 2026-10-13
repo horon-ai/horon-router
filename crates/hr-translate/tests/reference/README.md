@@ -49,7 +49,7 @@ internal-package boundary. The reference checkout stays unchanged:
 
 ```sh
 reference=/absolute/path/to/CLIProxyAPI
-crate=/absolute/path/to/hyper-router/crates/hr-translate
+crate=/absolute/path/to/horon-router/crates/hr-translate
 tmp=$(mktemp -d)
 cp "$crate"/tests/reference/*.go "$tmp/"
 (

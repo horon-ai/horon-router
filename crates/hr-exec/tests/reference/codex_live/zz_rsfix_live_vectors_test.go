@@ -1,6 +1,6 @@
 package live
 
-// Golden vectors for hyper-router. Runs only with RSFIX_OUT set; writes JSON produced
+// Golden vectors for horon-router. Runs only with RSFIX_OUT set; writes JSON produced
 // by the real Go functions of this package.
 
 import (

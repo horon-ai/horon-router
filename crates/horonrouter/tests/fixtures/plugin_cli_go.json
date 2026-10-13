@@ -249,7 +249,7 @@
             "ProxyURL": ""
           },
           "Plugin": {
-            "Author": "hyper-router tests",
+            "Author": "horon-router tests",
             "ConfigFields": null,
             "GitHubRepository": "https://example.invalid/recorder",
             "Logo": "",
@@ -532,7 +532,7 @@
             "ProxyURL": ""
           },
           "Plugin": {
-            "Author": "hyper-router tests",
+            "Author": "horon-router tests",
             "ConfigFields": null,
             "GitHubRepository": "https://example.invalid/recorder",
             "Logo": "",
@@ -827,7 +827,7 @@
             "ProxyURL": ""
           },
           "Plugin": {
-            "Author": "hyper-router tests",
+            "Author": "horon-router tests",
             "ConfigFields": null,
             "GitHubRepository": "https://example.invalid/recorder",
             "Logo": "",
@@ -1190,7 +1190,7 @@
             "ProxyURL": ""
           },
           "Plugin": {
-            "Author": "hyper-router tests",
+            "Author": "horon-router tests",
             "ConfigFields": null,
             "GitHubRepository": "https://example.invalid/recorder",
             "Logo": "",
@@ -1458,7 +1458,7 @@
             "ProxyURL": ""
           },
           "Plugin": {
-            "Author": "hyper-router tests",
+            "Author": "horon-router tests",
             "ConfigFields": null,
             "GitHubRepository": "https://example.invalid/recorder",
             "Logo": "",
@@ -1724,7 +1724,7 @@
             "ProxyURL": ""
           },
           "Plugin": {
-            "Author": "hyper-router tests",
+            "Author": "horon-router tests",
             "ConfigFields": null,
             "GitHubRepository": "https://example.invalid/recorder",
             "Logo": "",
@@ -1989,7 +1989,7 @@
             "ProxyURL": ""
           },
           "Plugin": {
-            "Author": "hyper-router tests",
+            "Author": "horon-router tests",
             "ConfigFields": null,
             "GitHubRepository": "https://example.invalid/recorder",
             "Logo": "",

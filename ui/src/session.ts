@@ -34,7 +34,7 @@ function systemAppearance(): "light" | "dark" {
 }
 function readThemePref(): ThemePref {
   try {
-    const saved = localStorage.getItem("hyperrouter-theme");
+    const saved = localStorage.getItem("horonrouter-theme");
     if (saved === "light" || saved === "dark" || saved === "system") return saved;
   } catch {}
   return "system";
@@ -85,7 +85,7 @@ export const session = {
   get themePref() { return state.themePref; },
   get meta() { return state.meta; },
   get kind(): "rust" | "go" | "unknown" {
-    return state.meta.version.startsWith("hyper-router") ? "rust" : state.meta.commit || state.meta.built ? "go" : "unknown";
+    return state.meta.version.startsWith("horon-router") ? "rust" : state.meta.commit || state.meta.built ? "go" : "unknown";
   },
   get online() { return state.online; },
   get busy() { return state.busy; },
@@ -146,7 +146,7 @@ export const session = {
     const themePref = themeOrder[(i < 0 ? 0 : i + 1) % themeOrder.length];
     const theme = paintTheme(themePref);
     update({ theme, themePref });
-    try { localStorage.setItem("hyperrouter-theme", themePref); } catch {}
+    try { localStorage.setItem("horonrouter-theme", themePref); } catch {}
   },
   notify(text: string, bad = false) {
     update({ toast: { text, bad } });

@@ -86,14 +86,14 @@ export const newKey = () => `sk-${Array.from(crypto.getRandomValues(new Uint8Arr
 export const flag = {
   get: (k: string) => {
     try {
-      return localStorage.getItem(`hyperrouter-${k}`);
+      return localStorage.getItem(`horonrouter-${k}`);
     } catch {
       return null;
     }
   },
   set: (k: string, v: string) => {
     try {
-      localStorage.setItem(`hyperrouter-${k}`, v);
+      localStorage.setItem(`horonrouter-${k}`, v);
     } catch {}
   },
 };
@@ -120,7 +120,7 @@ export type CredState = { lamp: Lamp; label: string; detail: string };
 export function credState(a: Data, now = Date.now(), tr: Tr = english): CredState {
   if (a.disabled) return { lamp: "off", label: tr("cred.disabled"), detail: "" };
   const all: Data[] = Array.isArray(a.cooldowns) ? a.cooldowns : [];
-  // hyper-router: recover_at is the upstream's stated reset when the trust bound cut it.
+  // horon-router: recover_at is the upstream's stated reset when the trust bound cut it.
   const limited = all
     .filter((c) => c.scope !== "model" && Date.parse(c.recover_at) > now)
     .map((c) => [Date.parse(c.recover_at), Date.parse(c.retry_at)])[0];
@@ -432,7 +432,7 @@ export function signalWindows(p: string, quota: Data | undefined, tr: Tr = engli
 export const otherSignals = (quota: Data | undefined, windows: Window[]): [string, string][] =>
   Object.entries<string>(quota?.signals || {}).filter(([k]) => !windows.some((w) => w.source && k.toLowerCase().startsWith(w.source)));
 
-/** routing.strategy values, with a one-line explanation each. `rust`: offered only by hyper-router. */
+/** routing.strategy values, with a one-line explanation each. `rust`: offered only by horon-router. */
 export const strategies = [
   { value: "round-robin", name: "strategy.roundRobin", rust: false, help: "strategy.roundRobin.help" },
   { value: "fill-first", name: "strategy.fillFirst", rust: false, help: "strategy.fillFirst.help" },
@@ -466,7 +466,7 @@ export function snippet(tool: (typeof tools)[number], base: string, key: string,
     case "Claude Code":
       return `export ANTHROPIC_BASE_URL=${shw(base)}\nexport ANTHROPIC_AUTH_TOKEN=${shq(key)}\nclaude`;
     case "Codex CLI":
-      return `# ~/.codex/config.toml\nmodel_provider = "hyperrouter"\n\n[model_providers.hyperrouter]\nname = "hyperrouter"\nbase_url = ${str(v1)}\nenv_key = "HYPERROUTER_API_KEY"\nwire_api = "responses"\n\n# then, in your shell\nexport HYPERROUTER_API_KEY=${shq(key)}`;
+      return `# ~/.codex/config.toml\nmodel_provider = "horonrouter"\n\n[model_providers.horonrouter]\nname = "horonrouter"\nbase_url = ${str(v1)}\nenv_key = "HORONROUTER_API_KEY"\nwire_api = "responses"\n\n# then, in your shell\nexport HORONROUTER_API_KEY=${shq(key)}`;
     case "Cursor":
       return `OpenAI API key:            ${key}\nOverride OpenAI Base URL:  ${v1}`;
     case "OpenAI SDK":

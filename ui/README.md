@@ -1,6 +1,6 @@
-# hyper-router dashboard
+# horon-router dashboard
 
-The management dashboard for hyper-router, written in React 19 with Tailwind CSS and shadcn-style Base UI components. It talks to the v8 Management API defined by Go CLIProxyAPI, and it has two outputs built from one source tree:
+The management dashboard for horon-router, written in React 19 with Tailwind CSS and shadcn-style Base UI components. It talks to the v8 Management API defined by Go CLIProxyAPI, and it has two outputs built from one source tree:
 
 - `dist/` is embedded by the Rust binary (`crates/hr-server/build.rs`) and served at `/management.html`.
 - `dist-panel/management.html` is one self-contained file for existing Go CLIProxyAPI servers. See [PANEL.md](PANEL.md).
@@ -30,7 +30,7 @@ Rebuild the UI before compiling Rust when UI sources change; `ui/dist` is checke
 | `src/api.ts` | Fetch wrapper. Holds the management key in memory and reports unimplemented routes (Go-style empty 404, 501, 405). |
 | `src/session.ts`, `src/queries.ts` | Session state and capability probes; TanStack Query owns server reads and reread-before-write mutations. |
 | `src/core.ts` | Pure helpers: credential state, traffic buckets, usage records, quota windows, diffs. Tested in `src/core.test.ts`. |
-| `src/i18n.ts`, `src/lang.ts`, `src/locales/` | Languages (English, 한국어). `t("key", { n })` looks up a message; the language comes from the saved choice (`localStorage` `hyperrouter-lang`, set by the language button), else the first browser language we have, else English. Tested in `src/i18n.test.ts`. |
+| `src/i18n.ts`, `src/lang.ts`, `src/locales/` | Languages (English, 한국어). `t("key", { n })` looks up a message; the language comes from the saved choice (`localStorage` `horonrouter-lang`, set by the language button), else the first browser language we have, else English. Tested in `src/i18n.test.ts`. |
 | `src/components/Load.tsx` | Loading, error, not-available and data states for one read. |
 | `src/components/Missing.tsx` | One line naming actions this server does not implement. |
 | `src/components/Grille.tsx` | The 20-bucket traffic grille. |
@@ -45,7 +45,7 @@ Every sentence the dashboard shows is a key in `src/locales/en.ts`, with its Kor
 
 ## Honest states
 
-Every read renders loading, empty, error, not available, or data. The server kind comes from response headers: hyper-router sends `X-CPA-VERSION: hyper-router-<version>`; Go sends its version with `X-CPA-COMMIT` and `X-CPA-BUILD-DATE`. Go implements the whole v8 API, so it is never probed.
+Every read renders loading, empty, error, not available, or data. The server kind comes from response headers: horon-router sends `X-CPA-VERSION: horon-router-<version>`; Go sends its version with `X-CPA-COMMIT` and `X-CPA-BUILD-DATE`. Go implements the whole v8 API, so it is never probed.
 
 Other servers are probed once per session for the write actions a screen offers. A route that does not exist answers with gin's empty 404 (or 501/405), and the UI cannot tell that apart from a real route without asking, because `OPTIONS` returns 204 everywhere. Each probe is therefore a request Go rejects with 400 during input validation, before any side effect: an empty JSON body to `POST /credentials`, `POST /credentials/refresh`, `PATCH /credentials/fields`, `DELETE /credentials`, `POST /routing/cooldown/reset`, `POST /requests/api-call` and `POST /oauth/import`; `GET /oauth/auth-url` without a provider; `GET /observability/usage/queue?count=0`. Each was checked against Go 6fecc6e to return 400 with the auth directory and config unchanged. Actions whose probe meets an empty 404 render disabled and are named in one line; reads the server lacks show "Not available on this server" with the route and status code. `DELETE /observability/logs` cannot be probed safely, so Clear is disabled when the log read is unavailable and otherwise marks itself off after a first empty 404.
 
@@ -80,7 +80,7 @@ Both scripts are for disposable servers with fake credentials only: they edit co
 - `node scripts/browser-check-rust.mjs [url] [capture-dir]` drives the dashboard with agent-browser against the Rust binary (or Go): nine screens in both themes, unsupported actions disabled on Rust, a payload rule written and removed, a YAML diff discarded, 390 px layout, and no key in storage.
 - `CHROME_PATH=... node scripts/panel-check-go.mjs [url] [capture-dir]` drives the single-file panel with Playwright against Go: all 13 screens in both themes, credential edits, a Codex OAuth start and cancel, config list writes, the section editor, request logs, the live usage view, phone layouts, and asserts that no request leaves the serving origin, Go is never probed, there are no console errors, and the key is not stored. `playwright-core` is a dev dependency for this script only; it downloads no browser.
 - `node scripts/fake-logins.mjs [port]` serves fake provider login endpoints (Claude, Codex, Kimi, Meta token, profile, device-code and key-mint routes) and a Claude usage endpoint that echoes its `Authorization` header. Fake tokens and `@example.invalid` emails only.
-- `scripts/login-harness/` is a test build of hyper-router whose only change is `Options.login_base`, which points every provider login endpoint at the fake. It is never shipped. Build it with `cp ../../../Cargo.lock . && CARGO_TARGET_DIR=../../../target cargo build` inside that directory.
+- `scripts/login-harness/` is a test build of horon-router whose only change is `Options.login_base`, which points every provider login endpoint at the fake. It is never shipped. Build it with `cp ../../../Cargo.lock . && CARGO_TARGET_DIR=../../../target cargo build` inside that directory.
 - `CHROME_PATH=... node scripts/oauth-check.mjs <url> --mode fake` drives Claude and Codex sign-in through a pasted callback URL and Kimi and Meta through the device code against the harness, and checks each new credential appears and that a provider the server lacks gets an honest message. `--mode dead` runs against the shipped binary with a dead `requests.proxy-url` and checks that a pasted callback ends in an honest failure.
 - `node scripts/api-call-check.mjs <base> [<base> ...]` sends the Quotas screen's `POST /requests/api-call` to the fake usage endpoint through each server, checks `$TOKEN$` substitution and that the quota parser reads the windows, and compares the response shape between servers.
 - `scripts/verify-backend.mjs` is the API-level verifier for the Go release backend, unchanged from the previous dashboard.

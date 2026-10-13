@@ -463,7 +463,7 @@ mod tests {
         serde_yaml_ng::from_str(text).unwrap()
     }
 
-    /// `oauth.providers.codex.chatgpt-keep-alive` is a hyper-router addition in the schema:
+    /// `oauth.providers.codex.chatgpt-keep-alive` is a horon-router addition in the schema:
     /// strict management writes accept it as a bool, still reject other keys Go does not
     /// know, and the v8 migration keeps it instead of commenting it out.
     #[test]

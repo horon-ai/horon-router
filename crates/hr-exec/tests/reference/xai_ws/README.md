@@ -33,7 +33,7 @@ boundary, as for `../xai` (run it without network access):
 
 ```sh
 reference=/absolute/path/to/CLIProxyAPI   # at 6fecc6e
-crate=/absolute/path/to/hyper-router/crates/hr-exec
+crate=/absolute/path/to/horon-router/crates/hr-exec
 tmp=$(mktemp -d)
 cp "$crate"/tests/reference/xai_ws/*.go "$tmp/"
 (

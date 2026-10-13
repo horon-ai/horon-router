@@ -6,7 +6,7 @@
 // Run from a module whose import path sits inside the reference module (see
 // crates/hr-translate/tests/reference/README.md):
 //
-//	go run . /path/to/CLIProxyAPI /path/to/hyper-router/crates/hr-common/tests/fixtures/gemini_schema.json
+//	go run . /path/to/CLIProxyAPI /path/to/horon-router/crates/hr-common/tests/fixtures/gemini_schema.json
 package main
 
 import (

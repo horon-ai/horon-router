@@ -1,6 +1,6 @@
-# hyper-router dashboard
+# horon-router dashboard
 
-The management dashboard embedded in hyper-router, a Rust rewrite of CLIProxyAPI. It serves at `/management.html` from the server binary and talks only to that server: the v8 Management API, plus `GET /v1/models` with a client key when the Use with tools page tests the key. It is the most visible part of the launch, so it has to look authored and still be quick to use.
+The management dashboard embedded in horon-router, a Rust rewrite of CLIProxyAPI. It serves at `/management.html` from the server binary and talks only to that server: the v8 Management API, plus `GET /v1/models` with a client key when the Use with tools page tests the key. It is the most visible part of the launch, so it has to look authored and still be quick to use.
 
 ## Who and where
 

@@ -37,9 +37,9 @@ echo "{\"Replace\": {\"$reference/cmd/zzmdns/main.go\": \"$PWD/mdns_main.go\"}}"
 (cd "$reference" && go build -overlay /tmp/overlay.json -o /tmp/zzmdns ./cmd/zzmdns)
 WRITABLE_PATH=/tmp/go-state /tmp/zzmdns advertise ethcpa0 18317 "Go Box" &
 /tmp/zzmdns browse ethcpa0 3 > go.json
-hyperrouter discover -json -include ethcpa0 -timeout 3 > rs.json
+horonrouter discover -json -include ethcpa0 -timeout 3 > rs.json
 diff go.json rs.json   # identical
 ```
 
-Then run `hyperrouter` with `discovery.enabled: true` and `interfaces.include: [ethcpa0]`
+Then run `horonrouter` with `discovery.enabled: true` and `interfaces.include: [ethcpa0]`
 and browse it with both commands again; stopping it with SIGTERM sends the goodbye.

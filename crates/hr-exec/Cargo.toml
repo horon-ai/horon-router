@@ -1,6 +1,6 @@
 [package]
 name = "hr-exec"
-description = "Upstream provider executors for hyper-router"
+description = "Upstream provider executors for horon-router"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

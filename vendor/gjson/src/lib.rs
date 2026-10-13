@@ -478,7 +478,7 @@ fn scan_number<'a>(json: &'a [u8], mut i: usize) -> (&'a [u8], InfoBits, usize) 
     (&json[s..i], info, i)
 }
 
-// hyper-router: memchr2 finds the next `"` or `\\` (the CHSTRTOK bytes) instead of a
+// horon-router: memchr2 finds the next `"` or `\\` (the CHSTRTOK bytes) instead of a
 // table lookup per byte; the result is the same.
 #[inline(always)]
 fn scan_string<'a>(json: &'a [u8], mut i: usize) -> (&'a [u8], InfoBits, usize) {

@@ -27,7 +27,7 @@ and response bodies are Connect frames, recorded as base64 (`body_b64`).
 ```sh
 git clone https://github.com/router-for-me/CLIProxyAPI && cd CLIProxyAPI
 git checkout 6fecc6e
-G=<hyper-router>/crates/hr-exec/tests/device_fixtures/go
+G=<horon-router>/crates/hr-exec/tests/device_fixtures/go
 cp $G/zz_rsfix_frames_test.go sdk/api/handlers/openai/
 cp $G/zz_rsfix_devin_paste_test.go sdk/auth/
 for f in $G/zz_rsfix_*_test.go; do case $(basename $f) in zz_rsfix_frames_test.go|zz_rsfix_devin_paste_test.go) ;; *) cp $f internal/runtime/executor/ ;; esac; done
@@ -39,7 +39,7 @@ RSFIX_OUT=/tmp/rsfix go test -count=1 -run 'TestRSFix' ./internal/runtime/execut
 RSFIX_OUT=/tmp/rsfix go test -count=1 -run 'TestRSFixDevinPaste' ./sdk/auth/
 # Adds downstream.frames: Responses-route joining of the recorded stream chunks.
 RSFIX_OUT=/tmp/rsfix go test -count=1 -run 'TestRSFixResponsesFrames' ./sdk/api/handlers/openai/
-cp -r /tmp/rsfix/* <hyper-router>/crates/hr-exec/tests/device_fixtures/
+cp -r /tmp/rsfix/* <horon-router>/crates/hr-exec/tests/device_fixtures/
 ```
 
 The generator pins `buildinfo.Version` to `0.1.0`, and the fixture loader puts the running

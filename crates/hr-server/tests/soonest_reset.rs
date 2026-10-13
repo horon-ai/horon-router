@@ -1,4 +1,4 @@
-//! `routing.strategy: soonest-reset` (a hyper-router addition) through the router, the
+//! `routing.strategy: soonest-reset` (a horon-router addition) through the router, the
 //! Claude executor's quota observations and the management API, against a loopback
 //! upstream that reports a different weekly reset per account. Fake keys only.
 
@@ -110,7 +110,7 @@ struct Proxy {
 }
 
 /// A private `auth-dir`: without one, credential loading reads the user's real
-/// `~/.hyper-router`.
+/// `~/.horon-router`.
 fn yaml(base: &str, strategy: &str, auth_dir: &std::path::Path) -> String {
     format!(
         "auth-dir: {}\napi-keys:\n  - client-key\nrouting:\n  strategy: {strategy}\nclaude-api-key:\n  - api-key: sk-fake-1\n    base-url: {base}\n  - api-key: sk-fake-2\n    base-url: {base}\n",

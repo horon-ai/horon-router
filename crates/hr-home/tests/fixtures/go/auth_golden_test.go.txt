@@ -1,6 +1,6 @@
 package auth
 
-// Golden generator for hyper-router. RUST_GOLDEN=<file> go test -run TestRustGoldenHome ./sdk/cliproxy/auth/
+// Golden generator for horon-router. RUST_GOLDEN=<file> go test -run TestRustGoldenHome ./sdk/cliproxy/auth/
 
 import (
 	"encoding/json"

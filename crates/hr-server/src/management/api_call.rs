@@ -259,7 +259,7 @@ pub(crate) async fn api_call(State(state): State<Arc<Management>>, body: Bytes) 
         })
         .flatten();
     // ponytail: Go refreshes antigravity, meta and xai tokens here when due; those
-    // providers have no executor in hyper-router yet, so their stored token is used.
+    // providers have no executor in horon-router yet, so their stored token is used.
     let token = credential.as_deref().map(token_for).unwrap_or_default();
     let token_error = || {
         if !auth_index.is_empty() && credential.is_none() {

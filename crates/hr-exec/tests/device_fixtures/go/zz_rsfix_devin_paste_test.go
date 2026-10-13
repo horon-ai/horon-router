@@ -1,6 +1,6 @@
 package auth
 
-// hyper-router fixture generator: parseDevinManualPaste vectors (RSFIX_OUT=<dir>).
+// horon-router fixture generator: parseDevinManualPaste vectors (RSFIX_OUT=<dir>).
 
 import (
 	"encoding/json"

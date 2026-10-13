@@ -50,8 +50,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Build
-        run: docker build -t hyper-router:ci .
+        run: docker build -t horon-router:ci .
       - name: Smoke test
-        run: docker run --rm hyper-router:ci --version
+        run: docker run --rm horon-router:ci --version
       - name: Size gate
-        run: bench/gate.sh image hyper-router:ci
+        run: bench/gate.sh image horon-router:ci

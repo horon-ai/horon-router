@@ -44,7 +44,7 @@
               "fill": "$ink-2",
               "textGrowth": "fixed-width",
               "width": "fill_container",
-              "content": "HyperRouter management dashboard. shadcn/ui neutral carries every surface; emphasis is neutral ink, not a hue. Three status lamps keep their semantic colour. Every value below is a .pen variable the components reference.",
+              "content": "HoronRouter management dashboard. shadcn/ui neutral carries every surface; emphasis is neutral ink, not a hue. Three status lamps keep their semantic colour. Every value below is a .pen variable the components reference.",
               "fontFamily": "$font-ui",
               "fontSize": 14,
               "fontWeight": "normal"
@@ -6033,7 +6033,7 @@
                               "id": "Nho9Z",
                               "name": "Wordmark",
                               "fill": "$ink",
-                              "content": "HyperRouter",
+                              "content": "HoronRouter",
                               "fontFamily": "$font-ui",
                               "fontSize": 15,
                               "fontWeight": "600"
@@ -6885,7 +6885,7 @@
                           "id": "Ru4sV",
                           "name": "Wordmark",
                           "fill": "$foreground",
-                          "content": "HyperRouter",
+                          "content": "HoronRouter",
                           "fontFamily": "$font-ui",
                           "fontSize": 15,
                           "fontWeight": "600"

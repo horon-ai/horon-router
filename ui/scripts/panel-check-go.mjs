@@ -205,7 +205,7 @@ try {
     values: JSON.stringify({ ...localStorage, ...sessionStorage }),
   }));
   assert.ok(!storage.values.includes(KEY), "management key in storage");
-  assert.ok(storage.local.every((key) => ["hyperrouter-theme", "hyperrouter-lang"].includes(key)), JSON.stringify(storage.local));
+  assert.ok(storage.local.every((key) => ["horonrouter-theme", "horonrouter-lang"].includes(key)), JSON.stringify(storage.local));
   assert.deepEqual(storage.session, []);
   assert.deepEqual(problems, [], "console errors");
   // The only HTTP errors are reads of config paths that are not set yet (Go: 404 not_found).

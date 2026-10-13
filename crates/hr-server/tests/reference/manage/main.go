@@ -388,7 +388,7 @@ func snapshotDir(dir string) map[string]any {
 	out := map[string]any{}
 	entries, _ := os.ReadDir(dir)
 	for _, e := range entries {
-		// Callback hand-off files are transient (hyper-router keeps callbacks in memory).
+		// Callback hand-off files are transient (horon-router keeps callbacks in memory).
 		if strings.HasPrefix(e.Name(), ".oauth-") {
 			continue
 		}

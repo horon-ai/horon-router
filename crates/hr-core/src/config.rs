@@ -71,9 +71,9 @@ pub use validate::parse_duration;
 /// Default port used only where CLIProxyAPI falls back to it (management base URL).
 /// The loader itself leaves an omitted port at 0, as Go does.
 pub const DEFAULT_PORT: u16 = 8317;
-/// Default auth directory when the config omits `auth-dir`. hyper-router keeps its files
-/// under `~/.hyper-router`, unlike Go's `~/.cli-proxy-api` (docs/DIFFERENCES-FROM-GO.md).
-pub const DEFAULT_AUTH_DIR: &str = "~/.hyper-router";
+/// Default auth directory when the config omits `auth-dir`. horon-router keeps its files
+/// under `~/.horon-router`, unlike Go's `~/.cli-proxy-api` (docs/DIFFERENCES-FROM-GO.md).
+pub const DEFAULT_AUTH_DIR: &str = "~/.horon-router";
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct Config {
@@ -184,7 +184,7 @@ pub struct CooldownConfig {
     pub disable_cooling: bool,
     pub save_cooldown_status: bool,
     pub transient_error_cooldown_seconds: i64,
-    /// hyper-router only: the longest quota reset trusted at first, as a duration
+    /// horon-router only: the longest quota reset trusted at first, as a duration
     /// (`"1h"`) or seconds; empty means one hour, `0` trusts every reset (Go).
     #[serde(deserialize_with = "de_go_string", skip_serializing_if = "String::is_empty")]
     pub max_trusted_cooldown: String,
@@ -502,7 +502,7 @@ mod tests {
         assert!(cfg.api_keys.is_empty(), "present null list beats legacy");
     }
 
-    /// `worker-threads` is hyper-router only: a whole-file upload through the Management
+    /// `worker-threads` is horon-router only: a whole-file upload through the Management
     /// API keeps it (Go's v8 upload refuses unknown sections), and its type is checked.
     #[test]
     fn worker_threads_is_a_known_int() {
@@ -576,7 +576,7 @@ mod tests {
         assert!(!cfg.routing.cooldown.disable_cooling);
         assert!(cfg.routing.cooldown.save_cooldown_status);
         assert_eq!(cfg.routing.cooldown.transient_error_cooldown_seconds, -3);
-        // hyper-router's own cooldown key: an int or a duration, kept as written, and
+        // horon-router's own cooldown key: an int or a duration, kept as written, and
         // part of the schema so management writes do not archive it.
         for (yaml, expect) in [("0", "0"), ("90m", "90m")] {
             let text = format!("routing:\n  cooldown:\n    max-trusted-cooldown: {yaml}\n");
@@ -601,14 +601,14 @@ mod tests {
         assert_eq!(resolve_auth_dir("/abs"), PathBuf::from("/abs"));
     }
 
-    /// hyper-router's default auth dir is `~/.hyper-router`, not Go's `~/.cli-proxy-api`
+    /// horon-router's default auth dir is `~/.horon-router`, not Go's `~/.cli-proxy-api`
     /// (an intentional difference; docs/DIFFERENCES-FROM-GO.md).
     #[test]
-    fn auth_dir_defaults_to_hyper_router() {
-        assert_eq!(Config::parse("").unwrap().auth_dir, home().join(".hyper-router"));
+    fn auth_dir_defaults_to_horon_router() {
+        assert_eq!(Config::parse("").unwrap().auth_dir, home().join(".horon-router"));
         assert_eq!(
             Config::parse("auth-dir: ''\n").unwrap().auth_dir,
-            home().join(".hyper-router")
+            home().join(".horon-router")
         );
     }
 }

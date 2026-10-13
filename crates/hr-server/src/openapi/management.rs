@@ -741,7 +741,7 @@ fn v8_paths() -> Vec<(String, Value)> {
                     vec![ok("The latest release tag.", "LatestVersion")],
                     vec![
                         e502("Could not check the latest release"),
-                        e503("Update checks are disabled by `HYPERROUTER_NO_UPDATE_CHECK=1`"),
+                        e503("Update checks are disabled by `HORONROUTER_NO_UPDATE_CHECK=1`"),
                     ],
                 ),
             )]),
@@ -1128,7 +1128,7 @@ fn v0_paths() -> Vec<(String, Value)> {
                     vec![ok("The latest release tag.", "LatestVersion")],
                     vec![
                         e502("Could not check the latest release"),
-                        e503("Update checks are disabled by `HYPERROUTER_NO_UPDATE_CHECK=1`"),
+                        e503("Update checks are disabled by `HORONROUTER_NO_UPDATE_CHECK=1`"),
                     ],
                 ),
             )]),

@@ -1232,7 +1232,7 @@ impl Record {
         write!(
             out,
             "=== REQUEST INFO ===\nVersion: {}\nURL: {}\nMethod: {}\nDownstream Transport: {downstream}\n",
-            concat!("hyper-router-", env!("CARGO_PKG_VERSION")),
+            concat!("horon-router-", env!("CARGO_PKG_VERSION")),
             self.url,
             self.method
         )?;
@@ -1621,7 +1621,7 @@ mod tests {
     use tower_service::Service;
 
     /// `capture_go.json`, recorded with the Go generator's `buildinfo.Version` pinned to
-    /// `hyper-router-0.1.0` (tests/reference/capture/main.go). The version of this build
+    /// `horon-router-0.1.0` (tests/reference/capture/main.go). The version of this build
     /// replaces it, so a release bump needs no re-recording.
     /// A file every write to fails, on any OS (Linux-only `/dev/full` is not needed).
     fn unwritable(dir: &Path) -> File {
@@ -1632,8 +1632,8 @@ mod tests {
 
     fn capture_go() -> serde_json::Value {
         let text = include_str!("../tests/fixtures/capture_go.json").replace(
-            "hyper-router-0.1.0",
-            concat!("hyper-router-", env!("CARGO_PKG_VERSION")),
+            "horon-router-0.1.0",
+            concat!("horon-router-", env!("CARGO_PKG_VERSION")),
         );
         serde_json::from_str(&text).unwrap()
     }

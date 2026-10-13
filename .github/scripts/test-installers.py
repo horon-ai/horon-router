@@ -48,7 +48,7 @@ def main():
         ("Darwin", "x86_64"): "x86_64-apple-darwin",
         ("Windows", "AMD64"): "x86_64-pc-windows-msvc",
     }[(platform.system(), platform.machine())]
-    exe = "hyperrouter.exe" if windows else "hyperrouter"
+    exe = "horonrouter.exe" if windows else "horonrouter"
     requests = []
 
     with tempfile.TemporaryDirectory(prefix="installer-test-") as tmp:
@@ -57,7 +57,7 @@ def main():
         releases.mkdir()
 
         def package(tag, source):
-            name = f"hyperrouter-{tag.removeprefix('v')}-{target}"
+            name = f"horonrouter-{tag.removeprefix('v')}-{target}"
             directory = root / name
             directory.mkdir()
             shutil.copy2(source, directory / exe)
@@ -78,7 +78,7 @@ def main():
             package("v999.1.0", binary)
         else:
             wrapper = root / "version-wrapper"
-            wrapper.write_text(f'#!/bin/sh\nif [ "$1" = --version ]; then echo "hyperrouter 999.1.0"; else exec {shlex.quote(str(binary))} "$@"; fi\n')
+            wrapper.write_text(f'#!/bin/sh\nif [ "$1" = --version ]; then echo "horonrouter 999.1.0"; else exec {shlex.quote(str(binary))} "$@"; fi\n')
             wrapper.chmod(0o755)
             package("v999.1.0", wrapper)
         fixtures = repo / "target/installer-fixtures"
@@ -90,7 +90,7 @@ def main():
             package("v999.4.0", fixtures / "plain-health.exe")
         if not windows:
             bad = root / "broken"
-            bad.write_text("#!/bin/sh\nif [ \"$1\" = --version ]; then echo 'hyperrouter 999.2.0'; else exit 1; fi\n")
+            bad.write_text("#!/bin/sh\nif [ \"$1\" = --version ]; then echo 'horonrouter 999.2.0'; else exit 1; fi\n")
             bad.chmod(0o755)
             package("v999.2.0", bad)
 
@@ -126,9 +126,9 @@ def main():
             "PROCESSOR_ARCHITECTURE", "PROCESSOR_ARCHITEW6432",
         }}
         env.update({"HOME": str(root), "USERPROFILE": str(root), "LOCALAPPDATA": str(root),
-               "HYPERROUTER_RELEASES": f"http://127.0.0.1:{server.server_port}/releases",
-               "HYPERROUTER_HOME": str(home), "HYPERROUTER_INSTALL_DIR": str(bindir),
-               "HYPERROUTER_NO_OPEN": "1", "HYPERROUTER_NO_UPDATE_CHECK": "1"})
+               "HORONROUTER_RELEASES": f"http://127.0.0.1:{server.server_port}/releases",
+               "HORONROUTER_HOME": str(home), "HORONROUTER_INSTALL_DIR": str(bindir),
+               "HORONROUTER_NO_OPEN": "1", "HORONROUTER_NO_UPDATE_CHECK": "1"})
         # Catalog fetches cannot leave loopback even on native runners without namespaces.
         env.update(HTTP_PROXY="http://127.0.0.1:9", HTTPS_PROXY="http://127.0.0.1:9",
                    ALL_PROXY="http://127.0.0.1:9", NO_PROXY="127.0.0.1,localhost,::1")
@@ -181,7 +181,7 @@ def main():
             raise AssertionError("server not healthy")
 
         def pid():
-            return int((home / "hyperrouter.pid").read_text().strip())
+            return int((home / "horonrouter.pid").read_text().strip())
 
         try:
             process_log = root / "process.log"
@@ -193,13 +193,13 @@ def main():
             logged = process_log.read_text()
             assert logged.startswith("keep existing log\n") and "config" in logged[len("keep existing log\n"):], logged
             if windows:
-                original_run = ps("$e=(Get-ItemProperty 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run' -ErrorAction SilentlyContinue).'hyper-router'; if($e){$e}")
+                original_run = ps("$e=(Get-ItemProperty 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run' -ErrorAction SilentlyContinue).'horon-router'; if($e){$e}")
                 # Explicit OWNER RIGHTS must not survive on a pre-existing home;
                 # removing inherited ACEs alone does not remove explicit grants.
-                print(ps("$ErrorActionPreference='Stop'; New-Item -ItemType Directory -Path $env:HYPERROUTER_HOME | Out-Null; "
-                         "$acl=Get-Acl $env:HYPERROUTER_HOME; $sid=New-Object Security.Principal.SecurityIdentifier('S-1-3-4'); "
+                print(ps("$ErrorActionPreference='Stop'; New-Item -ItemType Directory -Path $env:HORONROUTER_HOME | Out-Null; "
+                         "$acl=Get-Acl $env:HORONROUTER_HOME; $sid=New-Object Security.Principal.SecurityIdentifier('S-1-3-4'); "
                          "$acl.AddAccessRule((New-Object Security.AccessControl.FileSystemAccessRule($sid,'FullControl','ContainerInherit,ObjectInherit','None','Allow'))); "
-                         "Set-Acl $env:HYPERROUTER_HOME $acl; Write-Output \"Before install: $((Get-Acl $env:HYPERROUTER_HOME).Sddl)\""))
+                         "Set-Acl $env:HORONROUTER_HOME $acl; Write-Output \"Before install: $((Get-Acl $env:HORONROUTER_HOME).Sddl)\""))
             else:
                 # A process can exit between a liveness check and either signal.
                 # An actual signal failure against a live PID must still fail.
@@ -231,15 +231,15 @@ if stop_pidfile; then exit 0; else exit 1; fi
             if windows:
                 script = str(repo / "install.ps1").replace("'", "''")
                 test_config = str(probe_config).replace("'", "''")
-                base = ps(f"$code=(Get-Content -Raw '{script}') -replace '(?m)^Install-HyperRouter -Service.*$', ''; . ([scriptblock]::Create($code)); (Get-HyperRouterProbe '{test_config}').Base; " + '''
+                base = ps(f"$code=(Get-Content -Raw '{script}') -replace '(?m)^Install-HoronRouter -Service.*$', ''; . ([scriptblock]::Create($code)); (Get-HoronRouterProbe '{test_config}').Base; " + '''
 $script:removed=@()
 function Get-ChildItem {
-  [pscustomobject]@{Name='hyperrouter.prev-keep.exe'; FullName='/long/path/hyperrouter.prev-keep.exe'}
-  [pscustomobject]@{Name='hyperrouter.prev-old.exe'; FullName='/long/path/hyperrouter.prev-old.exe'}
+  [pscustomobject]@{Name='horonrouter.prev-keep.exe'; FullName='/long/path/horonrouter.prev-keep.exe'}
+  [pscustomobject]@{Name='horonrouter.prev-old.exe'; FullName='/long/path/horonrouter.prev-old.exe'}
 }
 function Remove-Item { param($LiteralPath,[switch]$Force,$ErrorAction); $script:removed += $LiteralPath }
-Remove-HyperRouterImages '/short/path' '/short/path/hyperrouter.prev-keep.exe'
-if($script:removed.Count -ne 1 -or $script:removed[0] -ne '/long/path/hyperrouter.prev-old.exe'){
+Remove-HoronRouterImages '/short/path' '/short/path/horonrouter.prev-keep.exe'
+if($script:removed.Count -ne 1 -or $script:removed[0] -ne '/long/path/horonrouter.prev-old.exe'){
   throw "cleanup removed the rollback image through a directory alias: $script:removed"
 }
 ''')
@@ -249,11 +249,11 @@ if($script:removed.Count -ne 1 -or $script:removed[0] -ne '/long/path/hyperroute
             assert base.strip() == "https://[::1]:8317", base
             install(pipe=windows)
             health()
-            keys = dict(line.split("=", 1) for line in (home / "keys.env").read_text().splitlines() if line.startswith("HYPERROUTER_"))
+            keys = dict(line.split("=", 1) for line in (home / "keys.env").read_text().splitlines() if line.startswith("HORONROUTER_"))
             for path, key, expected in [
                 ("/v1/models", None, 401),
-                ("/v1/models", keys["HYPERROUTER_CLIENT_KEY"], 200),
-                ("/v8/management/config", keys["HYPERROUTER_MANAGEMENT_KEY"], 200),
+                ("/v1/models", keys["HORONROUTER_CLIENT_KEY"], 200),
+                ("/v8/management/config", keys["HORONROUTER_MANAGEMENT_KEY"], 200),
             ]:
                 request = urllib.request.Request("http://127.0.0.1:8317" + path)
                 if key:
@@ -266,10 +266,10 @@ if($script:removed.Count -ne 1 -or $script:removed[0] -ne '/long/path/hyperroute
                 assert code == expected, (path, code)
             if windows:
                 print(ps("$ErrorActionPreference='Stop'; $me=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value; "
-                   "foreach($p in @($env:USERPROFILE, $env:HYPERROUTER_HOME, \"$env:HYPERROUTER_HOME\\keys.env\")){ "
+                   "foreach($p in @($env:USERPROFILE, $env:HORONROUTER_HOME, \"$env:HORONROUTER_HOME\\keys.env\")){ "
                    "$acl=Get-Acl -LiteralPath $p; Write-Output \"ACL $p $($acl.Sddl)\"; "
                    "$acl.Access | Format-Table IdentityReference,AccessControlType,IsInherited | Out-String | Write-Output }; "
-                   "$who=(Get-Acl \"$env:HYPERROUTER_HOME\\keys.env\").GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier]).IdentityReference.Value; "
+                   "$who=(Get-Acl \"$env:HORONROUTER_HOME\\keys.env\").GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier]).IdentityReference.Value; "
                    "if($who | Where-Object { $_ -notin $me, 'S-1-5-18', 'S-1-5-32-544' }){throw \"keys readable by others: $who\"}"))
             else:
                 assert (home / "keys.env").stat().st_mode & 0o777 == 0o600
@@ -277,8 +277,8 @@ if($script:removed.Count -ne 1 -or $script:removed[0] -ne '/long/path/hyperroute
                 # An oldest rotation opened without delete sharing cannot be
                 # removed on Windows, even if Rust ignores its read-only bit.
                 # Startup must keep its budget and prune other eligible files.
-                locked = home / "hyperrouter-2001-09-09T01-46-40.000.log"
-                removable = home / "hyperrouter-2001-09-09T01-46-41.000.log"
+                locked = home / "horonrouter-2001-09-09T01-46-40.000.log"
+                removable = home / "horonrouter-2001-09-09T01-46-41.000.log"
                 for rotation, seconds in ((locked, 1_000_000_000), (removable, 1_000_000_001)):
                     with rotation.open("wb") as output:
                         output.truncate(33 * 1024 * 1024)
@@ -289,7 +289,7 @@ if($script:removed.Count -ne 1 -or $script:removed[0] -ne '/long/path/hyperroute
                     install()
                     health()
                     assert locked.exists() and not removable.exists(), "a locked rotation must not block cleanup of other logs"
-                    assert (home / "hyperrouter.log").stat().st_size > 0, "pruning must preserve the active process log"
+                    assert (home / "horonrouter.log").stat().st_size > 0, "pruning must preserve the active process log"
                     print("PASS Windows: locked process rotation skipped; remaining rotations pruned")
                 finally:
                     reader.close()
@@ -310,12 +310,12 @@ if($script:removed.Count -ne 1 -or $script:removed[0] -ne '/long/path/hyperroute
                 assert pid() == old_pid
                 assert (bindir / exe).stat().st_ino == old_inode
                 assert not any("/download/" in r for r in requests)
-            env["HYPERROUTER_VERSION"] = "v999.1.0"
+            env["HORONROUTER_VERSION"] = "v999.1.0"
             install("-BinaryOnly" if windows else "--binary-only")
             health()
             assert pid() == old_pid, "binary-only must leave the old server running"
             if not windows:
-                assert (bindir / "hyperrouter.prev").stat().st_ino == old_inode
+                assert (bindir / "horonrouter.prev").stat().st_ino == old_inode
                 requests.clear()
             install()
             health()
@@ -350,7 +350,7 @@ if($script:removed.Count -ne 1 -or $script:removed[0] -ne '/long/path/hyperroute
                         time.sleep(2)
                         unrelated = subprocess.Popen(["sleep", "120"], env=env)
                         try:
-                            (home / "hyperrouter.pid").write_text(str(unrelated.pid))
+                            (home / "horonrouter.pid").write_text(str(unrelated.pid))
                             os.utime(bindir / exe, None)
                             install()
                             health()
@@ -361,18 +361,18 @@ if($script:removed.Count -ne 1 -or $script:removed[0] -ne '/long/path/hyperroute
                 finally:
                     env["PATH"] = original_path
             second = root / "second"
-            env.update(HYPERROUTER_HOME=str(second))
+            env.update(HORONROUTER_HOME=str(second))
             try:
                 install()
-                assert "HYPERROUTER_PORT=8318" in (second / "keys.env").read_text()
+                assert "HORONROUTER_PORT=8318" in (second / "keys.env").read_text()
                 with urllib.request.urlopen("http://127.0.0.1:8318/healthz", timeout=5) as response:
                     assert response.status == 200
-                second_pid = int((second / "hyperrouter.pid").read_text().strip())
-                env.update(HYPERROUTER_HOME=str(home))
+                second_pid = int((second / "horonrouter.pid").read_text().strip())
+                env.update(HORONROUTER_HOME=str(home))
                 if windows:
                     # Simulate a stale PID reused by another config sharing the
                     # binary; the command-line match must still protect it.
-                    (home / "hyperrouter.pid").write_text(str(second_pid))
+                    (home / "horonrouter.pid").write_text(str(second_pid))
                 install()
                 health()
                 with urllib.request.urlopen("http://127.0.0.1:8318/healthz", timeout=5) as response:
@@ -380,15 +380,15 @@ if($script:removed.Count -ne 1 -or $script:removed[0] -ne '/long/path/hyperroute
                 health()
             finally:
                 try:
-                    if (second / "hyperrouter.pid").exists():
-                        second_pid = int((second / "hyperrouter.pid").read_text().strip())
+                    if (second / "horonrouter.pid").exists():
+                        second_pid = int((second / "horonrouter.pid").read_text().strip())
                         if windows:
                             ps(f"Stop-Process -Id {second_pid} -ErrorAction SilentlyContinue", check=False)
                         else:
                             subprocess.run(["kill", str(second_pid)], check=False, timeout=10)
                 except (OSError, ValueError, subprocess.SubprocessError) as error:
                     print(f"Best-effort cleanup: {error}", file=sys.stderr)
-                env.update(HYPERROUTER_HOME=str(home))
+                env.update(HORONROUTER_HOME=str(home))
             if not windows:
                 # A service command fails once after the swap; rollback must restart and
                 # verify the previous image rather than losing it through `set -e`.
@@ -399,16 +399,16 @@ if($script:removed.Count -ne 1 -or $script:removed[0] -ne '/long/path/hyperroute
 case "$*" in
   *show-environment*|*daemon-reload*|*enable*) exit 0 ;;
   print*|*is-active*)
-    if [ -f "$HYPERROUTER_HOME/service.pid" ] && kill -0 "$(cat "$HYPERROUTER_HOME/service.pid")" 2>/dev/null; then
+    if [ -f "$HORONROUTER_HOME/service.pid" ] && kill -0 "$(cat "$HORONROUTER_HOME/service.pid")" 2>/dev/null; then
       echo 'state = running'; exit 0
     fi
     exit 1 ;;
   bootstrap*|kickstart*|*restart*)
-    if [ -f "$HYPERROUTER_HOME/fail-service-once" ]; then
-      rm "$HYPERROUTER_HOME/fail-service-once"; echo 'injected service failure' >&2; exit 1
+    if [ -f "$HORONROUTER_HOME/fail-service-once" ]; then
+      rm "$HORONROUTER_HOME/fail-service-once"; echo 'injected service failure' >&2; exit 1
     fi
-    (cd "$HYPERROUTER_HOME" && exec nohup "$HYPERROUTER_INSTALL_DIR/hyperrouter" --config "$HYPERROUTER_HOME/config.yaml" </dev/null >>"$HYPERROUTER_HOME/hyperrouter.log" 2>&1) &
-    echo $! > "$HYPERROUTER_HOME/service.pid" ;;
+    (cd "$HORONROUTER_HOME" && exec nohup "$HORONROUTER_INSTALL_DIR/horonrouter" --config "$HORONROUTER_HOME/config.yaml" </dev/null >>"$HORONROUTER_HOME/horonrouter.log" 2>&1) &
+    echo $! > "$HORONROUTER_HOME/service.pid" ;;
   *) exit 1 ;;
 esac
 ''')
@@ -416,7 +416,7 @@ esac
                 (home / "fail-service-once").touch()
                 original_path = env["PATH"]
                 env["PATH"] = str(mockbin) + os.pathsep + original_path
-                env["HYPERROUTER_VERSION"] = f"v{version}"
+                env["HORONROUTER_VERSION"] = f"v{version}"
                 image = (bindir / exe).read_bytes()
                 try:
                     output = install("--service", success=False)
@@ -426,12 +426,12 @@ esac
                 finally:
                     marker = home / "service.pid"
                     if marker.exists():
-                        (home / "hyperrouter.pid").write_text(marker.read_text())
-                    unit = (root / "Library/LaunchAgents/io.github.vayungodara.hyper-router.plist" if platform.system() == "Darwin"
-                            else root / ".config/systemd/user/hyperrouter.service")
+                        (home / "horonrouter.pid").write_text(marker.read_text())
+                    unit = (root / "Library/LaunchAgents/io.github.vayungodara.horon-router.plist" if platform.system() == "Darwin"
+                            else root / ".config/systemd/user/horonrouter.service")
                     unit.unlink(missing_ok=True)
                     env["PATH"] = original_path
-            env["HYPERROUTER_VERSION"] = "v999.3.0"
+            env["HORONROUTER_VERSION"] = "v999.3.0"
             image = (bindir / exe).read_bytes()
             if windows:
                 running = pid()
@@ -439,11 +439,11 @@ esac
                 assert pid() == running
                 health()
                 script = str(repo / "install.ps1").replace("'", "''")
-                selected = ps(f"$code=(Get-Content -Raw '{script}') -replace '(?m)^Install-HyperRouter -Service.*$', ''; . ([scriptblock]::Create($code)); "
-                              "$dir=$ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($env:HYPERROUTER_INSTALL_DIR); "
-                              "$data=$ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($env:HYPERROUTER_HOME); "
-                              "Get-HyperRouterServers $dir (Join-Path $data 'config.yaml') | ForEach-Object { [IO.Path]::GetFileName((Get-HyperRouterImage $_.ProcessId $dir)) }")
-                assert selected.startswith("hyperrouter.prev-") and selected.endswith(".exe"), selected
+                selected = ps(f"$code=(Get-Content -Raw '{script}') -replace '(?m)^Install-HoronRouter -Service.*$', ''; . ([scriptblock]::Create($code)); "
+                              "$dir=$ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($env:HORONROUTER_INSTALL_DIR); "
+                              "$data=$ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($env:HORONROUTER_HOME); "
+                              "Get-HoronRouterServers $dir (Join-Path $data 'config.yaml') | ForEach-Object { [IO.Path]::GetFileName((Get-HoronRouterImage $_.ProcessId $dir)) }")
+                assert selected.startswith("horonrouter.prev-") and selected.endswith(".exe"), selected
             output = install(success=False)
             assert ("Rolled back" if windows else "verified it is healthy") in output, output
             if not windows:
@@ -451,13 +451,13 @@ esac
             assert (bindir / exe).read_bytes() == image, "unhealthy live upgrade must restore the old image"
             health()
             if not windows:
-                env["HYPERROUTER_VERSION"] = "v999.2.0"
+                env["HORONROUTER_VERSION"] = "v999.2.0"
                 inode = (bindir / exe).stat().st_ino
                 assert "restored the previous binary" in install(success=False)
                 assert (bindir / exe).stat().st_ino == inode
                 health()
                 # A checksum failure must not replace a healthy image or restart it.
-                env["HYPERROUTER_VERSION"] = f"v{version}"
+                env["HORONROUTER_VERSION"] = f"v{version}"
                 sums = releases / f"download/v{version}/SHA256SUMS"
                 sums.write_text(sums.read_text().replace(sums.read_text()[:64], "0" * 64))
                 old_pid = pid()
@@ -465,41 +465,41 @@ esac
                 assert pid() == old_pid and (bindir / exe).stat().st_ino == inode
                 health()
             else:
-                env["HYPERROUTER_VERSION"] = "v999.1.0"
+                env["HORONROUTER_VERSION"] = "v999.1.0"
                 install("-Service")
-                entry = ps("(Get-ItemProperty 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run').'hyper-router'")
+                entry = ps("(Get-ItemProperty 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run').'horon-router'")
                 assert entry.startswith(f'"{bindir / exe}" --config '), entry
                 assert "--log-file" in entry and "--working-dir" in entry and not any(x in entry.lower() for x in ("powershell", "cmd.exe", "start.ps1"))
                 existing_image = (bindir / exe).read_bytes()
                 existing_pid = pid()
-                env["HYPERROUTER_VERSION"] = "v999.0.0"
+                env["HORONROUTER_VERSION"] = "v999.0.0"
                 assert "too old for this installer" in install(success=False)
                 assert (bindir / exe).read_bytes() == existing_image and pid() == existing_pid
-                assert ps("(Get-ItemProperty 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run').'hyper-router'") == entry
+                assert ps("(Get-ItemProperty 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run').'horon-router'") == entry
                 health()
-                env["HYPERROUTER_VERSION"] = "v999.1.0"
+                env["HORONROUTER_VERSION"] = "v999.1.0"
                 ps(f"Stop-Process -Id {pid()}")
                 # Execute the exact Run entry, not an installer-generated launcher.
                 (home / ".env").write_text("WRITABLE_PATH=./relative-state\n")
                 config = home / "config.yaml"
                 config.write_text(config.read_text() + "\nobservability:\n  logs:\n    logging-to-file: true\n")
-                launched = int(ps(f"$e=(Get-ItemProperty 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run').'hyper-router'; $e -match '^\"([^\"]+)\" (.*)$' | Out-Null; (Start-Process -FilePath $Matches[1] -ArgumentList $Matches[2] -PassThru).Id", cwd=root))
-                (home / "hyperrouter.pid").write_text(str(launched))
+                launched = int(ps(f"$e=(Get-ItemProperty 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run').'horon-router'; $e -match '^\"([^\"]+)\" (.*)$' | Out-Null; (Start-Process -FilePath $Matches[1] -ArgumentList $Matches[2] -PassThru).Id", cwd=root))
+                (home / "horonrouter.pid").write_text(str(launched))
                 health()
-                assert (home / "hyperrouter.log").stat().st_size > 0
+                assert (home / "horonrouter.log").stat().st_size > 0
                 assert (home / "relative-state/logs/main.log").is_file(), "Run entry must read its home .env and resolve relative paths there"
                 # A later installer must find the direct Run process with a stale pid file.
-                (home / "hyperrouter.pid").write_text("0")
+                (home / "horonrouter.pid").write_text("0")
                 install()
                 health()
                 assert pid() != launched
             # Non-default bind host: derive both the health probe and dashboard URL.
             config = home / "config.yaml"
             config.write_text(config.read_text().replace('host: "127.0.0.1"', 'host: "::1"'))
-            env["HYPERROUTER_VERSION"] = f"v{version}" if not windows else "v999.1.0"
+            env["HORONROUTER_VERSION"] = f"v{version}" if not windows else "v999.1.0"
             if not windows:
                 # Make the on-disk current file newer than its last-start marker.
-                env["HYPERROUTER_VERSION"] = "v999.1.0"
+                env["HORONROUTER_VERSION"] = "v999.1.0"
                 os.utime(bindir / exe, None)
             assert "http://[::1]:8317/management.html" in install()
             connection = urllib.request.build_opener(urllib.request.ProxyHandler({}))
@@ -540,12 +540,12 @@ esac
                 threading.Thread(target=unhealthy.serve_forever, daemon=True).start()
                 script = str(repo / "install.ps1").replace("'", "''")
                 try:
-                    print(ps(f"$ErrorActionPreference='Stop'; $code=(Get-Content -Raw '{script}') -replace '(?m)^Install-HyperRouter -Service.*$', ''; . ([scriptblock]::Create($code)); " + f'''
+                    print(ps(f"$ErrorActionPreference='Stop'; $code=(Get-Content -Raw '{script}') -replace '(?m)^Install-HoronRouter -Service.*$', ''; . ([scriptblock]::Create($code)); " + f'''
 $before = [Net.ServicePointManager]::ServerCertificateValidationCallback
 $good = [pscustomobject]@{{Tls=$true; Base='https://[::1]:8317'}}
 $bad = [pscustomobject]@{{Tls=$true; Base='https://127.0.0.1:{unhealthy.server_port}'}}
-if(-not (Test-HyperRouterUp $good)){{throw 'self-signed HTTPS health probe failed'}}
-if(Test-HyperRouterUp $bad){{throw 'HTTPS 503 must fail the health probe'}}
+if(-not (Test-HoronRouterUp $good)){{throw 'self-signed HTTPS health probe failed'}}
+if(Test-HoronRouterUp $bad){{throw 'HTTPS 503 must fail the health probe'}}
 if([Net.ServicePointManager]::ServerCertificateValidationCallback -ne $before){{throw 'health probe changed global certificate validation'}}
 $accepted = $false
 try {{ Invoke-WebRequest "$($good.Base)/healthz" -UseBasicParsing -TimeoutSec 2 | Out-Null; $accepted = $true }} catch {{}}
@@ -558,7 +558,7 @@ Write-Output 'PASS Windows PowerShell 5.1: HTTPS status and scoped certificate v
                 # Accepting a TCP connection is insufficient: this candidate
                 # speaks plaintext on the TLS port and must restore the healthy image.
                 image = (bindir / exe).read_bytes()
-                env["HYPERROUTER_VERSION"] = "v999.4.0"
+                env["HORONROUTER_VERSION"] = "v999.4.0"
                 output = install(success=False)
                 assert "Rolled back" in output and "ROLLBACK FAILED" not in output, output
                 assert (bindir / exe).read_bytes() == image
@@ -576,12 +576,12 @@ Write-Output 'PASS Windows PowerShell 5.1: HTTPS status and scoped certificate v
             for folder in (home, root / "second"):
                 def logs():
                     print(f"Diagnostics: {folder}", file=sys.stderr)
-                    logfile = folder / "hyperrouter.log"
+                    logfile = folder / "horonrouter.log"
                     if logfile.exists():
                         print("\n".join(logfile.read_text(errors="replace").splitlines()[-40:]), file=sys.stderr)
                 diagnostic(logs)
                 def process():
-                    marker = folder / "hyperrouter.pid"
+                    marker = folder / "horonrouter.pid"
                     if marker.exists() and not windows:
                         recorded_pid = marker.read_text().strip()
                         print(f"pid file: {recorded_pid}", file=sys.stderr)
@@ -613,7 +613,7 @@ fi
             raise
         finally:
             try:
-                if (home / "hyperrouter.pid").exists():
+                if (home / "horonrouter.pid").exists():
                     if windows:
                         ps(f"Stop-Process -Id {pid()} -ErrorAction SilentlyContinue", check=False)
                     else:
@@ -623,9 +623,9 @@ fi
             if windows:
                 try:
                     if original_run:
-                        ps("Set-ItemProperty 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run' -Name hyper-router -Value '" + original_run.replace("'", "''") + "'", check=False)
+                        ps("Set-ItemProperty 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run' -Name horon-router -Value '" + original_run.replace("'", "''") + "'", check=False)
                     else:
-                        ps("Remove-ItemProperty 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run' -Name hyper-router -ErrorAction SilentlyContinue", check=False)
+                        ps("Remove-ItemProperty 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run' -Name horon-router -ErrorAction SilentlyContinue", check=False)
                 except (OSError, subprocess.SubprocessError) as error:
                     print(f"Best-effort cleanup: {error}", file=sys.stderr)
             server.shutdown()

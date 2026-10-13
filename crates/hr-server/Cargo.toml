@@ -1,6 +1,6 @@
 [package]
 name = "hr-server"
-description = "HTTP surface of hyper-router: routes, client auth, runtime and credential selection"
+description = "HTTP surface of horon-router: routes, client auth, runtime and credential selection"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

@@ -1,8 +1,8 @@
-# HyperRouter
+# HoronRouter
 
-[![CI](https://github.com/alpoxdev/hyper-router/actions/workflows/ci.yml/badge.svg)](https://github.com/alpoxdev/hyper-router/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/alpoxdev/hyper-router)](https://github.com/alpoxdev/hyper-router/releases/latest)
-[![Homebrew](https://img.shields.io/badge/brew-vayungodara%2Ftap%2Fhyper--router-orange)](https://github.com/vayungodara/homebrew-tap)
+[![CI](https://github.com/alpoxdev/horon-router/actions/workflows/ci.yml/badge.svg)](https://github.com/alpoxdev/horon-router/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/alpoxdev/horon-router)](https://github.com/alpoxdev/horon-router/releases/latest)
+[![Homebrew](https://img.shields.io/badge/brew-vayungodara%2Ftap%2Fhoron--router-orange)](https://github.com/vayungodara/homebrew-tap)
 
 Codex CLI, Claude Code 같은 도구를 하나의 로컬 주소에 연결해 DeepSeek, GLM, Kimi, OpenRouter 또는 자체 게이트웨이를 사용합니다. 본인의 API 키나 계정으로 여러 제공자를 함께 사용하며, OpenAI, Anthropic, Gemini API(프로그램끼리 데이터를 주고받는 통로) 형식을 변환합니다.
 
@@ -12,19 +12,19 @@ Codex CLI, Claude Code 같은 도구를 하나의 로컬 주소에 연결해 Dee
 1. macOS 또는 Linux에서 설치합니다.
 
    ```sh
-   curl -fsSL https://raw.githubusercontent.com/alpoxdev/hyper-router/dev/install.sh | sh
+   curl -fsSL https://raw.githubusercontent.com/alpoxdev/horon-router/dev/install.sh | sh
    ```
 
    Windows에서는 PowerShell을 사용합니다.
 
    ```powershell
-   irm https://raw.githubusercontent.com/alpoxdev/hyper-router/dev/install.ps1 | iex
+   irm https://raw.githubusercontent.com/alpoxdev/horon-router/dev/install.ps1 | iex
    ```
 
-   설치 스크립트는 릴리스 파일의 체크섬을 확인하고 `~/.hyper-router/config.yaml`을 만든 다음 프록시를 시작하고 대시보드를 엽니다. Windows 설정 경로는 `%USERPROFILE%\.hyper-router\config.yaml`입니다. 새 키는 화면에 출력하지 않고 `keys.env`에 저장합니다.
+   설치 스크립트는 릴리스 파일의 체크섬을 확인하고 `~/.horon-router/config.yaml`을 만든 다음 프록시를 시작하고 대시보드를 엽니다. Windows 설정 경로는 `%USERPROFILE%\.horon-router\config.yaml`입니다. 새 키는 화면에 출력하지 않고 `keys.env`에 저장합니다.
 
-2. 설정 파일 옆의 `keys.env`에 있는 `HYPERROUTER_MANAGEMENT_KEY`로 대시보드에 로그인합니다. 본인 계정을 연결하거나 제공자의 API 키를 추가합니다. 구독 계정을 연결하기 전에 [계정과 제공자 이용약관](#accounts-and-provider-terms)을 읽습니다.
-3. 대시보드의 **Use with tools** 페이지에서 Codex CLI 또는 Claude Code 설정을 복사합니다. 도구에는 관리 키가 아닌 `HYPERROUTER_CLIENT_KEY`를 사용합니다.
+2. 설정 파일 옆의 `keys.env`에 있는 `HORONROUTER_MANAGEMENT_KEY`로 대시보드에 로그인합니다. 본인 계정을 연결하거나 제공자의 API 키를 추가합니다. 구독 계정을 연결하기 전에 [계정과 제공자 이용약관](#accounts-and-provider-terms)을 읽습니다.
+3. 대시보드의 **Use with tools** 페이지에서 Codex CLI 또는 Claude Code 설정을 복사합니다. 도구에는 관리 키가 아닌 `HORONROUTER_CLIENT_KEY`를 사용합니다.
 
 ### 다른 설치 방법과 업데이트
 
@@ -32,29 +32,29 @@ Windows에서는 [Scoop](https://scoop.sh)도 사용할 수 있습니다. 실행
 
 ```powershell
 scoop bucket add vayungodara https://github.com/vayungodara/scoop-bucket
-scoop install vayungodara/hyper-router
+scoop install vayungodara/horon-router
 ```
 
 macOS 또는 Linux에서는 Homebrew로 설치할 수 있습니다.
 
 ```sh
-brew install vayungodara/tap/hyper-router
-brew services start hyper-router
+brew install vayungodara/tap/horon-router
+brew services start horon-router
 ```
 
-설정과 `keys.env`는 `$(brew --prefix)/etc/hyper-router/`에 있으며, 대시보드 주소는 `http://127.0.0.1:8317/management.html`입니다. 자세한 내용은 [Homebrew 설치 안내](docs/INSTALL.md#homebrew)를 참고합니다.
+설정과 `keys.env`는 `$(brew --prefix)/etc/horon-router/`에 있으며, 대시보드 주소는 `http://127.0.0.1:8317/management.html`입니다. 자세한 내용은 [Homebrew 설치 안내](docs/INSTALL.md#homebrew)를 참고합니다.
 
-설치 명령을 다시 실행하거나 Homebrew에서 `brew upgrade hyper-router`를 실행하면 업데이트됩니다. 두 방법 모두 기존 설정과 키를 보존합니다. [설치 안내](docs/INSTALL.md)는 로그인 시 자동 시작, 릴리스 실행 파일, Docker, 소스 빌드를 설명합니다. 단계별 안내는 [시작 가이드](docs/GETTING-STARTED.md)에 있습니다.
+설치 명령을 다시 실행하거나 Homebrew에서 `brew upgrade horon-router`를 실행하면 업데이트됩니다. 두 방법 모두 기존 설정과 키를 보존합니다. [설치 안내](docs/INSTALL.md)는 로그인 시 자동 시작, 릴리스 실행 파일, Docker, 소스 빌드를 설명합니다. 단계별 안내는 [시작 가이드](docs/GETTING-STARTED.md)에 있습니다.
 
 <a id="what-is-this"></a>
 ## 프로젝트 소개
 
-HyperRouter는 [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI)를 Rust로 다시 구현한 프로젝트입니다. 같은 `config.yaml`과 인증 파일 형식을 읽으며, 클라이언트 경로와 v8 관리 API를 구현합니다. 아직 완전히 호환되지는 않습니다. 점검 대상 1,687개 중 835개는 구현과 검증을 마쳤고 707개는 일부만 충족하며 145개는 미구현입니다. 각 분류의 기준은 [호환성 현황](docs/PARITY.md)에 있습니다.
+HoronRouter는 [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI)를 Rust로 다시 구현한 프로젝트입니다. 같은 `config.yaml`과 인증 파일 형식을 읽으며, 클라이언트 경로와 v8 관리 API를 구현합니다. 아직 완전히 호환되지는 않습니다. 점검 대상 1,687개 중 835개는 구현과 검증을 마쳤고 707개는 일부만 충족하며 145개는 미구현입니다. 각 분류의 기준은 [호환성 현황](docs/PARITY.md)에 있습니다.
 
 대시보드에서 계정, 제공자 사용 한도, 요청 이력, 도구 설정을 확인합니다.
 
 <p align="center">
-  <a href="https://x.com/vayungodara/status/2106492049490899062"><img src="docs/img/hero.gif" alt="Claude, Codex, Gemini, xAI, Kimi, Meta, Devin, OpenRouter를 하나의 로컬 주소에 연결하는 HyperRouter" width="880"></a>
+  <a href="https://x.com/vayungodara/status/2106492049490899062"><img src="docs/img/hero.gif" alt="Claude, Codex, Gemini, xAI, Kimi, Meta, Devin, OpenRouter를 하나의 로컬 주소에 연결하는 HoronRouter" width="880"></a>
   <br><sub><a href="https://x.com/vayungodara/status/2106492049490899062">출시 영상 보기</a></sub>
 </p>
 
@@ -75,7 +75,7 @@ OpenAI 클라이언트의 로컬 기본 주소는 `http://127.0.0.1:8317/v1`입�
 <a id="api-keys-codex-cli-and-mixed-providers"></a>
 ## API 키로 Codex CLI와 여러 제공자 연결
 
-구독 계정에 로그인하지 않아도 사용할 수 있습니다. 다음 제공자 설정을 `~/.hyper-router/config.yaml`에 합칩니다. Windows 경로는 `%USERPROFILE%\.hyper-router\config.yaml`입니다. 기존 `access.api-keys`, `management.secret-key`와 나머지 설정은 유지합니다. 저장하면 프록시가 설정을 다시 읽습니다.
+구독 계정에 로그인하지 않아도 사용할 수 있습니다. 다음 제공자 설정을 `~/.horon-router/config.yaml`에 합칩니다. Windows 경로는 `%USERPROFILE%\.horon-router\config.yaml`입니다. 기존 `access.api-keys`, `management.secret-key`와 나머지 설정은 유지합니다. 저장하면 프록시가 설정을 다시 읽습니다.
 
 아래 키는 프록시의 클라이언트 키와 별개입니다. `<...>` 부분에는 각 제공자에서 발급한 키와 실제 모델 ID를 넣습니다.
 
@@ -112,19 +112,19 @@ api-keys:
 
 ```toml
 model = "deepseek"
-model_provider = "hyperrouter"
+model_provider = "horonrouter"
 
-[model_providers.hyperrouter]
-name = "hyper-router"
+[model_providers.horonrouter]
+name = "horon-router"
 base_url = "http://127.0.0.1:8317/v1"
-env_key = "HYPERROUTER_CLIENT_KEY"
+env_key = "HORONROUTER_CLIENT_KEY"
 wire_api = "responses"
 ```
 
-다음 예시의 `your-client-key`를 설치 경로의 `keys.env`에 있는 실제 `HYPERROUTER_CLIENT_KEY`로 바꿉니다. 포트도 실제 설정과 맞춥니다.
+다음 예시의 `your-client-key`를 설치 경로의 `keys.env`에 있는 실제 `HORONROUTER_CLIENT_KEY`로 바꿉니다. 포트도 실제 설정과 맞춥니다.
 
 ```sh
-export HYPERROUTER_CLIENT_KEY=your-client-key
+export HORONROUTER_CLIENT_KEY=your-client-key
 codex
 ```
 
@@ -132,9 +132,9 @@ Codex CLI는 프록시에 Responses 요청을 보내고, 프록시는 이 제공
 
 실패 시 다른 계정으로 전환하려면 두 제공자 항목에 같은 모델 별칭을 지정하거나 제공자의 `keys` 목록에 키를 추가합니다. 기본적으로 429 응답을 받은 인증 정보는 실패한 모델에 대해 대기 상태가 되고, 프록시는 설정된 시도 횟수와 오류 규칙 안에서 같은 별칭에 사용할 수 있는 다른 인증 정보를 시도합니다. 모두 대기 중일 때의 재시도는 [대기 시간과 한도](docs/MULTI-ACCOUNT.md#cooldowns-and-limits)를 참고합니다.
 
-<p align="center"><img src="docs/img/codex-deepseek.gif" alt="HyperRouter를 통해 DeepSeek V4.1 Flash를 사용해 버그를 수정하고 검사를 실행하는 Codex CLI" width="880"></p>
+<p align="center"><img src="docs/img/codex-deepseek.gif" alt="HoronRouter를 통해 DeepSeek V4.1 Flash를 사용해 버그를 수정하고 검사를 실행하는 Codex CLI" width="880"></p>
 
-2026년 10월 7일에는 Codex CLI 0.160과 HyperRouter 0.2.2로 파일 수정과 셸 명령 실행을 완료했습니다. 위 OpenCode Go의 Chat Completions 주소에서 DeepSeek V4.1 Flash를 사용했습니다. 표의 DeepSeek, GLM, Kimi, OpenRouter 주소는 실제 서비스로 실행해 검증하지 않았습니다.
+2026년 10월 7일에는 Codex CLI 0.160과 HoronRouter 0.2.2로 파일 수정과 셸 명령 실행을 완료했습니다. 위 OpenCode Go의 Chat Completions 주소에서 DeepSeek V4.1 Flash를 사용했습니다. 표의 DeepSeek, GLM, Kimi, OpenRouter 주소는 실제 서비스로 실행해 검증하지 않았습니다.
 
 <a id="accounts-and-provider-terms"></a>
 ## 계정과 제공자 이용약관
@@ -143,7 +143,7 @@ Codex CLI는 프록시에 Responses 요청을 보내고, 프록시는 이 제공
 
 제공자가 공식적으로 허용하는 연결 방법이 있으면 그 방법을 사용합니다.
 
-- OpenAI는 자격을 충족하는 사용자가 로컬 개인 프로젝트를 포함한 참여 도구에서 요금제를 사용할 수 있도록 [Sign in with ChatGPT](https://developers.openai.com/cookbook/articles/sign-in-with-chatgpt)를 제공합니다. 허용 범위는 연동 방식과 동의 범위에 따라 달라집니다. HyperRouter의 Codex 로그인은 CLIProxyAPI의 기존 로그인 흐름을 따르며, 새로운 Sign in with ChatGPT 연동은 아닙니다.
+- OpenAI는 자격을 충족하는 사용자가 로컬 개인 프로젝트를 포함한 참여 도구에서 요금제를 사용할 수 있도록 [Sign in with ChatGPT](https://developers.openai.com/cookbook/articles/sign-in-with-chatgpt)를 제공합니다. 허용 범위는 연동 방식과 동의 범위에 따라 달라집니다. HoronRouter의 Codex 로그인은 CLIProxyAPI의 기존 로그인 흐름을 따르며, 새로운 Sign in with ChatGPT 연동은 아닙니다.
 - Claude Code는 [게이트웨이 설정](https://code.claude.com/docs/en/llm-gateway-connect)을 지원합니다. 다른 모델의 API 키로 프록시를 거쳐 Claude Code에 연결할 수 있습니다. Anthropic의 [인증 규칙](https://code.claude.com/docs/en/legal-and-compliance#authentication-and-credential-use)은 Claude 구독 OAuth를 Claude Code와 Anthropic 자체 애플리케이션에 한정합니다. 타사 도구에서 Claude를 사용할 때는 API 키나 지원되는 클라우드 제공자를 사용합니다.
 
 개인 용도라도 각 제공자의 약관이 적용됩니다. 약관을 위반하면 제공자가 계정을 제한하거나 정지할 수 있습니다. 계정을 공유하거나 다른 사람에게 서비스를 제공하는 데 사용하는 경우가 대표적입니다.
@@ -156,14 +156,14 @@ Codex CLI는 프록시에 Responses 요청을 보내고, 프록시는 이 제공
 <a id="cliproxyapi-compatibility"></a>
 ## CLIProxyAPI 호환성
 
-설정과 프로토콜 테스트는 Go CLIProxyAPI의 `6fecc6e`를 기준으로 호환성을 확인합니다. 내장 대시보드는 두 서버를 대상으로 한 테스트가 있습니다. 타사 CLIProxyAPI 애플리케이션과 HyperRouter의 조합은 아직 검증하지 않았습니다.
+설정과 프로토콜 테스트는 Go CLIProxyAPI의 `6fecc6e`를 기준으로 호환성을 확인합니다. 내장 대시보드는 두 서버를 대상으로 한 테스트가 있습니다. 타사 CLIProxyAPI 애플리케이션과 HoronRouter의 조합은 아직 검증하지 않았습니다.
 
 전환하기 전에 [Go 버전에서 이전하기](docs/MIGRATING-FROM-GO.md), 특히 갱신 토큰 관련 주의 사항을 읽습니다. 기본 Docker 이미지는 `/data/config.yaml`을 사용하고 UID/GID 10001로 실행됩니다. 마운트와 권한을 수정하거나, 기존 경로를 유지하려면 `--config`와 접근 가능한 `oauth.auth-dir`를 지정합니다.
 
 <a id="terminal-ui"></a>
 ## 터미널 관리 화면
 
-`hyperrouter -tui`는 실행 중인 서버를 관리합니다. 접속 주소는 `-management-base-url`, `management.base-url`, `http://127.0.0.1:<port>` 순서로 선택하며 관리 키를 요청합니다. `hyperrouter -tui -standalone`은 같은 프로세스에서 서버를 시작하고 화면을 종료할 때 서버도 중지합니다. 독립 실행 모드에는 루프백 또는 와일드카드 `host`가 필요하며 `server.tls`는 사용할 수 없습니다.
+`horonrouter -tui`는 실행 중인 서버를 관리합니다. 접속 주소는 `-management-base-url`, `management.base-url`, `http://127.0.0.1:<port>` 순서로 선택하며 관리 키를 요청합니다. `horonrouter -tui -standalone`은 같은 프로세스에서 서버를 시작하고 화면을 종료할 때 서버도 중지합니다. 독립 실행 모드에는 루프백 또는 와일드카드 `host`가 필요하며 `server.tls`는 사용할 수 없습니다.
 
 <a id="upcoming-features"></a>
 ## 아직 지원하지 않는 기능
@@ -184,7 +184,7 @@ Codex CLI는 프록시에 Responses 요청을 보내고, 프록시는 이 제공
 
 [작은 요청 벤치마크](docs/BENCHMARKS.md#setup)의 세 차례 측정에서 최초 출시 빌드의 첫 요청 응답은 15~46 ms, 같은 실행의 Go는 104~453 ms였습니다. 부하가 적은 별도 실행에서 Go는 45~98 ms였습니다. 형식 변환이 있는 스트리밍 처리량은 초당 793개였으며 Go는 564개였습니다.
 
-비스트리밍 처리량은 Go가 초당 1,568개로 HyperRouter의 1,168개보다 높았습니다. 요청당 CPU 시간도 Go는 0.62 ms, HyperRouter는 0.85 ms였습니다. 단순 스트리밍도 Go는 초당 916개, HyperRouter는 833개였습니다. 느린 스트림 256개에서는 HyperRouter의 p99 지연(요청 99%가 이 시간 안에 완료되는 값)이 1,414.5 ms로 Go의 1,272.2 ms보다 길었습니다. 이 합성 부하 결과는 0.1.0 최초 출시 빌드의 수치입니다. 측정 방법, 원본 결과, 이후 Claude 측정은 [벤치마크 문서](docs/BENCHMARKS.md)에 있습니다.
+비스트리밍 처리량은 Go가 초당 1,568개로 HoronRouter의 1,168개보다 높았습니다. 요청당 CPU 시간도 Go는 0.62 ms, HoronRouter는 0.85 ms였습니다. 단순 스트리밍도 Go는 초당 916개, HoronRouter는 833개였습니다. 느린 스트림 256개에서는 HoronRouter의 p99 지연(요청 99%가 이 시간 안에 완료되는 값)이 1,414.5 ms로 Go의 1,272.2 ms보다 길었습니다. 이 합성 부하 결과는 0.1.0 최초 출시 빌드의 수치입니다. 측정 방법, 원본 결과, 이후 Claude 측정은 [벤치마크 문서](docs/BENCHMARKS.md)에 있습니다.
 
 <a id="documentation"></a>
 ## 문서

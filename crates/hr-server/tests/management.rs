@@ -1109,9 +1109,9 @@ async fn latest_version_is_anonymous_cached_and_explicit() {
                 async move {
                     record.lock().unwrap().push((method, headers));
                     let location = match case.as_str() {
-                        "tag" => "https://github.com/alpoxdev/hyper-router/releases/tag/v1.2.3",
+                        "tag" => "https://github.com/alpoxdev/horon-router/releases/tag/v1.2.3",
                         "other" => "https://example.invalid/releases/tag/v9",
-                        "empty" => "https://github.com/alpoxdev/hyper-router/releases/tag/",
+                        "empty" => "https://github.com/alpoxdev/horon-router/releases/tag/",
                         _ => "",
                     };
                     (
@@ -1170,7 +1170,7 @@ async fn latest_version_is_anonymous_cached_and_explicit() {
         get("tag", true).await,
         (
             503,
-            json!({"error": "update_check_disabled", "message": "Update checks are disabled by HYPERROUTER_NO_UPDATE_CHECK=1."})
+            json!({"error": "update_check_disabled", "message": "Update checks are disabled by HORONROUTER_NO_UPDATE_CHECK=1."})
         )
     );
     assert!(seen.lock().unwrap().is_empty(), "nothing is asked when disabled");
@@ -1190,7 +1190,7 @@ async fn latest_version_is_anonymous_cached_and_explicit() {
         (502, json!({"error": "unexpected_status", "message": "status 403"}))
     );
     assert!(seen.lock().unwrap().iter().all(|(method, h)| *method == Method::HEAD
-        && h["user-agent"] == "hyper-router"
+        && h["user-agent"] == "horon-router"
         && !h.contains_key("authorization")
         && !h.contains_key("proxy-authorization")
         && !h.contains_key("cookie")));
@@ -1204,8 +1204,8 @@ async fn latest_version_is_anonymous_cached_and_explicit() {
 async fn latest_version_uses_configured_and_environment_proxies() {
     use axum::http::{HeaderMap, Method, Uri};
     use std::sync::Mutex;
-    if let Ok(case) = std::env::var("HYPERROUTER_TEST_RELEASE_PROXY") {
-        let configured = std::env::var("HYPERROUTER_TEST_PROXY_URL").unwrap_or_default();
+    if let Ok(case) = std::env::var("HORONROUTER_TEST_RELEASE_PROXY") {
+        let configured = std::env::var("HORONROUTER_TEST_PROXY_URL").unwrap_or_default();
         let f = Fixture::from_yaml(&format!("release-proxy-{case}"), |auth, hash| {
             format!(
                 "config-version: 8\nmanagement:\n  secret-key: '{hash}'\noauth:\n  auth-dir: {}\nrequests:\n  proxy-url: '{configured}'\n",
@@ -1267,7 +1267,7 @@ async fn latest_version_uses_configured_and_environment_proxies() {
                     axum::http::StatusCode::FOUND,
                     [(
                         "location",
-                        "https://github.com/alpoxdev/hyper-router/releases/tag/v4.5.6",
+                        "https://github.com/alpoxdev/horon-router/releases/tag/v4.5.6",
                     )],
                 )
             }
@@ -1286,9 +1286,9 @@ async fn latest_version_uses_configured_and_environment_proxies() {
             .env("PATH", std::env::var("PATH").unwrap_or_default())
             .env("SYSTEMROOT", std::env::var("SYSTEMROOT").unwrap_or_default())
             .env("HOME", std::env::temp_dir())
-            .env("HYPERROUTER_TEST_RELEASE_PROXY", case)
+            .env("HORONROUTER_TEST_RELEASE_PROXY", case)
             .env(
-                "HYPERROUTER_TEST_PROXY_URL",
+                "HORONROUTER_TEST_PROXY_URL",
                 match case {
                     "configured" => &proxy_url,
                     "direct" => "direct",
@@ -1338,7 +1338,7 @@ async fn latest_version_uses_configured_and_environment_proxies() {
         );
         assert!(!headers.contains_key("authorization"));
         assert!(!headers.contains_key("cookie"));
-        assert_eq!(headers["user-agent"], "hyper-router");
+        assert_eq!(headers["user-agent"], "horon-router");
     }
 }
 
@@ -1391,7 +1391,7 @@ async fn latest_version_keeps_tls_verification_through_proxy() {
                 axum::http::StatusCode::FOUND,
                 [(
                     "location",
-                    "https://github.com/alpoxdev/hyper-router/releases/tag/v4.5.6",
+                    "https://github.com/alpoxdev/horon-router/releases/tag/v4.5.6",
                 )],
             )
         }),
@@ -2125,7 +2125,7 @@ async fn kimi_channel_selects_kimi_ai_and_codex_exchange_errors_read_like_go() {
         error: String::new(),
     }));
     // Go appends the upstream body; session errors are readable by anyone holding
-    // the state, so hyper-router stops at the status (deliberate hardening).
+    // the state, so horon-router stops at the status (deliberate hardening).
     assert_eq!(
         final_status(&base, &state, 10).await,
         json!({"status": "error", "error":

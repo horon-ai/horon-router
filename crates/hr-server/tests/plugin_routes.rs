@@ -4,7 +4,7 @@
 //! writes, enable, delete, plugin-declared routes and resources through NoRoute, quota,
 //! and the plugin store through a fake HTTP client (every request it receives compared).
 //!
-//! The recorded Go fixture 404s `POST /v8/management/quota/fetch`; hyper-router keeps that
+//! The recorded Go fixture 404s `POST /v8/management/quota/fetch`; horon-router keeps that
 //! path for the dashboard (`/v8/management`) and answers like v0 (`auth_index is required`).
 
 // Native plugins load only on Unix (the host's `native` module).

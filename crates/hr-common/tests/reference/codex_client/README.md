@@ -10,7 +10,7 @@ Regenerate (Go 1.26, no network beyond module download):
 cp zz_rsfix_codex_client_test.go <CLIProxyAPI>/internal/client/codex/optimize-multi-agent-v2/
 cd <CLIProxyAPI>
 RSFIX_OUT=/tmp/rsfix-cc go test -count=1 -run TestRSFixCodexClient ./internal/client/codex/optimize-multi-agent-v2/
-cp /tmp/rsfix-cc/codex_client_go.json <hyper-router>/crates/hr-common/tests/fixtures/
+cp /tmp/rsfix-cc/codex_client_go.json <horon-router>/crates/hr-common/tests/fixtures/
 ```
 
 The `spawn_models` vector looks models up in Go's static catalog, so the Rust replay runs

@@ -60,12 +60,12 @@ M1-0054	partial	crates/hr-exec/src/claude/settings.rs, claude.rs	claude	No test 
 M1-0055	partial	crates/hr-exec/src/claude/settings.rs	claude	No test sets header-defaults.
 M1-0056	partial	crates/hr-exec/src/claude/settings.rs; crates/hr-server/tests/manage_go.rs (oauth-only scoping)	claude	No executor scenario disables cloaking globally.
 M1-0057	covered	crates/hr-exec/src/claude/profile.rs BASELINE; claude scenarios assert claude-cli/2.1.280, Stainless 0.112.1, v26.3.0, MacOS/arm64
-M1-0058	covered	crates/hyperrouter/src/main.rs --claude-login -> hr_exec::claude_login::login (claude_login_tests.rs)
-M1-0059	covered	crates/hyperrouter/src/main.rs --no-browser -> LoginOptions.no_browser (claude_login_tests.rs pasted-callback tests)
-M1-0060	covered	crates/hyperrouter/src/main.rs --oauth-callback-port (0 -> provider default); claude_login_tests.rs a_busy_port_is_go_port_in_use
-M1-0061	covered	crates/hyperrouter/src/main.rs every_go_flag_parses_in_single_and_double_dash_form, argv_prescan_matches_go; --config resolves to config.yaml in the working directory like Go's empty default
-M1-0062	covered	crates/hyperrouter/src/main.rs (--local-model -> Runtime::set_local_model); every_go_flag_parses_in_single_and_double_dash_form
-M1-0063	covered	crates/hyperrouter/src/main.rs: .env (dotenv.rs parses_like_godotenv), cloud standby (cloud_mode_treats_missing_empty_and_broken_files_as_empty_config), auth-dir expansion, logins; hr_store::select/bootstrap for PGSTORE_*, OBJECTSTORE_*, GITSTORE_* (crates/hr-store tests)		
+M1-0058	covered	crates/horonrouter/src/main.rs --claude-login -> hr_exec::claude_login::login (claude_login_tests.rs)
+M1-0059	covered	crates/horonrouter/src/main.rs --no-browser -> LoginOptions.no_browser (claude_login_tests.rs pasted-callback tests)
+M1-0060	covered	crates/horonrouter/src/main.rs --oauth-callback-port (0 -> provider default); claude_login_tests.rs a_busy_port_is_go_port_in_use
+M1-0061	covered	crates/horonrouter/src/main.rs every_go_flag_parses_in_single_and_double_dash_form, argv_prescan_matches_go; --config resolves to config.yaml in the working directory like Go's empty default
+M1-0062	covered	crates/horonrouter/src/main.rs (--local-model -> Runtime::set_local_model); every_go_flag_parses_in_single_and_double_dash_form
+M1-0063	covered	crates/horonrouter/src/main.rs: .env (dotenv.rs parses_like_godotenv), cloud standby (cloud_mode_treats_missing_empty_and_broken_files_as_empty_config), auth-dir expansion, logins; hr_store::select/bootstrap for PGSTORE_*, OBJECTSTORE_*, GITSTORE_* (crates/hr-store tests)		
 M1-0064	partial	crates/hr-exec/src/oauth_tests.rs token_key_singleflight_survives_canceled_waiter, refresh_429_backoff_and_error_redaction, refresh_rotation_preserves_identity_on_optional_profile_failure, missing_rotated_refresh_and_profile_fields_keep_saved_values	claude	Equivalents cover dedupe, 429 backoff, profile-failure tolerance and account preservation; no Go case is ported by name and the timeout cases are untested.
 M1-0065	covered	crates/hr-exec/src/claude_login_tests.rs file_names_match_go, legacy_matching_follows_go_identity_rules
 M1-0066	partial	crates/hr-exec/src/claude/identity.rs; device pools in claude scenarios	claude	Pool repair/migration cases are not ported.
@@ -244,16 +244,16 @@ M3-0057	missing		openai-xai	Videos handlers are not ported.
 M3-0142	missing		codex	Responses steering is not ported.
 M3-0154	missing		openai-xai
 M3-0175	covered	crates/hr-core/src/config/credentials.rs (SanitizeVertexCompatKeys port); Go goldens crates/hr-server/tests/fixtures/server_go.json, manage_go.json		
-M3-0176	covered	crates/hyperrouter/src/main.rs --codex-login -> codex_oauth::login (codex_oauth_tests.rs)
-M3-0177	covered	crates/hyperrouter/src/main.rs --codex-device-login -> codex_oauth::device_login (device_flow_polls_through_pending_and_exchanges_like_go)
-M3-0178	partial	crates/hyperrouter/src/main.rs parses -antigravity-login, then exits with 'not supported'	google	The Antigravity login itself is absent.
-M3-0179	covered	crates/hyperrouter/src/main.rs --kimi-login -> kimi_auth::login
-M3-0180	covered	crates/hyperrouter/src/main.rs --kimi-ai-login -> kimi_auth::login("kimi-ai")
-M3-0181	covered	crates/hyperrouter/src/main.rs --xai-login -> xai_auth::login (login_matches_go_manager_and_file_store)
-M3-0182	covered	crates/hyperrouter/src/main.rs --devin-login -> hr_exec::devin_auth::login (every_go_flag_parses_in_single_and_double_dash_form; devin_tests.rs code_exchange_matches_go_fixtures)
-M3-0183	covered	crates/hyperrouter/src/main.rs --meta-login -> meta_auth::login (login_matches_go_requests_and_file)
-M3-0184	covered	crates/hyperrouter/src/main.rs calls hr_exec::vertex_auth::import; vertex_tests.rs vertex_import_matches_go		
-M3-0185	covered	crates/hyperrouter/src/main.rs passes the prefix to hr_exec::vertex_auth::import; vertex_import_matches_go		
+M3-0176	covered	crates/horonrouter/src/main.rs --codex-login -> codex_oauth::login (codex_oauth_tests.rs)
+M3-0177	covered	crates/horonrouter/src/main.rs --codex-device-login -> codex_oauth::device_login (device_flow_polls_through_pending_and_exchanges_like_go)
+M3-0178	partial	crates/horonrouter/src/main.rs parses -antigravity-login, then exits with 'not supported'	google	The Antigravity login itself is absent.
+M3-0179	covered	crates/horonrouter/src/main.rs --kimi-login -> kimi_auth::login
+M3-0180	covered	crates/horonrouter/src/main.rs --kimi-ai-login -> kimi_auth::login("kimi-ai")
+M3-0181	covered	crates/horonrouter/src/main.rs --xai-login -> xai_auth::login (login_matches_go_manager_and_file_store)
+M3-0182	covered	crates/horonrouter/src/main.rs --devin-login -> hr_exec::devin_auth::login (every_go_flag_parses_in_single_and_double_dash_form; devin_tests.rs code_exchange_matches_go_fixtures)
+M3-0183	covered	crates/horonrouter/src/main.rs --meta-login -> meta_auth::login (login_matches_go_requests_and_file)
+M3-0184	covered	crates/horonrouter/src/main.rs calls hr_exec::vertex_auth::import; vertex_tests.rs vertex_import_matches_go		
+M3-0185	covered	crates/horonrouter/src/main.rs passes the prefix to hr_exec::vertex_auth::import; vertex_import_matches_go		
 M3-0187	covered	crates/hr-server/tests/management.rs kimi_device_login_saves_and_a_cancelled_one_does_not
 M3-0189	covered	crates/hr-exec/src/codex_oauth_tests.rs jwt_claims_file_names_and_authorize_url_match_go
 M3-0190	covered	crates/hr-exec/src/codex_oauth_tests.rs jwt_claims_file_names_and_authorize_url_match_go
@@ -377,7 +377,7 @@ M4-0030	partial	hr_common::headers resolves_literals_references_and_session; cra
 M4-0031	covered	crates/hr-common/tests/payload.rs payload_rules_match_go (payload_go.json, 2037 config cases)		
 M4-0229	covered	crates/hr-core/src/config.rs v8_wins_by_presence_even_when_null_or_empty, legacy_spellings_still_work, null_or_scalar_parents_are_rejected; document.rs tests; manage_go.json config_writes		
 M4-0230	covered	crates/hr-exec/src/codex_client_tests.rs settings_read_go_config_paths		
-M4-0231	partial	crates/hyperrouter/src/main.rs cloud standby; crates/hr-server/src/management (bcrypt keys); crates/hr-core/src/config/trusted.rs	manage	Clamps (queue retention, log sizes, caps) are not tested case by case.
+M4-0231	partial	crates/horonrouter/src/main.rs cloud standby; crates/hr-server/src/management (bcrypt keys); crates/hr-core/src/config/trusted.rs	manage	Clamps (queue retention, log sizes, caps) are not tested case by case.
 M4-0232	covered	crates/hr-core/src/config.rs defaults_match_go_loader		
 M4-0233	covered	crates/hr-home/src/config.rs defaults_match_go_limiter_config, invalid_limiter_values_are_rejected, lifecycle_sum_overflow_is_rejected		
 M4-0234	covered	crates/hr-home/src/config.rs in_flight_reads_defaults_and_overrides		
@@ -386,19 +386,19 @@ M4-0236	partial	hr_common::payload disable-image-generation (payload_go.json)	se
 M4-0237	partial	crates/hr-core/src/config/validate.rs; manage_go.json load_errors (38)	manage	Not tested by name.
 M4-0238	partial	crates/hr-core/src/config/sanitize.rs, credentials.rs; manage_go.json materialized_defaults	manage	Not tested by name.
 M4-0239	partial	crates/hr-exec/src/tls.rs, crates/hr-exec/src/claude/headers.rs	claude	Not tested by name.
-M4-0240	covered	crates/hyperrouter/src/discovery (tests.rs discover_output_matches_go_byte_for_byte); main.rs every_go_flag_parses_in_single_and_double_dash_form		
-M4-0241	covered	crates/hyperrouter/src/discovery/tests.rs go_durations; main.rs flag parsing		
-M4-0242	covered	crates/hyperrouter/src/discovery/tests.rs discover_output_matches_go_byte_for_byte; main.rs argv_prescan_matches_go		
-M4-0243	covered	crates/hyperrouter/src/discovery/tests.rs txt_parsing_names_subtypes_and_service_types_match_go		
-M4-0244	partial	crates/hyperrouter/src/main.rs parses --tui/--standalone	tui	The terminal UI is not available yet (main.rs prints 'TUI error').
-M4-0245	covered	crates/hr-store (postgres.rs, object.rs with fake_s3, git.rs; tests/postgres.rs, tests/git.rs, object.rs unit tests); crates/hyperrouter/src/main.rs hr_store::select/bootstrap		
+M4-0240	covered	crates/horonrouter/src/discovery (tests.rs discover_output_matches_go_byte_for_byte); main.rs every_go_flag_parses_in_single_and_double_dash_form		
+M4-0241	covered	crates/horonrouter/src/discovery/tests.rs go_durations; main.rs flag parsing		
+M4-0242	covered	crates/horonrouter/src/discovery/tests.rs discover_output_matches_go_byte_for_byte; main.rs argv_prescan_matches_go		
+M4-0243	covered	crates/horonrouter/src/discovery/tests.rs txt_parsing_names_subtypes_and_service_types_match_go		
+M4-0244	partial	crates/horonrouter/src/main.rs parses --tui/--standalone	tui	The terminal UI is not available yet (main.rs prints 'TUI error').
+M4-0245	covered	crates/hr-store (postgres.rs, object.rs with fake_s3, git.rs; tests/postgres.rs, tests/git.rs, object.rs unit tests); crates/horonrouter/src/main.rs hr_store::select/bootstrap		
 M4-0246	partial	crates/hr-server/src/watching.rs hash_cache_rereads_only_changed_or_racy_files; crates/hr-server/tests/management.rs watcher_keeps_last_good_config_and_reconciles_disabled_deleted_and_self_writes	manage	Metadata polling stands in for fsnotify (ponytail in watching.rs).
 M4-0247	partial	runtime.rs config_routing_drives_policy_at_startup_and_on_publish, reconcile_keeps_unchanged_revisions_and_never_reuses_old_ones; management.rs watcher tests	manage	Not tested for every reloadable subsystem.
 M4-0248	partial	runtime.rs reconcile and stale-lease tests; management.rs watcher tests	manage	Not tested case by case.
 M4-0249	partial	crates/hr-server/src/logging.rs lines_follow_go_log_formatter, rotating_file_follows_lumberjack, cleaner_removes_oldest_logs_but_keeps_main_log	manage	Commercial mode (dropping heavy request logging) is absent.
 M4-0250	partial	crates/hr-server/src/management/logs.rs serves request and error logs	server	Request logs are never written: no capture of inbound/upstream requests and responses.
 M4-0251	partial	crates/hr-server/src/usage_record.rs queued_records_match_go; usage.rs; routes.rs usage_queue_records_every_attempt; server_go.json usage	server	No RESP subscribers (ponytail in usage.rs); plugin and Home usage hooks are not wired.
-M4-0252	partial	crates/hyperrouter/src/main.rs argv_prescan_matches_go (TestArgvEnablesBoolFlag); model catalog plan in crates/hr-server/src/model_updater.rs plan_matches_go	tui	Example-API-key safe mode and management base URL cases are not ported.
+M4-0252	partial	crates/horonrouter/src/main.rs argv_prescan_matches_go (TestArgvEnablesBoolFlag); model catalog plan in crates/hr-server/src/model_updater.rs plan_matches_go	tui	Example-API-key safe mode and management base URL cases are not ported.
 M4-0253	partial	crates/hr-server/src/lib.rs routes; crates/hr-server/tests/routes.rs, claude_passthrough.rs	server	Not ported by name.
 M4-0254	partial	crates/hr-server/src/lib.rs routes; crates/hr-server/tests/routes.rs, claude_passthrough.rs	server	Not ported by name.
 M4-0255	covered	crates/hr-server/src/listener.rs serve_with_resp; tests/resp_protocol.rs		Go's muxListener queue (Put after Close, drain on Close) is an implementation detail: Rust hands each sniffed connection straight to its protocol, so those cases have no counterpart.
@@ -416,7 +416,7 @@ M4-0266	partial	bounded caches (crates/hr-exec/src/proxy.rs client_cache_is_boun
 M4-0267	partial	crates/hr-translate/src/replay_cache.rs (signature cache adapter, 4 tests)	google	Owner of internal/cache with the Antigravity executor.
 M4-0268	missing	no Grok Build keepalive transform	codex	
 M4-0269	missing	no Grok Build keepalive transform	codex	
-M4-0271	partial	crates/hyperrouter/src/discovery (tests.rs, dns.rs, mdns.rs Go-derived cases)	tui	Not ported by name.
+M4-0271	partial	crates/horonrouter/src/discovery (tests.rs, dns.rs, mdns.rs Go-derived cases)	tui	Not ported by name.
 M4-0272	partial	crates/hr-core/src/config*; manage_go.json (materialized_defaults, config_writes, load_errors, synth)	manage	Not ported by name.
 M4-0273	partial	crates/hr-core/src/config*; manage_go.json (materialized_defaults, config_writes, load_errors, synth)	manage	Not ported by name.
 M4-0274	partial	crates/hr-core/src/config*; manage_go.json (materialized_defaults, config_writes, load_errors, synth)	manage	Not ported by name.
@@ -659,8 +659,8 @@ M5-0229	partial	crates/hr-server/tests/management.rs (writes_normalize_only_what
 M5-0230	partial	crates/hr-server/src/management/oauth.rs (claude, codex, kimi/kimi-ai, meta, xai, devin); tests/management.rs *_login_* tests	manage	Antigravity login (no executor) and plugin provider IDs are absent. The module header ponytail still says xai and devin answer provider_not_found; that is stale.
 M5-0231	partial	crates/hr-server/src/management/auth_files.rs, multipart.rs (hostile_bodies_never_panic); manage_go.json credentials; tests/manage_go.rs go_credential_management_replay	manage	Not ported by name.
 M5-0232	covered	crates/hr-server/src/management/access.rs (fifth failure bans for 30 minutes); tests/manage_go.rs every_go_access_scenario_replays_through_the_router (manage_go.json access)		
-M5-0233	covered	crates/hyperrouter/src/main.rs --password (loopback-only management password) -> serve; every_go_flag_parses_in_single_and_double_dash_form		
-M5-0234	partial	crates/hyperrouter/src/main.rs parses --management-base-url	tui	TUI client mode is not available.
+M5-0233	covered	crates/horonrouter/src/main.rs --password (loopback-only management password) -> serve; every_go_flag_parses_in_single_and_double_dash_form		
+M5-0234	partial	crates/horonrouter/src/main.rs parses --management-base-url	tui	TUI client mode is not available.
 M5-0235	missing	no AI Studio relay	google	
 M5-0236	partial	crates/hr-server/src/realtime/* (media.rs, relay.rs), crates/hr-exec/src/codex_live.rs; tests/realtime.rs (Go fixtures), realtime/media_tests.rs	realtime	webrtc-rs lacks some pion behaviours (ponytails in realtime/media.rs).
 M5-0237	partial	crates/hr-server/src/management*; tests/management.rs, tests/manage_go.rs (manage_go.json)	manage	Not ported by name.
@@ -733,23 +733,23 @@ M5-0303	partial	crates/hr-exec/src/codex_ws.rs	codex	Not ported by name.
 # ---------------------------------------------------------------------------------------- M6
 M6-0001	covered	crates/hr-server/src/plugins.rs, management/plugins.rs (serve_management through NoRoute); tests/plugin_routes.rs plugin_routes_match_go (plugin_routes_go.json); hr-plugin go_host.rs		
 M6-0045	partial	crates/hr-home/src/config.rs (HomeConfig, normalize_home_port test); hr-core Config has no home field and no deny_unknown_fields, so a YAML home: block is ignored	home	No test parses a home: block (Go TestParseConfigBytesIgnoresHomeConfig).
-M6-0046	covered	crates/hyperrouter/src/main.rs (csv_flags, discover_options); every_go_flag_parses_in_single_and_double_dash_form, argv_prescan_matches_go (discovery_main_go.json)	tui	
-M6-0047	covered	crates/hyperrouter/src/main.rs (csv_flags, discover_options); every_go_flag_parses_in_single_and_double_dash_form, argv_prescan_matches_go (discovery_main_go.json)	tui	
-M6-0048	covered	crates/hyperrouter/src/main.rs (flag, HOME_JWT/home_jwt env) starts Home mode through hr-home; hr-home cert and client tests		
-M6-0049	covered	crates/hyperrouter/src/main.rs passes the flag to hr-home HomeConfig.disable_cluster_discovery; hr-home client tests		
-M6-0050	partial	crates/hyperrouter/src/main.rs parses --tui and prints "TUI error: the terminal UI is not available in this build yet"	tui	
-M6-0051	partial	crates/hyperrouter/src/main.rs (DiscoverArgs, discover subcommand, --discover/--discover-json); discovery::tests::discover_output_matches_go_byte_for_byte (discovery_cmd_go.json runs)	plugins	The discover modes match Go; plugin-owned flags (CommandLinePlugin) are not registered before the main parse because hr-plugin is not wired.
-M6-0052	covered	crates/hyperrouter/src/main.rs (DiscoverArgs); discovery::cli (discovery_cmd_go.json runs and interface_lists)	tui	
-M6-0053	covered	crates/hyperrouter/src/main.rs (DiscoverArgs); discovery::cli (discovery_cmd_go.json runs and interface_lists)	tui	
-M6-0054	covered	crates/hyperrouter/src/main.rs (DiscoverArgs); discovery::cli (discovery_cmd_go.json runs and interface_lists)	tui	
-M6-0055	covered	crates/hyperrouter/src/main.rs (DiscoverArgs); discovery::cli (discovery_cmd_go.json runs and interface_lists)	tui	
-M6-0056	covered	crates/hyperrouter/src/main.rs (DiscoverArgs); discovery::cli (discovery_cmd_go.json runs and interface_lists)	tui	
-M6-0057	covered	crates/hyperrouter/src/main.rs (DiscoverArgs); discovery::cli (discovery_cmd_go.json runs and interface_lists)	tui	
+M6-0046	covered	crates/horonrouter/src/main.rs (csv_flags, discover_options); every_go_flag_parses_in_single_and_double_dash_form, argv_prescan_matches_go (discovery_main_go.json)	tui	
+M6-0047	covered	crates/horonrouter/src/main.rs (csv_flags, discover_options); every_go_flag_parses_in_single_and_double_dash_form, argv_prescan_matches_go (discovery_main_go.json)	tui	
+M6-0048	covered	crates/horonrouter/src/main.rs (flag, HOME_JWT/home_jwt env) starts Home mode through hr-home; hr-home cert and client tests		
+M6-0049	covered	crates/horonrouter/src/main.rs passes the flag to hr-home HomeConfig.disable_cluster_discovery; hr-home client tests		
+M6-0050	partial	crates/horonrouter/src/main.rs parses --tui and prints "TUI error: the terminal UI is not available in this build yet"	tui	
+M6-0051	partial	crates/horonrouter/src/main.rs (DiscoverArgs, discover subcommand, --discover/--discover-json); discovery::tests::discover_output_matches_go_byte_for_byte (discovery_cmd_go.json runs)	plugins	The discover modes match Go; plugin-owned flags (CommandLinePlugin) are not registered before the main parse because hr-plugin is not wired.
+M6-0052	covered	crates/horonrouter/src/main.rs (DiscoverArgs); discovery::cli (discovery_cmd_go.json runs and interface_lists)	tui	
+M6-0053	covered	crates/horonrouter/src/main.rs (DiscoverArgs); discovery::cli (discovery_cmd_go.json runs and interface_lists)	tui	
+M6-0054	covered	crates/horonrouter/src/main.rs (DiscoverArgs); discovery::cli (discovery_cmd_go.json runs and interface_lists)	tui	
+M6-0055	covered	crates/horonrouter/src/main.rs (DiscoverArgs); discovery::cli (discovery_cmd_go.json runs and interface_lists)	tui	
+M6-0056	covered	crates/horonrouter/src/main.rs (DiscoverArgs); discovery::cli (discovery_cmd_go.json runs and interface_lists)	tui	
+M6-0057	covered	crates/horonrouter/src/main.rs (DiscoverArgs); discovery::cli (discovery_cmd_go.json runs and interface_lists)	tui	
 M6-0058	missing	no terminal UI (--tui prints an error)	tui	
 M6-0059	missing	no terminal UI (--tui prints an error)	tui	
-M6-0060	covered	crates/hyperrouter/src/discovery (advertise.rs, mdns.rs, dns.rs, iface.rs); tests.rs replays Go outputs (discovery_go.json, discovery_go_packets.json); mdns.rs responder/browser round trips	tui	Advertiser update/unregister has no live multicast test.
-M6-0061	covered	crates/hr-home/src/cert.rs (cert_tests.rs); wired by crates/hyperrouter/src/main.rs Home mode		
-M6-0062	partial	crates/hr-home/src/client.rs, subscriber.rs (client_tests.rs against fake.rs); Home mode wired in crates/hyperrouter/src/main.rs (Home 3)	home	Not every Go client case is ported (M6-0165).
+M6-0060	covered	crates/horonrouter/src/discovery (advertise.rs, mdns.rs, dns.rs, iface.rs); tests.rs replays Go outputs (discovery_go.json, discovery_go_packets.json); mdns.rs responder/browser round trips	tui	Advertiser update/unregister has no live multicast test.
+M6-0061	covered	crates/hr-home/src/cert.rs (cert_tests.rs); wired by crates/horonrouter/src/main.rs Home mode		
+M6-0062	partial	crates/hr-home/src/client.rs, subscriber.rs (client_tests.rs against fake.rs); Home mode wired in crates/horonrouter/src/main.rs (Home 3)	home	Not every Go client case is ported (M6-0165).
 M6-0063	partial	crates/hr-home/src/dispatch.rs, client.rs rpop_auth and ambiguous-dispatch fencing; dispatch through Home (Home 3)	home	The sdk/cliproxy/auth home_* suites (M6-0221..0237) are mostly unported.
 M6-0064	partial	crates/hr-home/src/release.rs, inflight.rs, config.rs (unit tests)	home	Not every concurrency-release and in-flight contract case is ported (M6-0166, M6-0167).
 M6-0065	partial	crates/hr-server/src/plugins.rs (load and reload on every config); crates/hr-plugin/src/host.rs, native.rs, platform.rs; go_host.rs, native_abi.rs; hr-server tests/plugin_routes.rs	plugins	The plugin store (internal/pluginstore: install, store auth, network scope) is not ported.
@@ -842,10 +842,10 @@ M6-0151	missing	crates/hr-plugin/src/callbacks.rs call_service answers "unsuppor
 M6-0152	missing	crates/hr-plugin/src/callbacks.rs call_service answers "unsupported host callback"	plugins	Needs the server's auth store and session affinity behind the host.
 M6-0153	missing	crates/hr-plugin/src/callbacks.rs call_service answers "unsupported host callback"	plugins	Needs the server's auth store and session affinity behind the host.
 M6-0154	missing	crates/hr-plugin/src/callbacks.rs call_service answers "unsupported host callback"	plugins	Needs the server's auth store and session affinity behind the host.
-M6-0160	partial	crates/hyperrouter/src/discovery/cli.rs load_scan_filters (discovery_cmd_go.json config_filters)	tui	Not ported by name.
+M6-0160	partial	crates/horonrouter/src/discovery/cli.rs load_scan_filters (discovery_cmd_go.json config_filters)	tui	Not ported by name.
 M6-0161			home	
 M6-0163	partial	crates/hr-plugin/src/config.rs (items_follow_go, disabled_section_keeps_defaults, dir_resolution_matches_go)	plugins	The store-sources, store-auth and auth-revision cases have no counterpart (no plugin store).
-M6-0164	partial	crates/hyperrouter/src/discovery/tests.rs (Go-recorded outputs: instance ID, TXT build/parse, validation, interface filters, merge limits)	tui	Advertiser idempotence/shutdown and the live browse integration are not ported.
+M6-0164	partial	crates/horonrouter/src/discovery/tests.rs (Go-recorded outputs: instance ID, TXT build/parse, validation, interface filters, merge limits)	tui	Advertiser idempotence/shutdown and the live browse integration are not ported.
 M6-0189			plugins	
 M6-0200	partial	crates/hr-plugin/src/interceptors.rs observe_websocket_response_event; crates/hr-plugin/tests/go_host.rs (pluginhost_go.json ws_event step)	plugins	Not ported by name; no WebSocket path calls the observer.
 M6-0209			server	

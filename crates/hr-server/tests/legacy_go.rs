@@ -108,7 +108,7 @@ fn group_difference(saved: &Value, go: &serde_json::Map<String, Value>) -> Optio
 
 /// Gives a test config its own auth directory (the legacy top-level `auth-dir`, which
 /// both layouts accept) unless it names one, so no test reads Go's default
-/// `~/.hyper-router`. Go's JSON config view omits `auth-dir`, so replies are unchanged.
+/// `~/.horon-router`. Go's JSON config view omits `auth-dir`, so replies are unchanged.
 fn with_auth_dir(yaml: &str, dir: &std::path::Path) -> String {
     if yaml.lines().any(|l| l.trim_start().starts_with("auth-dir:")) {
         return yaml.to_owned();
@@ -124,7 +124,7 @@ fn with_auth_dir(yaml: &str, dir: &std::path::Path) -> String {
 }
 
 async fn serve(path: &std::path::Path) -> (String, tokio::task::JoinHandle<()>) {
-    // A private auth-dir, so a config without one never reads ~/.hyper-router.
+    // A private auth-dir, so a config without one never reads ~/.horon-router.
     let auth = path.parent().unwrap().join("auth");
     let mut config = Config::load(path).unwrap();
     config.auth_dir = auth.clone();

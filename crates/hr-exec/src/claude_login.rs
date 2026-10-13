@@ -668,7 +668,7 @@ pub(crate) fn write_login(directory: &Path, patch: MetadataPatch) -> Result<Path
     publish(directory, &path, &bytes).map_err(|_| login_error("cannot publish Claude credential"))?;
     if let Some(legacy) = legacy.filter(|l| *l != path) {
         std::fs::remove_file(&legacy).map_err(|_| {
-            login_error("hyperrouter auth: canonical Claude credential saved but legacy credential cleanup failed")
+            login_error("horonrouter auth: canonical Claude credential saved but legacy credential cleanup failed")
         })?;
     }
     Ok(path)

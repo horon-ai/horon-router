@@ -290,7 +290,7 @@ func handle(method string, request []byte) ([]byte, int) {
 			"metadata": pluginapi.Metadata{
 				Name:             name,
 				Version:          "1.0.0",
-				Author:           "hyper-router tests",
+				Author:           "horon-router tests",
 				GitHubRepository: "https://example.invalid/recorder",
 			},
 			"capabilities": capabilities,

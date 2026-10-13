@@ -9,7 +9,7 @@ import { getSnapshot as language, subscribe as subscribeLang, t } from "../lang"
 import { queries } from "../queries";
 import { getSnapshot, session, subscribe } from "../session";
 
-const clean = (v: string) => v.replace(/^hyper-router[/-]/, "").replace(/^v/, "");
+const clean = (v: string) => v.replace(/^horon-router[/-]/, "").replace(/^v/, "");
 export function System() {
   useSyncExternalStore(subscribeLang, language);
   const state = useSyncExternalStore(subscribe, getSnapshot);
@@ -45,7 +45,7 @@ export function System() {
         : latest.data !== undefined || latest.error || latest.isFetching
           ? <Load res={latest} what={t("what.release")}>{(v) => <p className="row">
             <span className={`lamp ${clean(v) === clean(state.meta.version) ? "ok" : "warn"}`} />
-            {t("sy.latest", { name: session.kind === "rust" ? "HyperRouter" : "CLIProxyAPI", v: v || t("sy.unknown"), upToDate: clean(v) === clean(state.meta.version) ? t("sy.upToDate") : "" })}
+            {t("sy.latest", { name: session.kind === "rust" ? "HoronRouter" : "CLIProxyAPI", v: v || t("sy.unknown"), upToDate: clean(v) === clean(state.meta.version) ? t("sy.upToDate") : "" })}
           </p>}</Load>
           : <p className="muted">{t("sy.nothing")}{session.kind === "rust" ? t("sy.rustNote") : t("sy.goNote")}</p>}
     </section>

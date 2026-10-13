@@ -266,7 +266,7 @@ func testCA() (tlsMaterial, *tls.Config) {
 	caKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	caTemplate := &x509.Certificate{
 		SerialNumber:          big.NewInt(1),
-		Subject:               pkix.Name{CommonName: "hyper-router test CA"},
+		Subject:               pkix.Name{CommonName: "horon-router test CA"},
 		NotBefore:             time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC),
 		NotAfter:              time.Date(2120, 1, 1, 0, 0, 0, 0, time.UTC),
 		IsCA:                  true,

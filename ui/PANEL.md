@@ -1,6 +1,6 @@
-# Using the hyper-router dashboard with Go CLIProxyAPI
+# Using the horon-router dashboard with Go CLIProxyAPI
 
-The hyper-router dashboard also ships as one self-contained file, `dist-panel/management.html`, that drops into an existing Go CLIProxyAPI server in place of the official management panel. It is the same app the Rust binary embeds, built from the same source.
+The horon-router dashboard also ships as one self-contained file, `dist-panel/management.html`, that drops into an existing Go CLIProxyAPI server in place of the official management panel. It is the same app the Rust binary embeds, built from the same source.
 
 Tested against unmodified CLIProxyAPI at commit `6fecc6e` (v8.0.10), both the release binary and a source build.
 
@@ -39,15 +39,15 @@ Place the file before the first visit to `/management.html`: if the file is miss
 
 ## Install through Go's updater
 
-Go can fetch the panel from a GitHub repository's latest release. Every hyper-router release carries this file as `management.html`, built from the release commit:
+Go can fetch the panel from a GitHub repository's latest release. Every horon-router release carries this file as `management.html`, built from the release commit:
 
 ```yaml
 management:
-  panel-github-repository: "https://github.com/alpoxdev/hyper-router"
+  panel-github-repository: "https://github.com/alpoxdev/horon-router"
   disable-auto-update-panel: false
 ```
 
-Go reads `https://api.github.com/repos/alpoxdev/hyper-router/releases/latest`, takes the asset named exactly `management.html`, checks it against the asset's `sha256` digest when GitHub provides one, and writes it to `static/management.html`. It checks again every three hours and replaces the file when the release changes.
+Go reads `https://api.github.com/repos/alpoxdev/horon-router/releases/latest`, takes the asset named exactly `management.html`, checks it against the asset's `sha256` digest when GitHub provides one, and writes it to `static/management.html`. It checks again every three hours and replaces the file when the release changes.
 
 The updater only sees published releases, not drafts. Until the first release is published, install by hand.
 
@@ -55,7 +55,7 @@ The updater only sees published releases, not drafts. Until the first release is
 
 SHA-256 of the `dist-panel/management.html` built from this commit:
 
-<!-- sha256 -->`d0a1637a380ee84d10c16c6f1ef49940e402fda71f388eeb4fa426ad130c92e4`<!-- /sha256 -->
+<!-- sha256 -->`12040f4d1de819416aa5281323adace093b4ab0bc8f2cd16df25ffde351fda59`<!-- /sha256 -->
 
 ```sh
 sha256sum static/management.html
@@ -69,4 +69,4 @@ About 529 KB on disk and 173 KB gzip, including the inlined font. The JavaScript
 
 ## Remove
 
-Remove `panel-github-repository` from the config (or set it back to empty), set `disable-auto-update-panel: false`, then delete `static/management.html`. Go downloads the official panel on the next visit. If `panel-github-repository` still points at hyper-router, Go downloads this panel again instead.
+Remove `panel-github-repository` from the config (or set it back to empty), set `disable-auto-update-panel: false`, then delete `static/management.html`. Go downloads the official panel on the next visit. If `panel-github-repository` still points at horon-router, Go downloads this panel again instead.

@@ -48,7 +48,7 @@ func canonical(raw string) string {
 
 func main() {
 	gin.SetMode(gin.TestMode)
-	buildinfo.Version = "hyper-router-0.1.0"
+	buildinfo.Version = "horon-router-0.1.0"
 	root, err := os.MkdirTemp("", "cpa-capture-go-")
 	if err != nil {
 		panic(err)

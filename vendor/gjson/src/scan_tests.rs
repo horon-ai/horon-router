@@ -1,4 +1,4 @@
-// hyper-router: the patched string scanners against verbatim copies of gjson 0.8.1's
+// horon-router: the patched string scanners against verbatim copies of gjson 0.8.1's
 // originals, on every start offset of many short adversarial buffers and of long ones
 // with a special byte at every position.
 

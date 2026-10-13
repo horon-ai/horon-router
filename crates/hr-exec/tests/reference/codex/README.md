@@ -23,7 +23,7 @@ reference module's internal-package boundary; the reference checkout stays uncha
 
 ```sh
 reference=/absolute/path/to/CLIProxyAPI
-crate=/absolute/path/to/hyper-router/crates/hr-exec
+crate=/absolute/path/to/horon-router/crates/hr-exec
 tmp=$(mktemp -d)
 cp "$crate/tests/reference/codex/main.go" "$tmp/main.go"
 (

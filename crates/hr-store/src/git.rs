@@ -25,7 +25,7 @@ use futures_util::future::BoxFuture;
 const GC_INTERVAL: Duration = Duration::from_secs(5 * 60);
 const EMPTY_TREE: &str = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
 const AUTHOR_NAME: &str = "CLIProxyAPI";
-const AUTHOR_EMAIL: &str = "hyperrouter@local";
+const AUTHOR_EMAIL: &str = "horonrouter@local";
 
 pub struct GitStore {
     remote: String,

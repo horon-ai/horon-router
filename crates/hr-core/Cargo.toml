@@ -1,6 +1,6 @@
 [package]
 name = "hr-core"
-description = "Shared contracts for hyper-router: config, credentials, formats and the execution envelope"
+description = "Shared contracts for horon-router: config, credentials, formats and the execution envelope"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

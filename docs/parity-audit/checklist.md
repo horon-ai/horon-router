@@ -1,4 +1,4 @@
-# CLIProxyAPI source-derived parity checklist for hyper-router
+# CLIProxyAPI source-derived parity checklist for horon-router
 
 Reference: `router-for-me/CLIProxyAPI`, branch `main`, commit **`6fecc6e5567912661654a4eaf9b8f5436facd1c2`**, committed `2026-10-02T11:00:47+08:00`. The requested `6fecc6e` resolves to this exact commit. All citations are immutable commit permalinks with repository-relative paths and line numbers. The source checkout is `reference/`. Research only; no Rust implementation and no upstream changes.
 

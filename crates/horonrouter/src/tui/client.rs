@@ -71,12 +71,12 @@ impl Client {
         &self.base_url
     }
 
-    /// The server answered as hyper-router (its `X-CPA-VERSION`), not Go CLIProxyAPI.
-    pub fn is_hyperrouter(&self) -> bool {
+    /// The server answered as horon-router (its `X-CPA-VERSION`), not Go CLIProxyAPI.
+    pub fn is_horonrouter(&self) -> bool {
         self.version
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .starts_with("hyper-router")
+            .starts_with("horon-router")
     }
 
     /// Go `SetSecretKey`.

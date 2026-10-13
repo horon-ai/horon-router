@@ -117,19 +117,19 @@ jobs:
         with:
           save-if: ${{ github.ref == 'refs/heads/dev' }}
       - name: Build
-        run: cargo build --release --locked -p hyperrouter
+        run: cargo build --release --locked -p horonrouter
       # Bytes and counts against bench/budgets.txt, never elapsed time.
       - name: Size
         run: |
-          name=hyperrouter-ci-x86_64-unknown-linux-gnu
-          mkdir -p "$name" && cp target/release/hyperrouter README.md LICENSE "$name/"
+          name=horonrouter-ci-x86_64-unknown-linux-gnu
+          mkdir -p "$name" && cp target/release/horonrouter README.md LICENSE "$name/"
           tar -czf "$name.tar.gz" "$name"
-          bench/gate.sh size x86_64-unknown-linux-gnu target/release/hyperrouter "$name.tar.gz"
+          bench/gate.sh size x86_64-unknown-linux-gnu target/release/horonrouter "$name.tar.gz"
       - name: Idle, 1 and 2,000 auth files
         run: |
           status=0
-          bench/gate.sh idle linux target/release/hyperrouter 1 || status=1
-          bench/gate.sh idle linux target/release/hyperrouter 2000 || status=1
+          bench/gate.sh idle linux target/release/horonrouter 1 || status=1
+          bench/gate.sh idle linux target/release/horonrouter 2000 || status=1
           exit $status
 
   # Clippy over every target (tests, examples, benches) with warnings as errors, so code

@@ -19,7 +19,7 @@ pub enum Strategy {
     RoundRobin,
     FillFirst,
     WeightedRoundRobin,
-    /// hyper-router addition (`soonest-reset`, alias `reset-first`): spend the account
+    /// horon-router addition (`soonest-reset`, alias `reset-first`): spend the account
     /// whose weekly window resets soonest first, until it cools or a usage window runs
     /// out, then the next soonest. Go has no such strategy and reads it as round-robin.
     SoonestReset,
@@ -276,7 +276,7 @@ pub struct Policy {
     /// routing.cooldown.save-cooldown-status: persist cooldowns as `.cds` files in
     /// `auth-dir` (cooldown_store.rs), never in credential files.
     pub save_cooldown_status: bool,
-    /// routing.cooldown.max-trusted-cooldown (hyper-router only): the first bound on a
+    /// routing.cooldown.max-trusted-cooldown (horon-router only): the first bound on a
     /// quota reset an upstream states ([`trusted`]); zero trusts every reset, as Go does.
     pub max_trusted_cooldown: Duration,
     /// routing.force-model-prefix: bool, default false.
@@ -601,7 +601,7 @@ pub(crate) struct Cooldown {
     /// A model quota inherited from a credential-wide quota (Go reason
     /// `credential_quota` on sibling model states).
     pub credential: bool,
-    /// Bounded trust of a stated quota reset (hyper-router only); `level` stays Go's.
+    /// Bounded trust of a stated quota reset (horon-router only); `level` stays Go's.
     pub trust: Trust,
 }
 
@@ -1641,7 +1641,7 @@ impl Scheduler {
         }
         let since = |at: SystemTime| at.duration_since(wall).unwrap_or_default();
         let (remaining, trust) = match (record.quota.exceeded && !cap.is_zero(), saved) {
-            // Written by hyper-router: the saved retry is the deadline, as it is, whatever
+            // Written by horon-router: the saved retry is the deadline, as it is, whatever
             // set it (a bounded window, a trusted reset, or a longer cooldown from another
             // cause that a credential-wide quota marked), so a restart never cuts or
             // escalates it. A stated reset after the retry marks a bounded window.
@@ -1778,7 +1778,7 @@ pub struct CooldownState {
     /// Until the next attempt (zero once a bounded window ended and the next request
     /// probes the account).
     pub remaining: Duration,
-    /// Until the upstream's stated reset, when the bound cut it (hyper-router only).
+    /// Until the upstream's stated reset, when the bound cut it (horon-router only).
     pub recover_in: Option<Duration>,
     pub level: u32,
     pub status: u16,
@@ -2803,7 +2803,7 @@ mod tests {
 
     /// A longer cooldown of another cause that a credential-wide quota marked as quota
     /// (model B's 12 h model-support cooldown during a six-day 429 on model A) keeps its
-    /// own deadline through a save and a restore: it is hyper-router's record, not Go's.
+    /// own deadline through a save and a restore: it is horon-router's record, not Go's.
     #[test]
     fn a_marked_sibling_restores_its_own_deadline() {
         let c = cred("a", serde_json::json!({}));
@@ -3426,7 +3426,7 @@ mod tests {
         }
     }
 
-    // ---- soonest-reset (hyper-router addition) ----
+    // ---- soonest-reset (horon-router addition) ----
 
     const DAY: u64 = 24 * 3600;
 

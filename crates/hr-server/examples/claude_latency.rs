@@ -210,7 +210,7 @@ fn tls_acceptor(host: &str) -> (Vec<u8>, btls::ssl::SslAcceptor) {
         n.build()
     };
     let (ca_key, leaf_key) = (key(), key());
-    let ca_name = name("hyper-router latency bench CA");
+    let ca_name = name("horon-router latency bench CA");
     let mut ca = X509::builder().unwrap();
     ca.set_version(2).unwrap();
     ca.set_serial_number(&BigNum::from_u32(1).unwrap().to_asn1_integer().unwrap())

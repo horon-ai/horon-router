@@ -269,7 +269,7 @@ fn remove_head_file_object(repo: &Path, path: &str) {
             "-c",
             "user.name=CLIProxyAPI",
             "-c",
-            "user.email=hyperrouter@local",
+            "user.email=horonrouter@local",
             "commit",
             "-q",
             "-m",

@@ -295,10 +295,10 @@ impl OAuthTab {
         }
     }
 
-    /// Antigravity sign-in is not ported, so a hyper-router server always answers 404 to
+    /// Antigravity sign-in is not ported, so a horon-router server always answers 404 to
     /// it; Go servers still offer it.
     fn unsupported(&self, index: usize) -> bool {
-        PROVIDERS[index].4 == "antigravity" && self.client.as_ref().is_some_and(|c| c.is_hyperrouter())
+        PROVIDERS[index].4 == "antigravity" && self.client.as_ref().is_some_and(|c| c.is_horonrouter())
     }
 
     /// Go `startOAuth`: the auth URL with `is_webui=true`, then a best-effort browser.

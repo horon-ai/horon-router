@@ -22,7 +22,7 @@
           "id": "recorder-a",
           "priority": 5,
           "metadata": {
-            "Author": "hyper-router tests",
+            "Author": "horon-router tests",
             "ConfigFields": null,
             "GitHubRepository": "https://example.invalid/recorder",
             "Logo": "",
@@ -39,7 +39,7 @@
           "id": "recorder-b",
           "priority": 5,
           "metadata": {
-            "Author": "hyper-router tests",
+            "Author": "horon-router tests",
             "ConfigFields": null,
             "GitHubRepository": "https://example.invalid/recorder",
             "Logo": "",
@@ -141,7 +141,7 @@
           "id": "recorder-c",
           "priority": 0,
           "metadata": {
-            "Author": "hyper-router tests",
+            "Author": "horon-router tests",
             "ConfigFields": null,
             "GitHubRepository": "https://example.invalid/recorder",
             "Logo": "",
@@ -245,7 +245,7 @@
           "id": "recorder-a",
           "priority": 5,
           "metadata": {
-            "Author": "hyper-router tests",
+            "Author": "horon-router tests",
             "ConfigFields": null,
             "GitHubRepository": "https://example.invalid/recorder",
             "Logo": "",
@@ -273,7 +273,7 @@
           "id": "recorder-b",
           "priority": 5,
           "metadata": {
-            "Author": "hyper-router tests",
+            "Author": "horon-router tests",
             "ConfigFields": null,
             "GitHubRepository": "https://example.invalid/recorder",
             "Logo": "",
@@ -392,7 +392,7 @@
           "id": "recorder-c",
           "priority": 0,
           "metadata": {
-            "Author": "hyper-router tests",
+            "Author": "horon-router tests",
             "ConfigFields": null,
             "GitHubRepository": "https://example.invalid/recorder",
             "Logo": "",
@@ -425,19 +425,19 @@
         "a": [
           {
             "method": "management.register",
-            "request": "{\"Plugin\":{\"Name\":\"a\",\"Version\":\"1.0.0\",\"Author\":\"hyper-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"BasePath\":\"/v0/management\",\"ResourceBasePath\":\"/v0/resource/plugins/recorder-a\"}"
+            "request": "{\"Plugin\":{\"Name\":\"a\",\"Version\":\"1.0.0\",\"Author\":\"horon-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"BasePath\":\"/v0/management\",\"ResourceBasePath\":\"/v0/resource/plugins/recorder-a\"}"
           }
         ],
         "b": [
           {
             "method": "management.register",
-            "request": "{\"Plugin\":{\"Name\":\"b\",\"Version\":\"1.0.0\",\"Author\":\"hyper-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"BasePath\":\"/v0/management\",\"ResourceBasePath\":\"/v0/resource/plugins/recorder-b\"}"
+            "request": "{\"Plugin\":{\"Name\":\"b\",\"Version\":\"1.0.0\",\"Author\":\"horon-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"BasePath\":\"/v0/management\",\"ResourceBasePath\":\"/v0/resource/plugins/recorder-b\"}"
           }
         ],
         "c": [
           {
             "method": "management.register",
-            "request": "{\"Plugin\":{\"Name\":\"c\",\"Version\":\"1.0.0\",\"Author\":\"hyper-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"BasePath\":\"/v0/management\",\"ResourceBasePath\":\"/v0/resource/plugins/recorder-c\"}"
+            "request": "{\"Plugin\":{\"Name\":\"c\",\"Version\":\"1.0.0\",\"Author\":\"horon-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"BasePath\":\"/v0/management\",\"ResourceBasePath\":\"/v0/resource/plugins/recorder-c\"}"
           }
         ]
       }
@@ -702,7 +702,7 @@
           "id": "recorder-b",
           "priority": 5,
           "metadata": {
-            "Author": "hyper-router tests",
+            "Author": "horon-router tests",
             "ConfigFields": null,
             "GitHubRepository": "https://example.invalid/recorder",
             "Logo": "",
@@ -821,7 +821,7 @@
           "id": "recorder-a",
           "priority": 1,
           "metadata": {
-            "Author": "hyper-router tests",
+            "Author": "horon-router tests",
             "ConfigFields": null,
             "GitHubRepository": "https://example.invalid/recorder",
             "Logo": "",
@@ -849,7 +849,7 @@
           "id": "recorder-c",
           "priority": 0,
           "metadata": {
-            "Author": "hyper-router tests",
+            "Author": "horon-router tests",
             "ConfigFields": null,
             "GitHubRepository": "https://example.invalid/recorder",
             "Logo": "",
@@ -866,7 +866,7 @@
           "id": "recorder-d",
           "priority": 0,
           "metadata": {
-            "Author": "hyper-router tests",
+            "Author": "horon-router tests",
             "ConfigFields": null,
             "GitHubRepository": "https://example.invalid/recorder",
             "Logo": "",
@@ -976,7 +976,7 @@
           "id": "recorder-a",
           "priority": 5,
           "metadata": {
-            "Author": "hyper-router tests",
+            "Author": "horon-router tests",
             "ConfigFields": null,
             "GitHubRepository": "https://example.invalid/recorder",
             "Logo": "",
@@ -993,7 +993,7 @@
           "id": "recorder-b",
           "priority": 5,
           "metadata": {
-            "Author": "hyper-router tests",
+            "Author": "horon-router tests",
             "ConfigFields": null,
             "GitHubRepository": "https://example.invalid/recorder",
             "Logo": "",
@@ -1095,7 +1095,7 @@
           "id": "recorder-c",
           "priority": 0,
           "metadata": {
-            "Author": "hyper-router tests",
+            "Author": "horon-router tests",
             "ConfigFields": null,
             "GitHubRepository": "https://example.invalid/recorder",
             "Logo": "",
@@ -1306,7 +1306,7 @@
           "id": "recorder-a",
           "priority": 5,
           "metadata": {
-            "Author": "hyper-router tests",
+            "Author": "horon-router tests",
             "ConfigFields": null,
             "GitHubRepository": "https://example.invalid/recorder",
             "Logo": "",
@@ -1323,7 +1323,7 @@
           "id": "recorder-b",
           "priority": 5,
           "metadata": {
-            "Author": "hyper-router tests",
+            "Author": "horon-router tests",
             "ConfigFields": null,
             "GitHubRepository": "https://example.invalid/recorder",
             "Logo": "",
@@ -1340,7 +1340,7 @@
           "id": "recorder-c",
           "priority": 1,
           "metadata": {
-            "Author": "hyper-router tests",
+            "Author": "horon-router tests",
             "ConfigFields": null,
             "GitHubRepository": "https://example.invalid/recorder",
             "Logo": "",
@@ -1357,7 +1357,7 @@
           "id": "recorder-d",
           "priority": 0,
           "metadata": {
-            "Author": "hyper-router tests",
+            "Author": "horon-router tests",
             "ConfigFields": null,
             "GitHubRepository": "https://example.invalid/recorder",
             "Logo": "",
@@ -2077,15 +2077,15 @@
         "a": [
           {
             "method": "scheduler.pick",
-            "request": "{\"Plugin\":{\"Name\":\"a\",\"Version\":\"1.0.0\",\"Author\":\"hyper-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"Provider\":\"claude\",\"Providers\":[\"claude\",\"codex\"],\"Model\":\"m\",\"Stream\":true,\"Options\":{\"Headers\":{\"X\":[\"1\"]},\"Metadata\":null},\"Candidates\":[{\"ID\":\"x1\",\"Provider\":\"claude\",\"Priority\":1,\"Status\":\"active\",\"Attributes\":null,\"Metadata\":null},{\"ID\":\"x2\",\"Provider\":\"codex\",\"Priority\":0,\"Status\":\"\",\"Attributes\":{\"k\":\"v\"},\"Metadata\":null}]}"
+            "request": "{\"Plugin\":{\"Name\":\"a\",\"Version\":\"1.0.0\",\"Author\":\"horon-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"Provider\":\"claude\",\"Providers\":[\"claude\",\"codex\"],\"Model\":\"m\",\"Stream\":true,\"Options\":{\"Headers\":{\"X\":[\"1\"]},\"Metadata\":null},\"Candidates\":[{\"ID\":\"x1\",\"Provider\":\"claude\",\"Priority\":1,\"Status\":\"active\",\"Attributes\":null,\"Metadata\":null},{\"ID\":\"x2\",\"Provider\":\"codex\",\"Priority\":0,\"Status\":\"\",\"Attributes\":{\"k\":\"v\"},\"Metadata\":null}]}"
           },
           {
             "method": "scheduler.pick",
-            "request": "{\"Plugin\":{\"Name\":\"a\",\"Version\":\"1.0.0\",\"Author\":\"hyper-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"Provider\":\"claude\",\"Providers\":[\"claude\",\"codex\"],\"Model\":\"m\",\"Stream\":true,\"Options\":{\"Headers\":{\"X\":[\"1\"]},\"Metadata\":null},\"Candidates\":[{\"ID\":\"x1\",\"Provider\":\"claude\",\"Priority\":1,\"Status\":\"active\",\"Attributes\":null,\"Metadata\":null},{\"ID\":\"x2\",\"Provider\":\"codex\",\"Priority\":0,\"Status\":\"\",\"Attributes\":{\"k\":\"v\"},\"Metadata\":null}]}"
+            "request": "{\"Plugin\":{\"Name\":\"a\",\"Version\":\"1.0.0\",\"Author\":\"horon-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"Provider\":\"claude\",\"Providers\":[\"claude\",\"codex\"],\"Model\":\"m\",\"Stream\":true,\"Options\":{\"Headers\":{\"X\":[\"1\"]},\"Metadata\":null},\"Candidates\":[{\"ID\":\"x1\",\"Provider\":\"claude\",\"Priority\":1,\"Status\":\"active\",\"Attributes\":null,\"Metadata\":null},{\"ID\":\"x2\",\"Provider\":\"codex\",\"Priority\":0,\"Status\":\"\",\"Attributes\":{\"k\":\"v\"},\"Metadata\":null}]}"
           },
           {
             "method": "scheduler.pick",
-            "request": "{\"Plugin\":{\"Name\":\"a\",\"Version\":\"1.0.0\",\"Author\":\"hyper-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"Provider\":\"claude\",\"Providers\":[\"claude\",\"codex\"],\"Model\":\"m\",\"Stream\":true,\"Options\":{\"Headers\":{\"X\":[\"1\"]},\"Metadata\":null},\"Candidates\":[{\"ID\":\"x1\",\"Provider\":\"claude\",\"Priority\":1,\"Status\":\"active\",\"Attributes\":null,\"Metadata\":null},{\"ID\":\"x2\",\"Provider\":\"codex\",\"Priority\":0,\"Status\":\"\",\"Attributes\":{\"k\":\"v\"},\"Metadata\":null}]}"
+            "request": "{\"Plugin\":{\"Name\":\"a\",\"Version\":\"1.0.0\",\"Author\":\"horon-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"Provider\":\"claude\",\"Providers\":[\"claude\",\"codex\"],\"Model\":\"m\",\"Stream\":true,\"Options\":{\"Headers\":{\"X\":[\"1\"]},\"Metadata\":null},\"Candidates\":[{\"ID\":\"x1\",\"Provider\":\"claude\",\"Priority\":1,\"Status\":\"active\",\"Attributes\":null,\"Metadata\":null},{\"ID\":\"x2\",\"Provider\":\"codex\",\"Priority\":0,\"Status\":\"\",\"Attributes\":{\"k\":\"v\"},\"Metadata\":null}]}"
           }
         ]
       }
@@ -2166,17 +2166,17 @@
         "a": [
           {
             "method": "model.route",
-            "request": "{\"Plugin\":{\"Name\":\"a\",\"Version\":\"1.0.0\",\"Author\":\"hyper-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"PluginID\":\"recorder-a\",\"SourceFormat\":\"openai\",\"RequestedModel\":\"m\",\"Stream\":false,\"Headers\":{\"H\":[\"1\"]},\"Query\":{\"q\":[\"1\"]},\"Body\":\"e30=\",\"Metadata\":{\"x\":true},\"AvailableProviders\":null,\"host_callback_id\":\"21\"}"
+            "request": "{\"Plugin\":{\"Name\":\"a\",\"Version\":\"1.0.0\",\"Author\":\"horon-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"PluginID\":\"recorder-a\",\"SourceFormat\":\"openai\",\"RequestedModel\":\"m\",\"Stream\":false,\"Headers\":{\"H\":[\"1\"]},\"Query\":{\"q\":[\"1\"]},\"Body\":\"e30=\",\"Metadata\":{\"x\":true},\"AvailableProviders\":null,\"host_callback_id\":\"21\"}"
           },
           {
             "method": "model.route",
-            "request": "{\"Plugin\":{\"Name\":\"a\",\"Version\":\"1.0.0\",\"Author\":\"hyper-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"PluginID\":\"recorder-a\",\"SourceFormat\":\"gemini-cli-unknown\",\"RequestedModel\":\"m\",\"Stream\":false,\"Headers\":null,\"Query\":null,\"Body\":null,\"Metadata\":null,\"AvailableProviders\":null,\"host_callback_id\":\"23\"}"
+            "request": "{\"Plugin\":{\"Name\":\"a\",\"Version\":\"1.0.0\",\"Author\":\"horon-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"PluginID\":\"recorder-a\",\"SourceFormat\":\"gemini-cli-unknown\",\"RequestedModel\":\"m\",\"Stream\":false,\"Headers\":null,\"Query\":null,\"Body\":null,\"Metadata\":null,\"AvailableProviders\":null,\"host_callback_id\":\"23\"}"
           }
         ],
         "c": [
           {
             "method": "model.route",
-            "request": "{\"Plugin\":{\"Name\":\"c\",\"Version\":\"1.0.0\",\"Author\":\"hyper-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"PluginID\":\"recorder-c\",\"SourceFormat\":\"openai\",\"RequestedModel\":\"m\",\"Stream\":false,\"Headers\":{\"H\":[\"1\"]},\"Query\":{\"q\":[\"1\"]},\"Body\":\"e30=\",\"Metadata\":{\"x\":true},\"AvailableProviders\":null,\"host_callback_id\":\"22\"}"
+            "request": "{\"Plugin\":{\"Name\":\"c\",\"Version\":\"1.0.0\",\"Author\":\"horon-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"PluginID\":\"recorder-c\",\"SourceFormat\":\"openai\",\"RequestedModel\":\"m\",\"Stream\":false,\"Headers\":{\"H\":[\"1\"]},\"Query\":{\"q\":[\"1\"]},\"Body\":\"e30=\",\"Metadata\":{\"x\":true},\"AvailableProviders\":null,\"host_callback_id\":\"22\"}"
           },
           {
             "method": "executor.identifier",
@@ -2184,7 +2184,7 @@
           },
           {
             "method": "model.route",
-            "request": "{\"Plugin\":{\"Name\":\"c\",\"Version\":\"1.0.0\",\"Author\":\"hyper-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"PluginID\":\"recorder-c\",\"SourceFormat\":\"gemini-cli-unknown\",\"RequestedModel\":\"m\",\"Stream\":false,\"Headers\":null,\"Query\":null,\"Body\":null,\"Metadata\":null,\"AvailableProviders\":null,\"host_callback_id\":\"24\"}"
+            "request": "{\"Plugin\":{\"Name\":\"c\",\"Version\":\"1.0.0\",\"Author\":\"horon-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"PluginID\":\"recorder-c\",\"SourceFormat\":\"gemini-cli-unknown\",\"RequestedModel\":\"m\",\"Stream\":false,\"Headers\":null,\"Query\":null,\"Body\":null,\"Metadata\":null,\"AvailableProviders\":null,\"host_callback_id\":\"24\"}"
           },
           {
             "method": "executor.identifier",
@@ -3319,11 +3319,11 @@
         "a": [
           {
             "method": "quota.describe",
-            "request": "{\"plugin\":{\"Name\":\"a\",\"Version\":\"1.0.0\",\"Author\":\"hyper-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null}}"
+            "request": "{\"plugin\":{\"Name\":\"a\",\"Version\":\"1.0.0\",\"Author\":\"horon-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null}}"
           },
           {
             "method": "quota.describe",
-            "request": "{\"plugin\":{\"Name\":\"a\",\"Version\":\"1.0.0\",\"Author\":\"hyper-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null}}"
+            "request": "{\"plugin\":{\"Name\":\"a\",\"Version\":\"1.0.0\",\"Author\":\"horon-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null}}"
           },
           {
             "method": "quota.fetch",
@@ -3341,15 +3341,15 @@
         "b": [
           {
             "method": "quota.describe",
-            "request": "{\"plugin\":{\"Name\":\"b\",\"Version\":\"1.0.0\",\"Author\":\"hyper-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null}}"
+            "request": "{\"plugin\":{\"Name\":\"b\",\"Version\":\"1.0.0\",\"Author\":\"horon-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null}}"
           },
           {
             "method": "quota.describe",
-            "request": "{\"plugin\":{\"Name\":\"b\",\"Version\":\"1.0.0\",\"Author\":\"hyper-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null}}"
+            "request": "{\"plugin\":{\"Name\":\"b\",\"Version\":\"1.0.0\",\"Author\":\"horon-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null}}"
           },
           {
             "method": "quota.describe",
-            "request": "{\"plugin\":{\"Name\":\"b\",\"Version\":\"1.0.0\",\"Author\":\"hyper-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null}}"
+            "request": "{\"plugin\":{\"Name\":\"b\",\"Version\":\"1.0.0\",\"Author\":\"horon-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null}}"
           },
           {
             "method": "quota.reset",
@@ -3514,35 +3514,35 @@
         "a": [
           {
             "method": "model.static",
-            "request": "{\"Plugin\":{\"Name\":\"a\",\"Version\":\"1.0.0\",\"Author\":\"hyper-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"Host\":{\"AuthDir\":\"RECORDDIR/auths\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null}}"
+            "request": "{\"Plugin\":{\"Name\":\"a\",\"Version\":\"1.0.0\",\"Author\":\"horon-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"Host\":{\"AuthDir\":\"RECORDDIR/auths\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null}}"
           },
           {
             "method": "model.static",
-            "request": "{\"Plugin\":{\"Name\":\"a\",\"Version\":\"1.0.0\",\"Author\":\"hyper-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"Host\":{\"AuthDir\":\"RECORDDIR/auths\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null}}"
+            "request": "{\"Plugin\":{\"Name\":\"a\",\"Version\":\"1.0.0\",\"Author\":\"horon-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"Host\":{\"AuthDir\":\"RECORDDIR/auths\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null}}"
           },
           {
             "method": "model.for_auth",
-            "request": "{\"Plugin\":{\"Name\":\"a\",\"Version\":\"1.0.0\",\"Author\":\"hyper-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"AuthID\":\"auth-1\",\"AuthProvider\":\"a\",\"StorageJSON\":\"eyJlbWFpbCI6ImUiLCJ0eXBlIjoiYSJ9\",\"Metadata\":{\"email\":\"e\",\"type\":\"a\"},\"Attributes\":{\"path\":\"/auth/auth-1.json\",\"source\":\"/auth/auth-1.json\",\"source_backend\":\"file\"},\"Host\":{\"AuthDir\":\"RECORDDIR/auths\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"host_callback_id\":\"35\"}"
+            "request": "{\"Plugin\":{\"Name\":\"a\",\"Version\":\"1.0.0\",\"Author\":\"horon-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"AuthID\":\"auth-1\",\"AuthProvider\":\"a\",\"StorageJSON\":\"eyJlbWFpbCI6ImUiLCJ0eXBlIjoiYSJ9\",\"Metadata\":{\"email\":\"e\",\"type\":\"a\"},\"Attributes\":{\"path\":\"/auth/auth-1.json\",\"source\":\"/auth/auth-1.json\",\"source_backend\":\"file\"},\"Host\":{\"AuthDir\":\"RECORDDIR/auths\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"host_callback_id\":\"35\"}"
           }
         ],
         "b": [
           {
             "method": "model.register",
-            "request": "{\"Plugin\":{\"Name\":\"b\",\"Version\":\"1.0.0\",\"Author\":\"hyper-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null}}"
+            "request": "{\"Plugin\":{\"Name\":\"b\",\"Version\":\"1.0.0\",\"Author\":\"horon-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null}}"
           },
           {
             "method": "model.register",
-            "request": "{\"Plugin\":{\"Name\":\"b\",\"Version\":\"1.0.0\",\"Author\":\"hyper-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null}}"
+            "request": "{\"Plugin\":{\"Name\":\"b\",\"Version\":\"1.0.0\",\"Author\":\"horon-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null}}"
           }
         ],
         "c": [
           {
             "method": "model.register",
-            "request": "{\"Plugin\":{\"Name\":\"c\",\"Version\":\"1.0.0\",\"Author\":\"hyper-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null}}"
+            "request": "{\"Plugin\":{\"Name\":\"c\",\"Version\":\"1.0.0\",\"Author\":\"horon-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null}}"
           },
           {
             "method": "model.register",
-            "request": "{\"Plugin\":{\"Name\":\"c\",\"Version\":\"1.0.0\",\"Author\":\"hyper-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null}}"
+            "request": "{\"Plugin\":{\"Name\":\"c\",\"Version\":\"1.0.0\",\"Author\":\"horon-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null}}"
           }
         ]
       }
@@ -3636,27 +3636,27 @@
         "a": [
           {
             "method": "command_line.register",
-            "request": "{\"Plugin\":{\"Name\":\"a\",\"Version\":\"1.0.0\",\"Author\":\"hyper-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null}}"
+            "request": "{\"Plugin\":{\"Name\":\"a\",\"Version\":\"1.0.0\",\"Author\":\"horon-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null}}"
           },
           {
             "method": "command_line.execute",
-            "request": "{\"Plugin\":{\"Name\":\"a\",\"Version\":\"1.0.0\",\"Author\":\"hyper-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"Program\":\"cliproxy\",\"Args\":[\"-mine\",\"--count=3\",\"-ratio\",\"0.5\",\"-config\",\"c.yaml\",\"rest\",\"-dur\",\"1s\"],\"ConfigPath\":\"/etc/cliproxy/config.yaml\",\"Host\":{\"AuthDir\":\"RECORDDIR/auths\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"Flags\":{\"config\":{\"Name\":\"config\",\"Type\":\"\",\"Value\":\"c.yaml\",\"Set\":false},\"count\":{\"Name\":\"count\",\"Type\":\"int\",\"Value\":\"3\",\"Set\":true},\"dur\":{\"Name\":\"dur\",\"Type\":\"duration\",\"Value\":\"1m30s\",\"Set\":false},\"mine\":{\"Name\":\"mine\",\"Type\":\"bool\",\"Value\":\"true\",\"Set\":true},\"ratio\":{\"Name\":\"ratio\",\"Type\":\"float64\",\"Value\":\"0.5\",\"Set\":true},\"tui\":{\"Name\":\"tui\",\"Type\":\"\",\"Value\":\"\",\"Set\":false}},\"TriggeredFlags\":{\"count\":{\"Name\":\"count\",\"Type\":\"int\",\"Value\":\"3\",\"Set\":true},\"mine\":{\"Name\":\"mine\",\"Type\":\"bool\",\"Value\":\"true\",\"Set\":true}}}"
+            "request": "{\"Plugin\":{\"Name\":\"a\",\"Version\":\"1.0.0\",\"Author\":\"horon-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"Program\":\"cliproxy\",\"Args\":[\"-mine\",\"--count=3\",\"-ratio\",\"0.5\",\"-config\",\"c.yaml\",\"rest\",\"-dur\",\"1s\"],\"ConfigPath\":\"/etc/cliproxy/config.yaml\",\"Host\":{\"AuthDir\":\"RECORDDIR/auths\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"Flags\":{\"config\":{\"Name\":\"config\",\"Type\":\"\",\"Value\":\"c.yaml\",\"Set\":false},\"count\":{\"Name\":\"count\",\"Type\":\"int\",\"Value\":\"3\",\"Set\":true},\"dur\":{\"Name\":\"dur\",\"Type\":\"duration\",\"Value\":\"1m30s\",\"Set\":false},\"mine\":{\"Name\":\"mine\",\"Type\":\"bool\",\"Value\":\"true\",\"Set\":true},\"ratio\":{\"Name\":\"ratio\",\"Type\":\"float64\",\"Value\":\"0.5\",\"Set\":true},\"tui\":{\"Name\":\"tui\",\"Type\":\"\",\"Value\":\"\",\"Set\":false}},\"TriggeredFlags\":{\"count\":{\"Name\":\"count\",\"Type\":\"int\",\"Value\":\"3\",\"Set\":true},\"mine\":{\"Name\":\"mine\",\"Type\":\"bool\",\"Value\":\"true\",\"Set\":true}}}"
           }
         ],
         "b": [
           {
             "method": "command_line.register",
-            "request": "{\"Plugin\":{\"Name\":\"b\",\"Version\":\"1.0.0\",\"Author\":\"hyper-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null}}"
+            "request": "{\"Plugin\":{\"Name\":\"b\",\"Version\":\"1.0.0\",\"Author\":\"horon-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null}}"
           },
           {
             "method": "command_line.execute",
-            "request": "{\"Plugin\":{\"Name\":\"b\",\"Version\":\"1.0.0\",\"Author\":\"hyper-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"Program\":\"cliproxy\",\"Args\":[\"-mine\",\"--count=3\",\"-ratio\",\"0.5\",\"-config\",\"c.yaml\",\"rest\",\"-dur\",\"1s\"],\"ConfigPath\":\"/etc/cliproxy/config.yaml\",\"Host\":{\"AuthDir\":\"RECORDDIR/auths\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"Flags\":{\"config\":{\"Name\":\"config\",\"Type\":\"\",\"Value\":\"c.yaml\",\"Set\":false},\"count\":{\"Name\":\"count\",\"Type\":\"int\",\"Value\":\"3\",\"Set\":true},\"dur\":{\"Name\":\"dur\",\"Type\":\"duration\",\"Value\":\"1m30s\",\"Set\":false},\"mine\":{\"Name\":\"mine\",\"Type\":\"bool\",\"Value\":\"true\",\"Set\":true},\"ratio\":{\"Name\":\"ratio\",\"Type\":\"float64\",\"Value\":\"0.5\",\"Set\":true},\"tui\":{\"Name\":\"tui\",\"Type\":\"\",\"Value\":\"\",\"Set\":false}},\"TriggeredFlags\":{\"ratio\":{\"Name\":\"ratio\",\"Type\":\"float64\",\"Value\":\"0.5\",\"Set\":true}}}"
+            "request": "{\"Plugin\":{\"Name\":\"b\",\"Version\":\"1.0.0\",\"Author\":\"horon-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"Program\":\"cliproxy\",\"Args\":[\"-mine\",\"--count=3\",\"-ratio\",\"0.5\",\"-config\",\"c.yaml\",\"rest\",\"-dur\",\"1s\"],\"ConfigPath\":\"/etc/cliproxy/config.yaml\",\"Host\":{\"AuthDir\":\"RECORDDIR/auths\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"Flags\":{\"config\":{\"Name\":\"config\",\"Type\":\"\",\"Value\":\"c.yaml\",\"Set\":false},\"count\":{\"Name\":\"count\",\"Type\":\"int\",\"Value\":\"3\",\"Set\":true},\"dur\":{\"Name\":\"dur\",\"Type\":\"duration\",\"Value\":\"1m30s\",\"Set\":false},\"mine\":{\"Name\":\"mine\",\"Type\":\"bool\",\"Value\":\"true\",\"Set\":true},\"ratio\":{\"Name\":\"ratio\",\"Type\":\"float64\",\"Value\":\"0.5\",\"Set\":true},\"tui\":{\"Name\":\"tui\",\"Type\":\"\",\"Value\":\"\",\"Set\":false}},\"TriggeredFlags\":{\"ratio\":{\"Name\":\"ratio\",\"Type\":\"float64\",\"Value\":\"0.5\",\"Set\":true}}}"
           }
         ],
         "c": [
           {
             "method": "command_line.register",
-            "request": "{\"Plugin\":{\"Name\":\"c\",\"Version\":\"1.0.0\",\"Author\":\"hyper-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null}}"
+            "request": "{\"Plugin\":{\"Name\":\"c\",\"Version\":\"1.0.0\",\"Author\":\"horon-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null}}"
           }
         ]
       }
@@ -3716,7 +3716,7 @@
           "id": "recorder-a",
           "priority": 0,
           "metadata": {
-            "Author": "hyper-router tests",
+            "Author": "horon-router tests",
             "ConfigFields": null,
             "GitHubRepository": "https://example.invalid/recorder",
             "Logo": "",
@@ -3739,7 +3739,7 @@
           "id": "recorder-a",
           "priority": 0,
           "metadata": {
-            "Author": "hyper-router tests",
+            "Author": "horon-router tests",
             "ConfigFields": null,
             "GitHubRepository": "https://example.invalid/recorder",
             "Logo": "",
@@ -3798,7 +3798,7 @@
           },
           {
             "method": "management.register",
-            "request": "{\"Plugin\":{\"Name\":\"a\",\"Version\":\"1.0.0\",\"Author\":\"hyper-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"BasePath\":\"/v0/management\",\"ResourceBasePath\":\"/v0/resource/plugins/recorder-a\"}"
+            "request": "{\"Plugin\":{\"Name\":\"a\",\"Version\":\"1.0.0\",\"Author\":\"horon-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"BasePath\":\"/v0/management\",\"ResourceBasePath\":\"/v0/resource/plugins/recorder-a\"}"
           },
           {
             "method": "management.handle",
@@ -3873,7 +3873,7 @@
           "id": "recorder-a",
           "priority": 0,
           "metadata": {
-            "Author": "hyper-router tests",
+            "Author": "horon-router tests",
             "ConfigFields": null,
             "GitHubRepository": "https://example.invalid/recorder",
             "Logo": "",
@@ -3919,7 +3919,7 @@
           "id": "recorder-a",
           "priority": 0,
           "metadata": {
-            "Author": "hyper-router tests",
+            "Author": "horon-router tests",
             "ConfigFields": null,
             "GitHubRepository": "https://example.invalid/recorder",
             "Logo": "",
@@ -4238,7 +4238,7 @@
           },
           {
             "method": "management.register",
-            "request": "{\"Plugin\":{\"Name\":\"a\",\"Version\":\"1.0.0\",\"Author\":\"hyper-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"BasePath\":\"/v0/management\",\"ResourceBasePath\":\"/v0/resource/plugins/recorder-a\"}"
+            "request": "{\"Plugin\":{\"Name\":\"a\",\"Version\":\"1.0.0\",\"Author\":\"horon-router tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"BasePath\":\"/v0/management\",\"ResourceBasePath\":\"/v0/resource/plugins/recorder-a\"}"
           },
           {
             "method": "management.handle",

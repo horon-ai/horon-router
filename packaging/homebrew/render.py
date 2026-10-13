@@ -26,7 +26,7 @@ def render(tag, checksums, template, current_formula=None):
             return current_formula
     formula = template.replace("@VERSION@", version)
     for target in TARGETS:
-        archive = f"hyperrouter-{version}-{target}.tar.gz"
+        archive = f"horonrouter-{version}-{target}.tar.gz"
         matches = re.findall(rf"^([0-9a-f]{{64}})  {re.escape(archive)}$", checksums, re.MULTILINE)
         if len(matches) != 1:
             raise ValueError(f"expected exactly one SHA256SUMS entry for {archive}")
@@ -42,7 +42,7 @@ if __name__ == "__main__":
     parser.add_argument("checksums", type=Path)
     parser.add_argument("output", type=Path)
     args = parser.parse_args()
-    template = Path(__file__).with_name("hyper-router.rb").read_text()
+    template = Path(__file__).with_name("horon-router.rb").read_text()
     current = args.output.read_text() if args.output.exists() else None
     formula = render(args.tag, args.checksums.read_text(), template, current)
     if formula != current:

@@ -591,7 +591,7 @@ mod tests {
     #[test]
     fn migration_moves_legacy_lines_with_their_comments_and_bytes() {
         let original = "# head\nhost: \"\" # any\nport: 8317\nremote-management:\n  # why\n  allow-remote: true\n\
-                        auth-dir: '~/.hyper-router'\napi-keys:\n- \"sk-fake\" # client\n# retry note\nrequest-retry: 3\n\
+                        auth-dir: '~/.horon-router'\napi-keys:\n- \"sk-fake\" # client\n# retry note\nrequest-retry: 3\n\
                         debug: false\nrouting:\n  strategy: fill-first\n";
         let doc = ConfigDocument::parse(original).unwrap();
         let text = doc.migrated_text(original).expect("block layout migrates as text");
@@ -599,7 +599,7 @@ mod tests {
         for kept in [
             "  # head\n  host: \"\" # any\n",
             "  # why\n  allow-remote: true\n",
-            "  auth-dir: '~/.hyper-router'\n",
+            "  auth-dir: '~/.horon-router'\n",
             "  - \"sk-fake\" # client\n",
             "routing:\n  strategy: fill-first\n  retry:\n    # retry note\n    request-retry: 3\n",
             "observability:\n  logs:\n    debug: false\n",

@@ -4,7 +4,7 @@
 //! `GET|POST /oauth/callback` and `POST /oauth/import`.
 //!
 //! Go hands callbacks to the waiting login through `.oauth-<provider>-<state>.oauth`
-//! files in auth-dir; hyper-router keeps the callback with the pending session in
+//! files in auth-dir; horon-router keeps the callback with the pending session in
 //! memory, so nothing extra appears in the watched directory.
 //!
 //! ponytail: the Vertex import answers `provider_not_found`; no plugin logins.

@@ -90,9 +90,9 @@ fn headers(authorization: &str) -> GoHeaders {
     let mut h = GoHeaders::new();
     h.set("Accept", "application/json");
     h.set("Authorization", authorization);
-    h.set("User-Agent", "hyper-router");
-    h.set("Editor-Version", "hyper-router/0.1.0");
-    h.set("Editor-Plugin-Version", "hyper-router/0.1.0");
+    h.set("User-Agent", "horon-router");
+    h.set("Editor-Version", "horon-router/0.1.0");
+    h.set("Editor-Plugin-Version", "horon-router/0.1.0");
     h.set("Copilot-Integration-Id", "vscode-chat");
     h
 }
@@ -165,7 +165,7 @@ impl CopilotAuth {
         let mut h = GoHeaders::new();
         h.set("Accept", "application/json");
         h.set("Content-Type", "application/x-www-form-urlencoded");
-        h.set("User-Agent", "hyper-router");
+        h.set("User-Agent", "horon-router");
         let up = send(&self.client, url, h, body, Some(HTTP_TIMEOUT))
             .await
             .map_err(|_| auth_error(502, "github-copilot: request failed"))?;
@@ -556,8 +556,8 @@ impl CopilotExecutor {
             ));
         }
         let extra = [
-            ("Editor-Version", "hyper-router/0.1.0".to_owned()),
-            ("Editor-Plugin-Version", "hyper-router/0.1.0".to_owned()),
+            ("Editor-Version", "horon-router/0.1.0".to_owned()),
+            ("Editor-Plugin-Version", "horon-router/0.1.0".to_owned()),
             ("Copilot-Integration-Id", "vscode-chat".to_owned()),
         ];
         self.chat

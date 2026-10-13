@@ -68,7 +68,7 @@ async fn proxy_keys(keys: &[&str]) -> (String, Arc<Seen>) {
     let keys: String = keys.iter().map(|k| format!("        - api-key: {k}\n")).collect();
     let seen = Arc::new(Seen::default());
     let upstream_url = serve(axum::Router::new().fallback(upstream).with_state(seen.clone())).await;
-    // A private auth-dir: without one, credential loading reads the real ~/.hyper-router.
+    // A private auth-dir: without one, credential loading reads the real ~/.horon-router.
     let auth_dir = std::env::temp_dir().join(format!("cpa-compat-auths-{}", std::process::id()));
     std::fs::create_dir_all(&auth_dir).unwrap();
     let config = Config::parse(&format!(
@@ -293,7 +293,7 @@ async fn lcp_session_reaches_custom_headers_and_usage_records() {
         })
         .with_state(sessions.clone());
     let upstream_url = serve(upstream).await;
-    // A private auth-dir: without one, credential loading reads the real ~/.hyper-router.
+    // A private auth-dir: without one, credential loading reads the real ~/.horon-router.
     let auth_dir = std::env::temp_dir().join(format!("cpa-compat-lcp-auths-{}", std::process::id()));
     std::fs::create_dir_all(&auth_dir).unwrap();
     let config = Config::parse(&format!(

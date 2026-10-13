@@ -30,7 +30,7 @@ try {
       else if (path.endsWith('/credentials')) value = {files:[]};
       else if (path.endsWith('/api-keys')) value = {"api-keys":[]};
       else if (options?.method && options.method !== 'GET') status = 400;
-      return new Response(JSON.stringify(value), {status, headers:{'Content-Type':'application/json','X-CPA-VERSION':'hyper-router/0.1.2'}});
+      return new Response(JSON.stringify(value), {status, headers:{'Content-Type':'application/json','X-CPA-VERSION':'horon-router/0.1.2'}});
     };
     return true;
   })()`);
@@ -55,7 +55,7 @@ try {
   browser("wait", "--text", "v0.2.0");
   assert.equal(evaluate("document.querySelector('main').textContent.includes('this server is up to date')"), false);
   shot("updates-available");
-  evaluate(`window.updateAnswer={error:'update_check_disabled',message:'Update checks are disabled by HYPERROUTER_NO_UPDATE_CHECK=1.'}; true`);
+  evaluate(`window.updateAnswer={error:'update_check_disabled',message:'Update checks are disabled by HORONROUTER_NO_UPDATE_CHECK=1.'}; true`);
   browser("find", "role", "button", "click", "--name", "Check for a new release");
   browser("wait", "--fn", "window.updateCalls===3");
   evaluate("window.finishUpdate(); true");

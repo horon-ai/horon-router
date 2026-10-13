@@ -25,7 +25,7 @@ fn scratch(name: &str) -> PathBuf {
 fn git(dir: &Path, args: &[&str]) -> String {
     let output = Command::new("git")
         .current_dir(dir)
-        .args(["-c", "user.name=CLIProxyAPI", "-c", "user.email=hyperrouter@local"])
+        .args(["-c", "user.name=CLIProxyAPI", "-c", "user.email=horonrouter@local"])
         .args(["-c", "commit.gpgsign=false", "-c", "init.defaultBranch=master"])
         .args(args)
         .output()

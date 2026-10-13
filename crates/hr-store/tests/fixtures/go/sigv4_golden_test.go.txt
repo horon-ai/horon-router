@@ -1,6 +1,6 @@
 package store
 
-// Golden generator for hyper-router: requests signed by minio-go's SigV4 signer.
+// Golden generator for horon-router: requests signed by minio-go's SigV4 signer.
 // RUST_GOLDEN=<file> go test -run TestRustGoldenSigV4 ./internal/store/
 
 import (

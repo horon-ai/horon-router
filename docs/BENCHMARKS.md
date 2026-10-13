@@ -1,8 +1,8 @@
 # 벤치마크
 
-> 이 문서에서 알 수 있는 것: 같은 설정에서 hyper-router와 CLIProxyAPI의 실행 파일 크기, 메모리(RSS), 처리량을 비교한 측정 결과.
+> 이 문서에서 알 수 있는 것: 같은 설정에서 horon-router와 CLIProxyAPI의 실행 파일 크기, 메모리(RSS), 처리량을 비교한 측정 결과.
 
-같은 설정에 로컬 가짜 업스트림(요청을 실제로 받아 처리하는 제공자 서버)을 붙여 hyper-router와 CLIProxyAPI의 실행 파일 크기, 메모리(RSS), 처리량을 쟀습니다. 숫자는 작은 장비 하나와 인위적으로 만든 부하에서 나온 값입니다. 그래서 두 서버를 서로 비교할 때 쓰는 값이고, 더 큰 장비에서 각 서버가 트래픽을 얼마나 감당할 수 있는지는 거의 보여 주지 않습니다.
+같은 설정에 로컬 가짜 업스트림(요청을 실제로 받아 처리하는 제공자 서버)을 붙여 horon-router와 CLIProxyAPI의 실행 파일 크기, 메모리(RSS), 처리량을 쟀습니다. 숫자는 작은 장비 하나와 인위적으로 만든 부하에서 나온 값입니다. 그래서 두 서버를 서로 비교할 때 쓰는 값이고, 더 큰 장비에서 각 서버가 트래픽을 얼마나 감당할 수 있는지는 거의 보여 주지 않습니다.
 
 <a id="field-memory"></a>
 ## 실사용 환경 메모리
@@ -18,7 +18,7 @@
 
 2026-10-03에 측정했습니다.
 
-- hyper-router 0.1.0은 출시 빌드이고 릴리스 프로파일(thin LTO, 코드젠 유닛 하나, 스트립)이며 rustc 1.99.0으로 빌드했습니다.
+- horon-router 0.1.0은 출시 빌드이고 릴리스 프로파일(thin LTO, 코드젠 유닛 하나, 스트립)이며 rustc 1.99.0으로 빌드했습니다.
 - CLIProxyAPI v8.0.10(커밋 `6fecc6e`)은 공식 `linux_amd64` 릴리스 실행 파일이고 Go 1.26.4로 빌드했습니다.
 - 가상 머신은 vCPU 2개(Intel Xeon 2.60 GHz)와 메모리 3.9 GB이고 Debian 12에 Linux 6.1을 씁니다. 공유 장비라 같은 실행 파일도 실행마다 최대 약 15%까지 다르게 측정됩니다. 그래서 두 서버는 같은 실행 안에서 비교해야 합니다.
 - 두 서버는 같은 `config.yaml`로 실행합니다. 가짜 업스트림을 가리키는 OpenAI 호환 제공자 하나, 클라이언트 키 하나, 비어 있는 인증 파일 폴더를 쓰고 `--local-model`로 시작합니다. 시나리오마다 새 서버 프로세스를 시작합니다.
@@ -29,7 +29,7 @@
 스크립트는 [`bench/`](../bench)에 있습니다. `upstream/`은 OpenAI 호환 가짜 업스트림, `load/`는 부하 생성기입니다. `run.sh`는 모든 시나리오를 세 번 실행하고 `summary.sh`는 세 번의 중앙값을 출력합니다. 두 도우미 스크립트는 Go 표준 라이브러리만 씁니다. 원시 결과는 [`bench/results/`](../bench/results)에 실행마다 파일 하나로 있습니다.
 
 ```sh
-bench/run.sh target/release/hyperrouter /path/to/cli-proxy-api /tmp/bench 3
+bench/run.sh target/release/horonrouter /path/to/cli-proxy-api /tmp/bench 3
 bench/summary.sh /tmp/bench/results.jsonl
 ```
 
@@ -47,14 +47,14 @@ bench/summary.sh /tmp/bench/results.jsonl
 <a id="results"></a>
 ## 결과
 
-2026-10-03, hyper-router 0.1.0, 세 번 실행의 중앙값입니다.
+2026-10-03, horon-router 0.1.0, 세 번 실행의 중앙값입니다.
 
 <a id="idle"></a>
 ### 유휴
 
 | 서버 | 시작 시간 (ms) | 15초 후 RSS (MB) |
 | --- | --- | --- |
-| hyper-router | 17 | 17.3 |
+| horon-router | 17 | 17.3 |
 | Go | 204 | 44.7 |
 
 <a id="chat"></a>
@@ -62,7 +62,7 @@ bench/summary.sh /tmp/bench/results.jsonl
 
 | 서버 | 초당 요청 수 | p50 (ms) | p99 (ms) | 요청당 CPU ms | 최대 RSS (MB) | 10초 후 RSS (MB) | 실패 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| hyper-router | 1168 | 25.3 | 51.9 | 0.85 | 25.2 | 25.2 | 0 |
+| horon-router | 1168 | 25.3 | 51.9 | 0.85 | 25.2 | 25.2 | 0 |
 | Go | 1568 | 18.9 | 50.1 | 0.62 | 57.8 | 56.9 | 0 |
 
 <a id="chat-stream"></a>
@@ -70,7 +70,7 @@ bench/summary.sh /tmp/bench/results.jsonl
 
 | 서버 | 초당 요청 수 | p50 (ms) | p99 (ms) | 요청당 CPU ms | 최대 RSS (MB) | 10초 후 RSS (MB) | 실패 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| hyper-router | 833 | 34.9 | 75.1 | 1.19 | 26.2 | 26.2 | 0 |
+| horon-router | 833 | 34.9 | 75.1 | 1.19 | 26.2 | 26.2 | 0 |
 | Go | 916 | 34.4 | 69.6 | 1.08 | 57.8 | 56.7 | 0 |
 
 <a id="chat-stream-slow"></a>
@@ -78,7 +78,7 @@ bench/summary.sh /tmp/bench/results.jsonl
 
 | 서버 | 초당 요청 수 | p50 (ms) | p99 (ms) | 요청당 CPU ms | 최대 RSS (MB) | 10초 후 RSS (MB) | 실패 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| hyper-router | 238 | 1021.4 | 1414.5 | 1.95 | 49.7 | 49.2 | 0 |
+| horon-router | 238 | 1021.4 | 1414.5 | 1.95 | 49.7 | 49.2 | 0 |
 | Go | 235 | 1039.7 | 1272.2 | 2.9 | 103.8 | 103.8 | 0 |
 
 <a id="messages-stream"></a>
@@ -86,46 +86,46 @@ bench/summary.sh /tmp/bench/results.jsonl
 
 | 서버 | 초당 요청 수 | p50 (ms) | p99 (ms) | 요청당 CPU ms | 최대 RSS (MB) | 10초 후 RSS (MB) | 실패 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| hyper-router | 793 | 37.5 | 68.2 | 1.25 | 26.9 | 26.6 | 0 |
+| horon-router | 793 | 37.5 | 68.2 | 1.25 | 26.9 | 26.6 | 0 |
 | Go | 564 | 54.5 | 115.4 | 1.75 | 79.3 | 77.5 | 0 |
 
-이 장비에서는 시작 시간이 크게 흔들립니다. 특히 실행 파일을 막 복사한 뒤 첫 실행에서 그렇습니다. hyper-router는 15, 17, 46 ms가 나왔고, Go는 이 실행에서 104, 204, 453 ms가 나왔습니다. 같은 날 앞선 조용한 실행에서는 45~98 ms였습니다.
+이 장비에서는 시작 시간이 크게 흔들립니다. 특히 실행 파일을 막 복사한 뒤 첫 실행에서 그렇습니다. horon-router는 15, 17, 46 ms가 나왔고, Go는 이 실행에서 104, 204, 453 ms가 나왔습니다. 같은 날 앞선 조용한 실행에서는 45~98 ms였습니다.
 
 <a id="binary-size"></a>
 ## 실행 파일 크기
 
-Linux x86_64 기준입니다. hyper-router 실행 파일은 대시보드를 포함하고, Go 실행 파일은 포함하지 않습니다. Go는 패널을 따로 내려받기 때문입니다.
+Linux x86_64 기준입니다. horon-router 실행 파일은 대시보드를 포함하고, Go 실행 파일은 포함하지 않습니다. Go는 패널을 따로 내려받기 때문입니다.
 
-| | hyper-router 0.1.0 | CLIProxyAPI v8.0.10 release |
+| | horon-router 0.1.0 | CLIProxyAPI v8.0.10 release |
 | --- | --- | --- |
 | 실행 파일 | 35.9 MB | 69.1 MB |
 | 실행 파일, gzip -9 | 15.1 MB | 22.6 MB |
 | 릴리스 압축 파일 | 15.2 MB | 22.9 MB |
 
-hyper-router 실행 파일은 glibc와 libstdc++를 동적으로 연결하고 BoringSSL은 안에 넣어 연결합니다. Go 실행 파일은 공식 릴리스 빌드(스트립)이고, 압축 파일 안에 README 두 개와 예제 설정도 들어 있습니다.
+horon-router 실행 파일은 glibc와 libstdc++를 동적으로 연결하고 BoringSSL은 안에 넣어 연결합니다. Go 실행 파일은 공식 릴리스 빌드(스트립)이고, 압축 파일 안에 README 두 개와 예제 설정도 들어 있습니다.
 
 <a id="what-the-numbers-say"></a>
 ## 숫자가 말하는 것
 
-- 스트리밍 없는 요청: Go가 더 빠릅니다. 초당 1,568건을 처리해 hyper-router의 1,168건보다 약 34% 많았고, 요청당 CPU도 더 적게 썼습니다(0.62 ms 대 0.85 ms). 이 시험에서 두 서버 모두 CPU가 한계였습니다.
+- 스트리밍 없는 요청: Go가 더 빠릅니다. 초당 1,568건을 처리해 horon-router의 1,168건보다 약 34% 많았고, 요청당 CPU도 더 적게 썼습니다(0.62 ms 대 0.85 ms). 이 시험에서 두 서버 모두 CPU가 한계였습니다.
 - 일반 스트림: Go가 앞섰습니다. 초당 916개 대 833개입니다.
-- 형식을 변환하는 스트림: 두 서버가 Anthropic과 OpenAI 형식을 서로 변환하는 messages-stream에서 hyper-router는 초당 793개를 처리해 Go의 564개보다 약 41% 많았습니다. 요청당 CPU도 더 적었고(1.25 ms 대 1.75 ms) p99 지연 시간도 더 낮았습니다(68 ms 대 115 ms).
-- 느린 스트림: 각각 약 1초씩 걸리는 스트림 256개를 열면 처리량은 업스트림이 정합니다. 두 서버 모두 따라갔고, hyper-router는 스트림당 CPU를 1.95 ms 썼습니다(Go는 2.9 ms).
-- 메모리: hyper-router는 유휴 상태에서 Go 메모리의 약 40%를 썼고(17.3 MB 대 44.7 MB), 부하 상태에서도 그랬습니다(25~27 MB 대 58~79 MB). 느린 스트림 256개를 열었을 때 최대치는 hyper-router가 50 MB, Go가 104 MB였습니다.
-- 시작 시간과 크기: hyper-router는 첫 요청에 17 ms(중앙값) 만에 응답했고 실행 파일 크기는 Go의 절반입니다.
+- 형식을 변환하는 스트림: 두 서버가 Anthropic과 OpenAI 형식을 서로 변환하는 messages-stream에서 horon-router는 초당 793개를 처리해 Go의 564개보다 약 41% 많았습니다. 요청당 CPU도 더 적었고(1.25 ms 대 1.75 ms) p99 지연 시간도 더 낮았습니다(68 ms 대 115 ms).
+- 느린 스트림: 각각 약 1초씩 걸리는 스트림 256개를 열면 처리량은 업스트림이 정합니다. 두 서버 모두 따라갔고, horon-router는 스트림당 CPU를 1.95 ms 썼습니다(Go는 2.9 ms).
+- 메모리: horon-router는 유휴 상태에서 Go 메모리의 약 40%를 썼고(17.3 MB 대 44.7 MB), 부하 상태에서도 그랬습니다(25~27 MB 대 58~79 MB). 느린 스트림 256개를 열었을 때 최대치는 horon-router가 50 MB, Go가 104 MB였습니다.
+- 시작 시간과 크기: horon-router는 첫 요청에 17 ms(중앙값) 만에 응답했고 실행 파일 크기는 Go의 절반입니다.
 
 어느 실행에서도 실패한 응답은 없었습니다.
 
 <a id="claude-soak-large-prompts-and-memory"></a>
 ## Claude 장시간 부하 시험: 큰 프롬프트와 메모리
 
-2026-10-04에 측정했습니다. Linux 장비(glibc, systemd 사용자 서비스)에서 큰 프롬프트를 쓰는 Claude 트래픽을 10시간 처리한 뒤 올라온 현장 보고가 계기였습니다. 동시 세션 몇 개로 스트리밍 `/v1/messages` 요청을 약 2,400건 처리한 hyper-router 0.1.1은 최대 `VmHWM` 840 MB를 찍은 뒤 상주 `VmRSS` 647 MB로 남았고, 그 대부분이 익명 메모리였습니다. 위 시나리오는 요청 크기가 1.7 KB라 이 현상을 보여 주지 못했습니다.
+2026-10-04에 측정했습니다. Linux 장비(glibc, systemd 사용자 서비스)에서 큰 프롬프트를 쓰는 Claude 트래픽을 10시간 처리한 뒤 올라온 현장 보고가 계기였습니다. 동시 세션 몇 개로 스트리밍 `/v1/messages` 요청을 약 2,400건 처리한 horon-router 0.1.1은 최대 `VmHWM` 840 MB를 찍은 뒤 상주 `VmRSS` 647 MB로 남았고, 그 대부분이 익명 메모리였습니다. 위 시나리오는 요청 크기가 1.7 KB라 이 현상을 보여 주지 못했습니다.
 
 <a id="setup-1"></a>
 ### 측정 환경
 
 - 가상 머신은 vCPU 8개(Intel Xeon 2.60 GHz)와 메모리 16 GB이고 Debian 12(glibc 2.36)에 Linux 6.1을 씁니다. 공유 장비라 같은 실행 파일도 실행마다 요청당 CPU가 25~37 ms로 다르게 측정됩니다. 그래서 두 서버는 한 세션 안에서 비교해야 합니다.
-- hyper-router는 `afe356b`(0.1.1 코드)의 master와 아래에서 설명하는 변경을 릴리스 프로파일로, rustc 1.99.0으로 빌드했습니다. CLIProxyAPI는 `6fecc6e`를 Go 1.26.4로 소스에서 빌드했습니다.
+- horon-router는 `afe356b`(0.1.1 코드)의 master와 아래에서 설명하는 변경을 릴리스 프로파일로, rustc 1.99.0으로 빌드했습니다. CLIProxyAPI는 `6fecc6e`를 Go 1.26.4로 소스에서 빌드했습니다.
 - [`bench/messages.sh`](../bench/messages.sh)는 루프백만 있는 네트워크 네임스페이스에서 실행합니다. [`bench/messages/`](../bench/messages)는 가짜 Claude 업스트림과 부하 생성기를 겸합니다(Go 표준 라이브러리만 사용). 두 서버 모두 `base-url`이 가짜 업스트림인 Claude API 키 하나를 씁니다. OAuth(비밀번호 없이 로그인하는 방식)로 로그인하면 두 서버가 `api.anthropic.com`에서 계정 프로필을 받아 와야 하는데, 이 환경에서는 그 주소에 닿을 수 없습니다. 그래서 Claude Code OAuth 경로(cloaking, 도구 이름 재매핑, 네이티브 TLS 클라이언트)는 다루지 않습니다.
 - 서버는 CPU 0~3에서 실행하고, 가짜 업스트림과 부하 생성기는 CPU 4~7에서 실행합니다. 실행마다 새 서버를 시작합니다.
 - 부하: 동시 세션 8개입니다. 세션마다 코딩 에이전트 대화가 커집니다. 18 KB 시스템 프롬프트와 도구 24개로 시작해, 어시스턴트 턴(서명이 붙은 thinking, 텍스트, `tool_use`)과 사용자 `tool_result`가 짝을 이룹니다. 대화는 100 KB에서 500 KB까지 25 KB씩 커지고, 그 뒤에 새 세션이 시작됩니다. 스트리밍 요청 3,000건, 평균 306 KB입니다. 업스트림은 요청 전체를 읽고 델타 이벤트 150개를 2 ms 간격으로 보냅니다(서명이 있는 thinking, 텍스트, `tool_use` 블록 순서). 0.37초 동안 약 43 KB의 SSE를 보내는 셈입니다.
@@ -135,9 +135,9 @@ hyper-router 실행 파일은 glibc와 libstdc++를 동적으로 연결하고 Bo
 
 ```sh
 bench/messages.sh /tmp/soak go /path/to/cli-proxy-api
-bench/messages.sh /tmp/soak rust target/release/hyperrouter
-bench/messages.sh /tmp/soak rust-arena2 target/release/hyperrouter MALLOC_ARENA_MAX=2
-MIN=1000000 MAX=3000000 STEP=100000 N=600 bench/messages.sh /tmp/soak large target/release/hyperrouter
+bench/messages.sh /tmp/soak rust target/release/horonrouter
+bench/messages.sh /tmp/soak rust-arena2 target/release/horonrouter MALLOC_ARENA_MAX=2
+MIN=1000000 MAX=3000000 STEP=100000 N=600 bench/messages.sh /tmp/soak large target/release/horonrouter
 ```
 
 <a id="what-was-found"></a>
@@ -177,18 +177,18 @@ CPU 수정과 큰 프롬프트 부하를 함께 적용하면 `MALLOC_ARENA_MAX=2
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Go | 1 | 115.1 | 80.4 | 63 | 18.9 | 43.7 / 94.8 | 416 / 558 |
 | Go | 2 | 107.6 | 81.6 | 58 | 19.5 | 39.2 / 85.7 | 406 / 459 |
-| hyper-router master | 1 | 65.7 | 49.9 | 110 | 16.4 | 100.6 / 234.0 | 482 / 615 |
-| hyper-router master | 2 | 66.7 | 45.3 | 90 | 17.6 | 82.5 / 192.0 | 449 / 561 |
-| hyper-router, 이번 변경 | 1 | 64.2 | 29.0 | 32 | 19.9 | 24.9 / 53.0 | 399 / 447 |
-| hyper-router, 이번 변경 | 2 | 63.4 | 29.0 | 31 | 20.0 | 22.7 / 55.8 | 393 / 522 |
+| horon-router master | 1 | 65.7 | 49.9 | 110 | 16.4 | 100.6 / 234.0 | 482 / 615 |
+| horon-router master | 2 | 66.7 | 45.3 | 90 | 17.6 | 82.5 / 192.0 | 449 / 561 |
+| horon-router, 이번 변경 | 1 | 64.2 | 29.0 | 32 | 19.9 | 24.9 / 53.0 | 399 / 447 |
+| horon-router, 이번 변경 | 2 | 63.4 | 29.0 | 31 | 20.0 | 22.7 / 55.8 | 393 / 522 |
 
 큰 프롬프트(1.9 MB 요청), 한 번 실행.
 
 | 서버 | 최대 RSS (MB) | 30초 후 RSS (MB) | 요청당 CPU ms | 초당 요청 수 | TTFB p50 / p99 (ms) | 전체 p50 / p99 (ms) |
 | --- | --- | --- | --- | --- | --- | --- |
 | Go | 263.9 | 183.5 | 225 | 13.2 | 241 / 418 | 593 / 773 |
-| hyper-router master | 232.1 | 157.7 | 551 | 7.1 | 732 / 1,841 | 1,057 / 2,062 |
-| hyper-router, 이번 변경 | 176.9 | 42.7 | 129 | 15.4 | 144 / 292 | 509 / 633 |
+| horon-router master | 232.1 | 157.7 | 551 | 7.1 | 732 / 1,841 | 1,057 / 2,062 |
+| horon-router, 이번 변경 | 176.9 | 42.7 | 129 | 15.4 | 144 / 292 | 509 / 633 |
 
 - 306 KB 요청에서 이번 변경은 요청당 CPU를 master의 약 3분의 1, Go의 절반만 씁니다. 첫 바이트까지 더하는 시간도 약 20 ms로, Go의 36~40 ms와 master의 79~97 ms보다 적습니다. 처리량(초당 20건)은 가짜 업스트림이 혼자 감당하는 21.4건에 가깝습니다.
 - 부하가 끝나고 30초 뒤에는 29 MB를 유지해 master의 45~50 MB, Go의 80~82 MB보다 적습니다. 최대 RSS는 거의 그대로입니다(63~64 MB 대 66~67 MB). 최대치는 처리 중인 요청이 만들고, 트림은 요청이 남긴 것만 커널로 돌려주기 때문입니다.
@@ -219,11 +219,11 @@ CPU 수정과 큰 프롬프트 부하를 함께 적용하면 `MALLOC_ARENA_MAX=2
 - [`bench/soak.sh`](../bench/soak.sh)를 `MIX=field`로, 루프백만 있는 네트워크 네임스페이스에서 실행합니다. [`bench/messages/`](../bench/messages)는 두 제공자의 가짜 업스트림과 부하 생성기를 겸합니다. 서버에는 `base-url`이 가짜 업스트림인 Claude API 키 하나와 Codex API 키 하나가 있습니다. 다른 출처의 Claude API 키는 OAuth 로그인과 마찬가지로 count_tokens를 로컬에서 셉니다.
 - 부하: 동시 세션 4개로, Claude 2개(스트리밍 `/v1/messages`, Claude 장시간 부하 시험과 같은 형태)와 Codex 2개(Codex 실행기를 거쳐 `gpt-5.5`용 스트리밍 `/v1/responses`. 18 KB 지시문, 함수 도구 24개, 그다음 암호화된 내용이 담긴 추론 항목과 함수 호출 및 그 출력)입니다. 대화마다 200 KB에서 2 MB까지 100 KB씩 커지고 그다음 새 대화가 시작됩니다. 요청 크기는 평균 1,019~1,028 KB였습니다. Claude 턴 네 번마다 한 번은 같은 본문을 `/v1/messages/count_tokens`로 보내는데, Claude 모델과 `gpt-5.5`에 번갈아 보냅니다(Claude 클라이언트가 Codex 모델의 토큰을 세는 경우). 가짜 업스트림은 요청 전체를 읽고 두 제공자 모두에 이벤트 150개를 2 ms 간격으로 보내며, 마지막은 도구 호출입니다.
 - 한 묶음은 턴 160개입니다(count_tokens 호출을 포함하면 약 178개 요청). 묶음마다 서버를 20초 쉬게 하고 `VmRSS`를 읽는데, 이것이 휴지 상태 바닥값입니다. `VmRSS`, `VmHWM`, 스레드, CPU 틱, 컨텍스트 스위치도 10초마다 표본으로 잽니다. 60분 부하 뒤에는 서버를 300초 유휴 상태로 두고, 그다음 30초 동안 컨텍스트 스위치를 세는데 `bench/idle.sh`가 세는 방식과 같습니다.
-- 빌드: 0.1.2와 0.2.0 릴리스 실행 파일(`hyperrouter-<version>-x86_64-unknown-linux-gnu.tar.gz`, 각 릴리스의 `SHA256SUMS`와 대조)과 이번 변경을 러너에서 rustc 1.99.0으로 빌드했습니다. 각각 GitHub가 제공하는 Ubuntu 22.04 러너(vCPU 4개라 0.1.2는 요청 스레드를 4개 띄우고 나머지 둘은 2개를 띄웁니다)에서 `soak.yml`의 `releases` 입력으로 셋이 동시에 돌았습니다. 여기서 MB는 `/proc`가 보고하는 값 기준으로 1,024 kB입니다.
+- 빌드: 0.1.2와 0.2.0 릴리스 실행 파일(`horonrouter-<version>-x86_64-unknown-linux-gnu.tar.gz`, 각 릴리스의 `SHA256SUMS`와 대조)과 이번 변경을 러너에서 rustc 1.99.0으로 빌드했습니다. 각각 GitHub가 제공하는 Ubuntu 22.04 러너(vCPU 4개라 0.1.2는 요청 스레드를 4개 띄우고 나머지 둘은 2개를 띄웁니다)에서 `soak.yml`의 `releases` 입력으로 셋이 동시에 돌았습니다. 여기서 MB는 `/proc`가 보고하는 값 기준으로 1,024 kB입니다.
 - 이 절의 실행들은 가짜 업스트림의 이전 버전을 썼습니다. 그 버전은 도구 호출 조각을 JSON으로 합치지 않았고(Codex는 완성된 인자로도 합치지 않았습니다), 당시 부하 생성기는 이를 검사하지 않았습니다. 지금은 검사합니다. 고친 가짜 업스트림으로 같은 실행 파일을 재보니 값이 같았습니다. 결과 항목에서 설명하는 2 vCPU 장비에서 두 버전을 번갈아(각 10분, 각 2회, `vm2-mock-check-10min`) 돌렸을 때 최대 RSS는 159.5, 155.4 MB 대 159.2, 163.8 MB였고, 휴지 `RssAnon`은 53.0~67.1, 52.8~66.9 MB 대 52.1~66.4, 53.6~66.8 MB였으며, 요청당 CPU는 42.2, 41.7 ms 대 41.9, 41.2 ms였습니다. 네 번 모두 장시간 부하 시험의 게이트를 통과했습니다. 아래 숫자는 측정한 값 그대로입니다.
 
 ```sh
-MIX=field bench/soak.sh target/release/hyperrouter 60 /tmp/soak-field
+MIX=field bench/soak.sh target/release/horonrouter 60 /tmp/soak-field
 ```
 
 <a id="results-2"></a>
@@ -289,7 +289,7 @@ MIX=field bench/soak.sh target/release/hyperrouter 60 /tmp/soak-field
 <a id="claude-latency-time-added-before-the-first-byte"></a>
 ## Claude 지연 시간: 첫 바이트 전에 더해지는 시간
 
-2026-10-05에 측정했습니다. hyper-router가 스트리밍 `/v1/messages` 요청을 붙잡고 있다가 첫 바이트가 업스트림에 닿기까지, 그리고 첫 응답 바이트가 클라이언트에 닿기까지 걸리는 시간을 Claude Code OAuth 경로(cloaking과 네이티브 TLS 클라이언트)와 Claude API 키 경로에서 쟀습니다. 프로세스 최대 메모리도 함께 적었습니다.
+2026-10-05에 측정했습니다. horon-router가 스트리밍 `/v1/messages` 요청을 붙잡고 있다가 첫 바이트가 업스트림에 닿기까지, 그리고 첫 응답 바이트가 클라이언트에 닿기까지 걸리는 시간을 Claude Code OAuth 경로(cloaking과 네이티브 TLS 클라이언트)와 Claude API 키 경로에서 쟀습니다. 프로세스 최대 메모리도 함께 적었습니다.
 
 <a id="setup-3"></a>
 ### 측정 환경
@@ -408,13 +408,13 @@ N=200 SIZES=300000 CONC=8 bench/latency.sh /tmp/latency.jsonl
 ### 측정 환경
 
 - 가상 머신은 vCPU 4개(Intel Xeon 2.60 GHz)와 메모리 7.8 GB이고 Debian 12(glibc 2.36)에 Linux 6.1을 씁니다.
-- hyper-router master는 `1849512`이고, 비교 대상은 폴링 반복문을 파일 변경 알림과 기한 타이머로 바꾸고 요청 스레드를 기본 2개로 시작하는 변경입니다. 둘 다 그 장비에서 rustc 1.99.0으로 만든 릴리스 빌드입니다.
+- horon-router master는 `1849512`이고, 비교 대상은 폴링 반복문을 파일 변경 알림과 기한 타이머로 바꾸고 요청 스레드를 기본 2개로 시작하는 변경입니다. 둘 다 그 장비에서 rustc 1.99.0으로 만든 릴리스 빌드입니다.
 - [`bench/idle.sh`](../bench/idle.sh)는 각 서버를 루프백만 있는 네트워크 네임스페이스에서 실행합니다. OpenAI 호환 API 키 하나, 클라이언트 키 하나, 30일 동안 유효한 토큰을 담은 Claude 인증 파일 1개 또는 2,000개를 두는데, 갱신할 때가 된 파일은 없습니다. `-local-model`을 주지 않아 시작할 때 카탈로그 내려받기를 시도합니다(네트워크가 없어 곧바로 실패합니다).
 - 요청 없이 30초를 예열한 뒤 다음 30초 동안 값을 모읍니다. 예열은 시작 힙 트림(시작 후 5~10초, 블로킹 풀에서 실행)과 풀의 10초 keep-alive보다 깁니다. `/proc/<pid>/task/*/status`에서 그 30초 동안 살아 있는 스레드의 컨텍스트 스위치를 모두 더하고(하나하나가 스레드가 깨어난 횟수입니다), CPU 틱(1/100초), 양끝의 스레드 수, `VmRSS`를 읽습니다. 측정 구간 안에서 스레드가 종료되면 그 스레드의 웨이크업을 세지 못하므로 실행을 실패로 처리합니다.
 
 ```sh
-bench/idle.sh target/release/hyperrouter 1 30
-bench/idle.sh target/release/hyperrouter 2000 30
+bench/idle.sh target/release/horonrouter 1 30
+bench/idle.sh target/release/horonrouter 2000 30
 ```
 
 <a id="results-4"></a>
@@ -439,12 +439,12 @@ bench/idle.sh target/release/hyperrouter 2000 30
 <a id="against-go-idle"></a>
 ### Go와 비교, 유휴 상태
 
-[`idle.yml`](../.github/workflows/idle.yml)의 `go-comparison` 작업은 GitHub가 제공하는 Ubuntu 22.04 러너에서 CLIProxyAPI v8.0.10(릴리스 실행 파일)과 hyper-router에 `bench/idle.sh`를 같은 설정으로 돌립니다. OpenAI 호환 API 키 하나만 있고 인증 파일은 없습니다. 각각 30초 예열한 뒤 300초 동안 표본을 모읍니다. 2026-10-05에 두 번 실행했고, hyper-router에는 위의 변경을 넣었습니다.
+[`idle.yml`](../.github/workflows/idle.yml)의 `go-comparison` 작업은 GitHub가 제공하는 Ubuntu 22.04 러너에서 CLIProxyAPI v8.0.10(릴리스 실행 파일)과 horon-router에 `bench/idle.sh`를 같은 설정으로 돌립니다. OpenAI 호환 API 키 하나만 있고 인증 파일은 없습니다. 각각 30초 예열한 뒤 300초 동안 표본을 모읍니다. 2026-10-05에 두 번 실행했고, horon-router에는 위의 변경을 넣었습니다.
 
 | 서버 | 분당 웨이크업 | 시간당 CPU ms | 스레드 | RSS (MB) |
 | --- | --- | --- | --- | --- |
 | CLIProxyAPI v8.0.10 | 7.6 and 7.2 | 120 and 120 | 9 | 46.1 and 46.0 |
-| hyper-router | 0 and 0 | 0 and 0 | 3 | 21.9 and 21.5 |
+| horon-router | 0 and 0 | 0 and 0 | 3 | 21.9 and 21.5 |
 
 CPU 시간은 10 ms 클럭 틱으로 읽으므로, Go의 값은 각 실행에서 5분에 한 틱입니다. 주간 작업은 이 숫자를 요약에 올립니다.
 
@@ -454,7 +454,7 @@ CPU 시간은 10 ms 클럭 틱으로 읽으므로, Go의 값은 각 실행에서
 같은 장비와 빌드에 `bench/messages.sh`를 씁니다(Claude 장시간 부하 시험 부하: 100~500 KB 스트리밍 요청을 세션 8개로 보내고 실행마다 요청 1,200건). 서버와 부하가 vCPU 4개를 모두 함께 쓰므로 master는 요청 스레드를 4개, 이번 변경은 2개로 시작합니다. 각각 두 번씩 번갈아 실행했습니다.
 
 ```sh
-N=1200 C=8 SERVER_CPUS=0-3 LOAD_CPUS=0-3 bench/messages.sh /tmp/soak rust target/release/hyperrouter
+N=1200 C=8 SERVER_CPUS=0-3 LOAD_CPUS=0-3 bench/messages.sh /tmp/soak rust target/release/horonrouter
 ```
 
 | 서버 | 회차 | 최대 RSS (MB) | 30초 후 RSS (MB) | CPU 초 | 초당 요청 수 | TTFB p50 / p99 (ms) |
@@ -482,8 +482,8 @@ N=1200 C=8 SERVER_CPUS=0-3 LOAD_CPUS=0-3 bench/messages.sh /tmp/soak rust target
 | 유휴 메모리 | 13.8 MB | 14.8 MB | 17.4 MB | 17.3 MB | 44.6 / 45.1 / 44.1 / 44.7 MB |
 | 실행 파일 | 29.6 MB | 33.0 MB | 35.9 MB | 35.9 MB | 69.1 MB |
 
-- 1회차: hyper-router가 아직 클라이언트 연결에 `TCP_NODELAY`를 설정하지 않아(Go는 모든 연결에 설정합니다), 작은 SSE 쓰기가 매번 클라이언트의 확인을 기다렸습니다. 그래서 빠른 스트리밍 시험은 CPU가 아니라 지연 시간이 한계였습니다.
-- 2회차: `TCP_NODELAY`를 설정했고, hyper-router는 아직 액세스 로그를 쓰지 않았습니다.
-- 3회차와 0.1.0: hyper-router가 Go와 같은 액세스 로그를 쓰고, 요청 기록 수집이 연결되었으며(이 설정에서는 꺼져 있음) 사용량 보고가 Go의 계약을 따릅니다. 2회차 이후로 스트리밍 없는 요청에서 Go의 우위가 약 20%에서 34~42%로 커졌습니다.
+- 1회차: horon-router가 아직 클라이언트 연결에 `TCP_NODELAY`를 설정하지 않아(Go는 모든 연결에 설정합니다), 작은 SSE 쓰기가 매번 클라이언트의 확인을 기다렸습니다. 그래서 빠른 스트리밍 시험은 CPU가 아니라 지연 시간이 한계였습니다.
+- 2회차: `TCP_NODELAY`를 설정했고, horon-router는 아직 액세스 로그를 쓰지 않았습니다.
+- 3회차와 0.1.0: horon-router가 Go와 같은 액세스 로그를 쓰고, 요청 기록 수집이 연결되었으며(이 설정에서는 꺼져 있음) 사용량 보고가 Go의 계약을 따릅니다. 2회차 이후로 스트리밍 없는 요청에서 Go의 우위가 약 20%에서 34~42%로 커졌습니다.
 
 원시 결과: [`bench/results/`](../bench/results).

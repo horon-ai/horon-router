@@ -144,7 +144,7 @@ try {
   browser("screenshot", `${output}/rust-dashboard-narrow.png`, "--full");
   const storage = evaluate("({local:Object.keys(localStorage),session:Object.keys(sessionStorage)})");
   assert.deepEqual(storage.session, []);
-  assert.ok(storage.local.every((k) => ["hyperrouter-theme", "hyperrouter-lang"].includes(k)));
+  assert.ok(storage.local.every((k) => ["horonrouter-theme", "horonrouter-lang"].includes(k)));
   console.log("PASS 390px Chromium: no overflow; management key absent from storage");
   writeFileSync(`${output}/rust-dashboard-checks.json`, JSON.stringify(results, null, 2));
 } finally {

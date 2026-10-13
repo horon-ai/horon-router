@@ -351,7 +351,7 @@ async fn usage_records_match_go() {
 async fn deeply_nested_body_skips_prefix_matching() {
     let seen = Arc::new(Seen::default());
     let up = serve(axum::Router::new().fallback(upstream).with_state(seen.clone())).await;
-    // A private auth-dir: without one, credential loading reads the real ~/.hyper-router.
+    // A private auth-dir: without one, credential loading reads the real ~/.horon-router.
     let auth_dir = std::env::temp_dir().join(format!("cpa-gemini-deep-auths-{}", std::process::id()));
     std::fs::create_dir_all(&auth_dir).unwrap();
     let config = Config::parse(&format!(

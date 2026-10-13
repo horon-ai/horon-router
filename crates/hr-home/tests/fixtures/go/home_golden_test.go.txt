@@ -1,6 +1,6 @@
 package home
 
-// Golden generator for hyper-router. Run with RUST_GOLDEN=<file> go test -run TestRustGolden ./internal/home/
+// Golden generator for horon-router. Run with RUST_GOLDEN=<file> go test -run TestRustGolden ./internal/home/
 
 import (
 	"context"

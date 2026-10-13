@@ -87,7 +87,7 @@ for old, family in re.findall(r'\{"([^"]+)", "([^"]+)"\}', families):
         group["fields"]["keys"] = {"list": key}
     put("api-keys." + family, {"list": group})
 schema["fields"]["config-version"] = "version"
-# hyper-router additions (docs/DIFFERENCES-FROM-GO.md). Go starts with them and ignores
+# horon-router additions (docs/DIFFERENCES-FROM-GO.md). Go starts with them and ignores
 # them; a config edit through its v8 Management API moves them into comments.
 put("oauth.providers.codex.chatgpt-keep-alive", "bool")
 put("routing.cooldown.max-trusted-cooldown", "string")

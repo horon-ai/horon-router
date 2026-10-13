@@ -39,7 +39,7 @@ boundary (the reference checkout is not modified):
 
 ```sh
 reference=/absolute/path/to/CLIProxyAPI   # at 6fecc6e
-crate=/absolute/path/to/hyper-router/crates/hr-exec
+crate=/absolute/path/to/horon-router/crates/hr-exec
 tmp=$(mktemp -d)
 cp "$crate"/tests/reference/gemini/*.go "$tmp/"
 (

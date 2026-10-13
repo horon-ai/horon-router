@@ -90,7 +90,7 @@ pub struct Options {
     pub management_password: Option<String>,
     /// Overrides [`observability::LATEST_RELEASE_URL`] (tests point it at a local server).
     pub latest_release_url: Option<String>,
-    /// Overrides HYPERROUTER_NO_UPDATE_CHECK (tests only).
+    /// Overrides HORONROUTER_NO_UPDATE_CHECK (tests only).
     pub update_check_disabled: Option<bool>,
     /// One local base URL for every provider's login endpoints (tests only).
     pub login_base: Option<String>,
@@ -102,7 +102,7 @@ pub struct Options {
     /// Parses log line timestamps in this zone instead of the local one (tests only).
     pub log_zone: Option<chrono::FixedOffset>,
     /// Scans this directory for credentials on every reload instead of the config's
-    /// auth-dir, so a config without one never reads the default `~/.hyper-router`
+    /// auth-dir, so a config without one never reads the default `~/.horon-router`
     /// (tests only). A configured store still wins.
     pub auth_dir: Option<PathBuf>,
     /// The only plugin store registry (Go `pluginStoreRegistryURL`; tests only).
@@ -146,7 +146,7 @@ impl Management {
             .unwrap_or(std::borrow::Cow::Borrowed(observability::LATEST_RELEASE_URL));
         let update_check_disabled = options
             .update_check_disabled
-            .unwrap_or_else(|| std::env::var("HYPERROUTER_NO_UPDATE_CHECK").is_ok_and(|v| v == "1"));
+            .unwrap_or_else(|| std::env::var("HORONROUTER_NO_UPDATE_CHECK").is_ok_and(|v| v == "1"));
         let login_base = options.login_base.clone();
         let log_dir = options
             .log_dir

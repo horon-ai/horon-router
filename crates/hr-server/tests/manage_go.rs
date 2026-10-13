@@ -259,7 +259,7 @@ fn trusted_proxy_validation_errors_match_go_text() {
     }
 }
 
-/// Go records OAuth-only fields by legacy name; hyper-router by v8 path. Go's prefix
+/// Go records OAuth-only fields by legacy name; horon-router by v8 path. Go's prefix
 /// table for `oauth.providers` (internal/config/config_v8.go buildV8Paths) maps them.
 #[test]
 fn oauth_only_presence_matches_go() {
@@ -537,7 +537,7 @@ mod routes {
             let path = dir.join("config.yaml");
             let write = |yaml: &str| std::fs::write(&path, yaml.replace("$HASH", &hash)).unwrap();
             write(scenario["yaml"].as_str().unwrap());
-            // The fixtures set no auth-dir; never fall back to the real ~/.hyper-router.
+            // The fixtures set no auth-dir; never fall back to the real ~/.horon-router.
             let auth = dir.join("auth");
             let mut cfg = Config::load(&path).unwrap();
             cfg.auth_dir = auth.clone();
@@ -641,7 +641,7 @@ mod config_writes {
         }
     }
 
-    /// Go's saver adds default-valued keys to every PUT/PATCH; hyper-router deliberately
+    /// Go's saver adds default-valued keys to every PUT/PATCH; horon-router deliberately
     /// writes only what the request changed (untouched text stays byte-stable). So
     /// `rust` must equal `go` except for keys Go added whose values are exactly Go's
     /// materialized defaults at that path.
@@ -700,7 +700,7 @@ mod config_writes {
 
     /// Typed scalars as Go loads them (YAML 1.1 bools, truncated floats), and null
     /// plugin entries as the `{}` Go's saver writes. Go re-encodes these on its first
-    /// write; hyper-router keeps untouched text as written, so files compare by what
+    /// write; horon-router keeps untouched text as written, so files compare by what
     /// they load as.
     fn typed_bools(v: &Value) -> Value {
         let mut yaml = serde_yaml_ng::to_value(v).unwrap();
@@ -743,7 +743,7 @@ mod config_writes {
             std::fs::create_dir_all(&dir).unwrap();
             let path = dir.join("config.yaml");
             std::fs::write(&path, scenario["yaml"].as_str().unwrap().replace("$HASH", &hash)).unwrap();
-            // The fixtures set no auth-dir; never fall back to the real ~/.hyper-router.
+            // The fixtures set no auth-dir; never fall back to the real ~/.horon-router.
             let auth = dir.join("auth");
             let mut cfg = Config::load(&path).unwrap();
             cfg.auth_dir = auth.clone();
@@ -1133,7 +1133,7 @@ mod creds {
                     }
                     // Go's harness registers models only for runtime credentials (as its
                     // service does on connect), so the cooldown-reset fallback list of a
-                    // file credential is empty there; hyper-router reports the credential's
+                    // file credential is empty there; horon-router reports the credential's
                     // registrations (none here: the credential is disabled by this step).
                     if step["path"] == "/routing/cooldown/reset" && status == 200 && scenario["runtime_auths"].is_null()
                     {

@@ -15,8 +15,8 @@ use super::auth_files::{Query, auth_kind, fail, recent_requests, reply};
 use super::{Management, json as respond};
 
 /// Public redirect endpoint, not the authenticated GitHub API.
-pub const LATEST_RELEASE_URL: &str = "https://github.com/alpoxdev/hyper-router/releases/latest";
-const LATEST_RELEASE_USER_AGENT: &str = "hyper-router";
+pub const LATEST_RELEASE_URL: &str = "https://github.com/alpoxdev/horon-router/releases/latest";
+const LATEST_RELEASE_USER_AGENT: &str = "horon-router";
 const RELEASE_CACHE_TTL: Duration = Duration::from_secs(12 * 60 * 60);
 
 /// Explicit checks only. One HEAD, no redirects, cookies or GitHub/store tokens.
@@ -29,7 +29,7 @@ pub(crate) async fn latest_version(State(state): State<Arc<Management>>) -> Resp
                 ("error", "update_check_disabled".into()),
                 (
                     "message",
-                    "Update checks are disabled by HYPERROUTER_NO_UPDATE_CHECK=1.".into(),
+                    "Update checks are disabled by HORONROUTER_NO_UPDATE_CHECK=1.".into(),
                 ),
             ],
         );
@@ -76,7 +76,7 @@ pub(crate) async fn latest_version(State(state): State<Arc<Management>>) -> Resp
         .headers()
         .get("location")
         .and_then(|v| v.to_str().ok())
-        .and_then(|v| v.strip_prefix("https://github.com/alpoxdev/hyper-router/releases/tag/"))
+        .and_then(|v| v.strip_prefix("https://github.com/alpoxdev/horon-router/releases/tag/"))
         .filter(|v| {
             !v.is_empty() && v.len() <= 128 && v.bytes().all(|b| b.is_ascii_alphanumeric() || b".-_".contains(&b))
         });

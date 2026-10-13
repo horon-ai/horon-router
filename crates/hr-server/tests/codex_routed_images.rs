@@ -39,7 +39,7 @@ fn codex(id: &str, token: &str, plan: &str, priority: &str, base_url: &str) -> C
 }
 
 /// A private, empty `auth-dir`, removed when dropped: credential loading never falls back
-/// to `~/.hyper-router`.
+/// to `~/.horon-router`.
 struct AuthDir(std::path::PathBuf);
 
 impl AuthDir {

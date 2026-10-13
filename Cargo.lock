@@ -1704,7 +1704,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "hyperrouter"
+name = "horonrouter"
 version = "0.2.2"
 dependencies = [
  "anyhow",

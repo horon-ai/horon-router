@@ -130,7 +130,7 @@ struct Conductor {
 }
 
 /// A private, empty `auth-dir`, removed when dropped: credential loading never falls back
-/// to `~/.hyper-router`.
+/// to `~/.horon-router`.
 struct AuthDir(std::path::PathBuf);
 
 impl AuthDir {
