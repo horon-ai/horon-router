@@ -19,6 +19,7 @@ export function Models() {
   const [channel, setChannel] = useState("claude");
   const [alias, setAlias] = useState({ name: "", alias: "", fork: false });
   const [pattern, setPattern] = useState("");
+  const [addOpen, setAddOpen] = useState(false);
   const aliases = readPath(config.data || {}, `oauth/model-alias/${channel}`, []) as Data[];
   const excluded = readPath(config.data || {}, `oauth/excluded-models/${channel}`, []) as string[];
   const catalog = useQuery({
@@ -34,7 +35,7 @@ export function Models() {
       return;
     }
     void session.act(() => replace(`oauth/model-alias/${channel}`, aliases, [...aliases, next]), t("md.aliasAdded"))
-      .then((ok) => ok && setAlias({ name: "", alias: "", fork: false }));
+      .then((ok) => { if (ok) { setAlias({ name: "", alias: "", fork: false }); setAddOpen(false); } });
   }
   function exclude(event: React.SubmitEvent) {
     event.preventDefault();
@@ -55,36 +56,42 @@ export function Models() {
     </div>
     <Load res={config} what={t("what.modelSettings")}>{() =>
       <div className="models-cols">
-        <section className="section window">
-          <div className="section-head"><h2>{t("md.aliases")}</h2><span className="legend">{t("md.aliasHelp")}</span></div>
-          {aliases.length ? <ul className="list">{aliases.map((item, i) =>
+        <section className="section">
+          <div className="section-head"><h2>{t("md.aliases")}</h2>
+            <span className="legend">{t("md.aliasHelp")}</span>
+            <Button aria-expanded={addOpen} onClick={() => setAddOpen(!addOpen)}>
+              <svg className="i" aria-hidden="true"><use href="#i-plus" /></svg>{t("common.add")}</Button>
+          </div>
+          {aliases.length ? <ul className="list window">{aliases.map((item, i) =>
             <li className="item" key={i}>
-              <code>{item.name}</code><svg className="i" width="14" height="14" aria-hidden="true"><use href="#i-chevron" /></svg>
-              <code className="grow">{item.alias}</code>
+              <code>{item.alias}</code><svg className="i" width="14" height="14" aria-hidden="true"><use href="#i-chevron" /></svg>
+              <code className="grow">{item.name}</code>
               {item.fork && <span className="legend">{t("md.keepsOriginal")}</span>}
-              <Button variant="danger" size="small" className="quiet" disabled={state.busy}
+              <Button variant="quiet" size="round" aria-label={t("common.remove")} disabled={state.busy}
                 onClick={() => void session.act(() => replace(`oauth/model-alias/${channel}`,
-                  aliases, aliases.filter((_, n) => n !== i)), t("md.aliasRemoved"))}>{t("common.remove")}</Button>
+                  aliases, aliases.filter((_, n) => n !== i)), t("md.aliasRemoved"))}>
+                <svg className="i" aria-hidden="true"><use href="#i-close" /></svg></Button>
             </li>)}</ul> : <p className="muted">{t("md.noAliases")}</p>}
-          <form className="form" onSubmit={addAlias}>
+          {addOpen && <form className="form window" onSubmit={addAlias}>
             <label className="field">{t("md.upstream")}<Input list="defs" required value={alias.name}
               onChange={(e) => setAlias({ ...alias, name: e.target.value })} /></label>
             <label className="field">{t("md.alias")}<Input required value={alias.alias}
               onChange={(e) => setAlias({ ...alias, alias: e.target.value })} /></label>
             <label className="check"><input type="checkbox" checked={alias.fork}
               onChange={(e) => setAlias({ ...alias, fork: e.target.checked })} />{t("md.keepOriginal")}</label>
-            <Button type="submit" disabled={state.busy}>
+            <Button type="submit" variant="primary" disabled={state.busy}>
               <svg className="i" aria-hidden="true"><use href="#i-plus" /></svg>{t("md.addAlias")}</Button>
-          </form>
+          </form>}
         </section>
-        <section className="section window">
-          <div className="section-head"><h2>{t("md.excluded")}</h2><span className="legend">{t("md.excludedHelp")}</span></div>
+        <section className="section">
+          <div className="section-head"><h2>{t("md.excluded")}</h2></div>
           <div className="chips">{excluded.length ? excluded.map((item, i) =>
             <span className="chip" key={i}>{item}<button aria-label={t("md.allow", { name: item })}
               disabled={state.busy} onClick={() => void session.act(() =>
                 replace(`oauth/excluded-models/${channel}`, excluded, excluded.filter((_, n) => n !== i)))}>
               <svg className="i" width="12" height="12" aria-hidden="true"><use href="#i-close" /></svg>
             </button></span>) : <span className="muted">{t("md.all")}</span>}</div>
+          <p className="legend">{t("md.excludedHelp")}</p>
           <form className="form" onSubmit={exclude}>
             <label className="field">{t("md.pattern")}<Input required value={pattern} placeholder="*-preview"
               onChange={(e) => setPattern(e.target.value)} /></label>

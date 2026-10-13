@@ -20,6 +20,7 @@ export function Logs() {
   const pane = useRef<HTMLDivElement>(null);
   const lines = useRef<string[]>([]);
   const [query, setQuery] = useState("");
+  const [view, setView] = useState<"all" | "errors">("all");
   const [tail, setTail] = useState(true);
   const [own, setOwn] = useState(false);
   const [visible, setVisible] = useState(!document.hidden);
@@ -55,35 +56,56 @@ export function Logs() {
     const id = pathname.match(/^\/logs\/([^/?]+)/)?.[1];
     if (id) void inspect(decodeURIComponent(id));
   }, [pathname]);
-  const shown = (logs.data || []).filter((line) => (own || !line.includes("/management/")) && line.toLowerCase().includes(query.trim().toLowerCase()));
   const parse = (line: string) => line.match(/^\[([^\]]*)\] \[([^\]]*)\] \[(\w+)\s*\] (?:\[[^\]]*\] )?(.*)$/);
+  const shown = (logs.data || []).filter((line) => {
+    const level = parse(line)?.[3].toLowerCase() || "";
+    if (view === "errors" && !/^(warn|error|fatal)$/.test(level)) return false;
+    if (!own && line.includes("/management/")) return false;
+    return line.toLowerCase().includes(query.trim().toLowerCase());
+  });
   return <>
     <div className="page-head">
       <div className="page-head-copy">
         <h1>{t("lg.title")}</h1>
         <p className="page-sub">{t("lg.sub")}</p>
       </div>
-      <Button disabled={!session.can("GET", "/observability/logs")} aria-pressed={tail} onClick={() => setTail(!tail)}>
-        <span className={`lamp ${tail ? "ok live" : "off"}`} />{tail ? t("lg.following") : t("lg.paused")}</Button>
-      <Button variant="danger" className="quiet" disabled={state.busy || !session.can("DELETE", "/observability/logs")}
-        onClick={() => void session.call("DELETE", "/observability/logs", undefined, t("lg.cleared"), t("lg.clearAsk"), async () => {
-          cursor.current = ""; lines.current = []; await logs.refetch();
-        })}>{t("lg.clear")}</Button>
     </div>
-    <Load res={logs} what={t("what.logs")}>{(all) => <section className="section">
-      <div className="row"><label className="search grow"><svg className="i" aria-hidden="true"><use href="#i-search" /></svg><span className="sr">{t("lg.filter")}</span>
-        <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("lg.filter")} /></label>
-        <label className="check"><input type="checkbox" checked={own} onChange={(e) => setOwn(e.target.checked)} />{t("lg.mgmt")}</label></div>
-      <div className="code-window log" ref={pane} role="log" aria-label={t("lg.log")} tabIndex={0}>
-        {shown.map((line, i) => { const m = parse(line); return m
-          ? <div className={m[3].toLowerCase()} key={i}><span className="t">{m[1].slice(11)}</span>
-              {/[^-]/.test(m[2]) ? <Link className="t" to="/logs/$id" params={{ id: m[2] }} activeProps={{}}>{m[2]}</Link> : <span className="t">{m[2]}</span>}
-              <span className="lvl">{m[3]}</span>{m[4]}</div>
-          : <div key={i}>{line}</div>; })}
-        {!shown.length && <div className="muted">{query ? t("lg.noMatch") : all.length ? "" : t("lg.empty")}</div>}
+    <section className="section">
+      <div className="row">
+        <div className="seg" role="group" aria-label={t("lg.log")}>
+          <button aria-pressed={view === "all"} onClick={() => setView("all")}>{t("lg.all")}</button>
+          <button aria-pressed={view === "errors"} onClick={() => setView("errors")}>{t("lg.tabErrors")}</button>
+        </div>
+        <span className="grow" />
+        <Button variant="danger" className="quiet" disabled={state.busy || !session.can("DELETE", "/observability/logs")}
+          onClick={() => void session.call("DELETE", "/observability/logs", undefined, t("lg.cleared"), t("lg.clearAsk"), async () => {
+            cursor.current = ""; lines.current = []; await logs.refetch();
+          })}>{t("lg.clear")}</Button>
       </div>
-      <p className="legend">{t("lg.count", { shown: shown.length.toLocaleString(), total: all.length.toLocaleString(), max: MAX.toLocaleString() })}</p>
-    </section>}</Load>
+      <div className="row">
+        <label className="search grow"><svg className="i" aria-hidden="true"><use href="#i-search" /></svg><span className="sr">{t("lg.filter")}</span>
+          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("lg.filter")} /></label>
+        <label className="check"><input type="checkbox" checked={own} onChange={(e) => setOwn(e.target.checked)} />{t("lg.mgmt")}</label>
+      </div>
+      <Load res={logs} what={t("what.logs")}>{(all) => <>
+        <div className="window">
+          <div className="section-head">
+            <h2 className="mono grow">observability.logs</h2>
+            <Button variant="quiet" size="small" aria-pressed={tail} disabled={!session.can("GET", "/observability/logs")}
+              onClick={() => setTail(!tail)}><span className={`lamp ${tail ? "ok live" : "off"}`} />{tail ? t("lg.live") : t("lg.paused")}</Button>
+          </div>
+          <div className="code-window log" ref={pane} role="log" aria-label={t("lg.log")} tabIndex={0}>
+            {shown.map((line, i) => { const m = parse(line); return m
+              ? <div className={m[3].toLowerCase()} key={i}><span className="t">{m[1].slice(11)}</span>
+                  {/[^-]/.test(m[2]) ? <Link className="t" to="/logs/$id" params={{ id: m[2] }} activeProps={{}}>{m[2]}</Link> : <span className="t">{m[2]}</span>}
+                  <span className="lvl">{m[3]}</span>{m[4]}</div>
+              : <div key={i}>{line}</div>; })}
+            {!shown.length && <div className="muted">{query ? t("lg.noMatch") : all.length ? "" : t("lg.empty")}</div>}
+          </div>
+        </div>
+        <p className="legend">{t("lg.count", { shown: shown.length.toLocaleString(), total: all.length.toLocaleString(), max: MAX.toLocaleString() })}</p>
+      </>}</Load>
+    </section>
     <section className="section window"><h2>{t("lg.request")}</h2>
       <form className="form" onSubmit={(e) => { e.preventDefault(); const id = reqId.trim(); if (currentId === id) void inspect(id); else void navigate({ to: "/logs/$id", params: { id } }); }}>
         <label className="field">{t("lg.reqId")}<Input required value={reqId} onChange={(e) => setReqId(e.target.value)} placeholder={t("lg.reqPh")} /></label>

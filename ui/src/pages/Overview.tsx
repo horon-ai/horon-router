@@ -84,8 +84,9 @@ export function Overview() {
       to: "/connect", action: t("ov.connect") },
     keys.length
       ? { done: !!served || flag.get("start-tool") === "1", title: t("start.s2.title"),
-          text: t("start.s2.text"), to: "/keys", action: t("start.s2.action") }
-      : { done: false, title: t("start.s2.title"), text: t("start.s2.textNoKey"),
+          text: t("start.s2.text"), to: "/keys", action: t("start.s2.create") }
+      : { done: false, title: t("start.s2.title"),
+          text: t("start.s2.text"),
           run: () => void createKey(), action: t("start.s2.create") },
     { done: !!served || tested, title: t("start.s3.title"), text: t("start.s3.text"),
       run: () => void test(), action: t("start.s3.action"), off: !keys.length },
@@ -141,10 +142,12 @@ export function Overview() {
                 </span>
               : !step.done && <small>{step.text}</small>}
           </span>
-          {!step.done && (step.to
-            ? <Link className={`key small ${i === next ? "primary" : ""}`} to={step.to} activeProps={{}}>{step.action}</Link>
-            : <Button size="small" variant={i === next ? "primary" : "default"}
-                disabled={state.busy || step.off} onClick={step.run}>{step.action}</Button>)}
+          {step.done
+            ? i === 0 && <span className="legend">{t("cn.ok")}</span>
+            : step.to
+              ? <Link className={`key small ${i === next ? "primary" : ""}`} to={step.to} activeProps={{}}>{step.action}</Link>
+              : <Button size="small" variant={i === next ? "primary" : "default"}
+                  disabled={state.busy || step.off} onClick={step.run}>{step.action}</Button>}
         </li>)}
       </ol>
     </section>}
@@ -195,7 +198,7 @@ export function Overview() {
           <ul className="list cards creds">
             {groups.flatMap((group) => [
               <li className="group" key={`${group.p}-heading`}>
-                {label(group.p, t)}<span>{group.rows.length}</span>
+                {label(group.p, t)}<span>· {group.rows.length}</span>
               </li>,
               ...group.rows.map((row) =>
               <li key={`${row.a.name}\u0000${row.a.auth_index}`}>

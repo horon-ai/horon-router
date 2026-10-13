@@ -4,8 +4,7 @@ import { useEffect, useMemo, useState, useSyncExternalStore, type ChangeEvent, t
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { api, download } from "../api";
-import { buckets, credName, credState, label, provider, span, sum, type Data } from "../core";
-import { Grille } from "../components/Grille";
+import { credName, credState, label, provider, span, type Data } from "../core";
 import { Load } from "../components/Load";
 import { Missing } from "../components/Missing";
 import { t, subscribe as subscribeLang, getSnapshot as language } from "../lang";
@@ -45,8 +44,7 @@ export function Credentials({ credentialId }: { credentialId?: string }) {
     const timer = setInterval(() => setNow(Date.now()), 10_000);
     return () => clearInterval(timer);
   }, []);
-  const rows = (creds.data || []).map((a) => ({ a, b: buckets(a), s: credState(a, now, t) }));
-  const max = Math.max(1, ...rows.flatMap((r) => r.b?.total || []));
+  const rows = (creds.data || []).map((a) => ({ a, s: credState(a, now, t) }));
   const selected = rows.find((r) => id(r.a) === openId)?.a;
   useEffect(() => {
     const next = selected ? id(selected) : "";
@@ -59,10 +57,18 @@ export function Credentials({ credentialId }: { credentialId?: string }) {
       request_retry: selected.request_retry === undefined ? "" : String(selected.request_retry),
     });
   }, [selected, formFor]);
-  const models = useQuery({
-    queryKey: ["credential-models", openId],
-    queryFn: async (): Promise<Data[]> => (await api(`/credentials/models?name=${encodeURIComponent(openId!)}`)).models || [],
-    enabled: !!selected,
+  const modelsAll = useQuery({
+    queryKey: ["credential-models", (creds.data || []).map((a) => a.name).join("\u0000")],
+    queryFn: async (): Promise<Record<string, Data[] | null>> => Object.fromEntries(
+      await Promise.all((creds.data || []).map(async (a) => {
+        try {
+          return [String(a.name), (await api(`/credentials/models?name=${encodeURIComponent(String(a.name))}`)).models || []];
+        } catch {
+          return [String(a.name), null];
+        }
+      })),
+    ),
+    enabled: !!creds.data?.length,
   });
   const filters = ([
     ["all", "cr.f.all"], ["ok", "cr.f.ok"], ["warn", "cr.f.warn"], ["bad", "cr.f.bad"], ["off", "cr.f.off"],
@@ -130,7 +136,7 @@ export function Credentials({ credentialId }: { credentialId?: string }) {
         <h1>{t("cr.title")}{!!rows.length && <span>{rows.length}</span>}</h1>
         <p className="page-sub">{t("cr.sub")}</p>
       </div>
-      <label className="key" aria-disabled={!session.can("POST", "/credentials")}>
+      <label className="key quiet" aria-disabled={!session.can("POST", "/credentials")}>
         <svg className="i" aria-hidden="true"><use href="#i-upload" /></svg>{t("common.upload")}
         <input className="file" type="file" accept=".json,application/json" multiple
           disabled={state.busy || !session.can("POST", "/credentials")} onChange={upload} />
@@ -168,8 +174,8 @@ export function Credentials({ credentialId }: { credentialId?: string }) {
           </div>
         </div>
         <ul className="list cards creds full">
-          <li className="columns legend" aria-hidden="true"><span /><span>{t("cr.colCred")}</span><span>{t("cr.col200")}</span>
-            <span className="count">{t("cr.colReq")}</span><span>{t("cr.colState")}</span></li>
+          <li className="columns legend" aria-hidden="true"><span>{t("cr.colCred")}</span><span>{t("cr.colStatus")}</span>
+            <span className="count">{t("cr.modelsH")}</span><span>{t("cr.colLast")}</span></li>
           {groups.length ? groups.map((g) => <FragmentGroup key={g.p} name={label(g.p, t)} count={g.rows.length}>
             {g.rows.map((r) => {
               const a = r.a;
@@ -189,12 +195,10 @@ export function Credentials({ credentialId }: { credentialId?: string }) {
               ];
               return <li key={`${a.name}\0${a.auth_index}`} className={isOpen ? "open" : undefined}>
                 <button className="item" aria-expanded={isOpen} onClick={() => void navigate({ to: isOpen ? "/credentials" : "/credentials/$id", params: isOpen ? undefined : { id: id(a) } } as Parameters<typeof navigate>[0])}>
-                  <span className={`lamp ${r.s.lamp}`} />
-                  <span className="name"><strong>{credName(a)}</strong><small>{a.note ? `${a.note} · ${a.name}` : a.name}</small></span>
-                  {r.b ? <Grille data={r.b} max={max} /> : <span className="legend">{t("common.notReported")}</span>}
-                  <span className="num count">{r.b ? sum(r.b.total).toLocaleString() : "—"}
-                    {r.b && !!sum(r.b.failed) && <small className="error">{t("cr.failedN", { n: sum(r.b.failed) })}</small>}</span>
-                  <span className="state-label">{r.s.label}{r.s.detail && <small title={r.s.detail}>{r.s.detail}</small>}</span>
+                  <span className="name"><strong className="mono ellipsis">{a.name}</strong><small>{a.note ? `${a.note} · ${a.name}` : credName(a)}</small></span>
+                  <span className="state-label"><span className="row"><span className={`lamp ${r.s.lamp}`} />{r.s.label}</span>{r.s.detail && <small title={r.s.detail}>{r.s.detail}</small>}</span>
+                  <span className="num count">{modelsAll.data?.[a.name] ? modelsAll.data[a.name]!.length : "—"}</span>
+                  <span className="legend">{t("common.notReported")}</span>
                 </button>
                 {isOpen && <div className="detail window">
                   <dl className="facts">{facts.filter((f) => f[1]).map(([name, value, mono]) =>
@@ -213,9 +217,11 @@ export function Credentials({ credentialId }: { credentialId?: string }) {
                     <Button type="submit" disabled={state.busy || !session.can("PATCH", "/credentials/fields")}>{t("common.save")}</Button>
                   </form>}
                   <div className="stack"><h3>{t("cr.modelsH")}</h3>
-                    {selected && <Load res={models} what={t("what.models")}>{(list) => <div className="chips">
-                      {list.length ? list.map((m) => <span className="chip" key={m.id}>{m.id}</span>) : <span className="muted">{t("cr.noModels")}</span>}
-                    </div>}</Load>}
+                    {selected && (modelsAll.isPending
+                      ? <div aria-busy="true"><div className="skel" /></div>
+                      : <div className="chips">{(modelsAll.data?.[openId!] || []).length
+                        ? (modelsAll.data?.[openId!] || []).map((m) => <span className="chip" key={m.id}>{m.id}</span>)
+                        : <span className="muted">{t("cr.noModels")}</span>}</div>)}
                   </div>
                   <div className="row">
                     {itemActions.map(([name, method, path, body, done, ask, off]) => <Button key={`${method} ${path}`}
@@ -241,5 +247,5 @@ export function Credentials({ credentialId }: { credentialId?: string }) {
 
 import { Fragment, type ReactNode } from "react";
 function FragmentGroup({ name, count, children }: { name: string; count: number; children: ReactNode }) {
-  return <Fragment><li className="group">{name}<span>{count}</span></li>{children}</Fragment>;
+  return <Fragment><li className="group">{name}<span>· {t("cr.nAccounts", { n: count })}</span></li>{children}</Fragment>;
 }

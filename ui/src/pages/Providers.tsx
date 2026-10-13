@@ -4,19 +4,20 @@ import { useState, useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { api, missing, text } from "../api";
-import { label, mask, readPath, sum, type Buckets, type Data } from "../core";
+import { credState, label, mask, provider, readPath, sum, type Buckets, type Data, type Lamp } from "../core";
 import { Grille } from "../components/Grille";
 import { Load } from "../components/Load";
 import { getSnapshot as language, subscribe as subscribeLang, t } from "../lang";
 import { queries, replace } from "../queries";
 import { getSnapshot, session, subscribe } from "../session";
 
-const families = ["claude", "codex", "gemini", "vertex", "openai-compatibility", "interactions", "xai", "meta"];
+const families = ["claude", "codex", "kimi", "vertex", "nous", "github-copilot"];
 
 export function Providers() {
   useSyncExternalStore(subscribeLang, language);
   const state = useSyncExternalStore(subscribe, getSnapshot);
   const config = useQuery(queries.config());
+  const creds = useQuery({ ...queries.creds(), refetchInterval: 15_000 });
   const usage = useQuery({
     queryKey: ["providers", "api-key-usage"],
     queryFn: (): Promise<Data> => api("/observability/usage/api-keys"),
@@ -30,6 +31,15 @@ export function Providers() {
     label(f, t).toLowerCase().includes(query.trim().toLowerCase()));
   const groups = readPath(config.data || {}, `api-keys/${family}`, []) as Data[];
   const compat = family === "openai-compatibility";
+  // A family is ready when it holds at least one enabled key; a family whose account is
+  // cooling is reported as cooling, and a family with no keys is not set yet.
+  const familyStatus = (f: string): { lamp: Lamp; word: string } => {
+    const keys = readPath(config.data || {}, `api-keys/${f}`, []) as Data[];
+    if (!keys.length) return { lamp: "off", word: t("pv.notSet") };
+    if (keys.every((group) => group.disabled)) return { lamp: "off", word: t("common.disabled") };
+    const cooling = (creds.data || []).some((a) => provider(a) === f && credState(a, Date.now(), t).lamp === "warn");
+    return cooling ? { lamp: "warn", word: t("cr.f.warn") } : { lamp: "ok", word: t("cr.f.ok") };
+  };
   function traffic(group: Data, key: Data): Buckets | null {
     const byKey = usage.data?.[compat ? String(group.name || "").toLowerCase() : family];
     const hit = byKey?.[`${group["base-url"] || ""}|${key["api-key"]}`];
@@ -65,14 +75,18 @@ export function Providers() {
       <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t("pv.filterPlaceholder")} />
     </label>
     <Load res={config} what={t("what.providers")}>{() => <>
-      <div className="family-grid" role="list">
+      <div className="family-list" role="list">
         {shown.map((f) => {
           const n = (readPath(config.data || {}, `api-keys/${f}`, []) as Data[]).length;
+          const st = familyStatus(f);
           return <button type="button" role="listitem" key={f}
-            className={`window family-card${family === f ? " selected" : ""}`}
+            className={`family-card${family === f ? " selected" : ""}`}
             aria-pressed={family === f} onClick={() => setFamily(f)}>
-            <strong>{label(f, t)}</strong>
-            <span className="legend">{n ? t("pv.nKeys", { n }) : t("pv.notSet")}</span>
+            <span className="name grow"><strong>{label(f, t)}</strong>
+              <small>{n ? t("pv.nKeys", { n }) : t("pv.notSet")}</small></span>
+            <span className="row legend"><span className={`lamp ${st.lamp}`} />{st.word}</span>
+            <span className="key small" aria-hidden="true">
+              <svg className="i" width="14" height="14"><use href="#i-edit" /></svg>{t("pv.editKey")}</span>
           </button>;
         })}
       </div>

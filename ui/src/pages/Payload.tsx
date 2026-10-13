@@ -60,12 +60,12 @@ export function Payload() {
     </div>
     <Load res={config} what={t("what.payload")}>{() => <section className="section">
       <p className="muted">{t(`pl.${kind}` as Key)} {t("pl.match")}</p>
-      {rules.length ? <ul className="list window">
+      {rules.length ? <ul className="list">
         {rules.map((rule, i) => <li className="item rule" key={i}>
           <div className="stack grow">
             <div className="chips">{(rule.models || []).map((m: Data, n: number) =>
               <span className="chip" key={n}>{m.name}{m.protocol ? ` · ${m.protocol}` : ""}</span>)}</div>
-            <pre className="legend">{JSON.stringify(rule.params, null, 2)}</pre>
+            <div className="code-window"><div>{JSON.stringify(rule.params, null, 2)}</div></div>
           </div>
           <Button variant="danger" size="small" className="quiet" disabled={busy}
             onClick={() => void session.act(
@@ -73,8 +73,10 @@ export function Payload() {
               t("pl.removed"),
             )}>{t("common.remove")}</Button>
         </li>)}
-      </ul> : <p className="note"><span className="lamp off" />{t("pl.noRules", { kind: t(`pl.name.${kind}` as Key) })}</p>}
-      <form className="stack window" onSubmit={add}>
+      </ul> : <div className="state window">
+        <div className="row"><span className="lamp off" />{t("pl.noRules", { kind: t(`pl.name.${kind}` as Key) })}</div>
+      </div>}
+      <form className="stack" onSubmit={add}>
         <div className="form">
           <label className="field">{t("pl.model")}<Input required value={model} onChange={(e) => setModel(e.target.value)} /></label>
           <label className="field">{t("pl.protocol")}
@@ -83,14 +85,15 @@ export function Payload() {
               {["openai", "claude", "gemini", "codex", "antigravity"].map((p) => <option key={p}>{p}</option>)}
             </select>
           </label>
+          <Button type="submit" variant="primary" disabled={busy}>
+            <svg className="i" aria-hidden="true"><use href="#i-plus" /></svg>{t("pl.add")}
+          </Button>
         </div>
         <label className="field">{kind === "filter" ? t("pl.pathsList") : t("pl.valuesObj")}
           <textarea className="code" rows={5} spellCheck={false} value={paramsText}
             onChange={(e) => setParamsText(e.target.value)} />
         </label>
-        <div className="row"><Button type="submit" variant="primary" disabled={busy}>
-          <svg className="i" aria-hidden="true"><use href="#i-plus" /></svg>{t("pl.add")}
-        </Button></div>
+        <p className="legend">{t("pl.filterList")}</p>
       </form>
     </section>}</Load>
   </>;

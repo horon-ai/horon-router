@@ -1,13 +1,11 @@
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Link, Outlet, createRootRoute, useBlocker, useRouterState } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent } from "react";
 import { Rich } from "../components/Rich";
 import { langs } from "../i18n";
 import { getSnapshot as language, lang, setLang, subscribe as subscribeLang, t } from "../lang";
-import { queries } from "../queries";
-import { getSnapshot, pages, session, subscribe } from "../session";
+import { getSnapshot, pages, session, subscribe, titles } from "../session";
 
 function Mark() {
   return <><svg width="22" height="22" viewBox="0 0 40 40" aria-hidden="true">
@@ -36,15 +34,13 @@ function AppShell() {
   const currentLanguage = useSyncExternalStore(subscribeLang, language);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const page = pathname.split("/")[1] || "overview";
-  const current = page === "connect" ? "credentials" : page;
-  const name = page === "connect" ? "page.connect" : pages.find(([id]) => id === current)?.[1] || "page.overview";
+  const name = titles.find(([id]) => id === page)?.[1] || "page.overview";
   const [menu, setMenu] = useState(false);
   const [secret, setSecret] = useState("");
   const [failure, setFailure] = useState("");
   const [connecting, setConnecting] = useState(false);
   const menuButton = useRef<HTMLButtonElement>(null);
   const previousPage = useRef(page);
-  const creds = useQuery({ ...queries.creds(), enabled: state.logged });
   const version = /^\d/.test(state.meta.version) ? `v${state.meta.version}` : state.meta.version;
 
   // Match the Svelte store.sync(): ask before an in-app navigation drops a dirty draft.
@@ -131,16 +127,16 @@ function AppShell() {
       <nav className={`side${menu ? " open" : ""}`} id="pages" aria-label={t("app.pages")}>
         <Link className="brand" to="/overview" activeProps={{}}><Mark /></Link>
         <div className="nav">
-          {pages.map(([id, label], index) => label
-            ? <Link key={id} to={`/${id}`} activeProps={{}}
-                aria-current={current === id ? "page" : undefined}
-                onClick={() => {
-                  setMenu(false);
-                  if (menu) menuButton.current?.focus();
-                }}>
-                {t(label)}{id === "credentials" && !!creds.data?.length && <small>{creds.data.length}</small>}
-              </Link>
-            : <hr key={`separator-${index}`} />)}
+          {pages.map(([id, label]) => <Link key={id} to={`/${id}`} activeProps={{}}
+              aria-current={page === id ? "page" : undefined}
+              onClick={() => {
+                setMenu(false);
+                if (menu) menuButton.current?.focus();
+              }}>
+              <svg className="i" aria-hidden="true"><use href={`#i-nav-${id}`} /></svg>
+              {t(label)}
+              {page === id && <span className="nav-dot" aria-hidden="true" />}
+            </Link>)}
         </div>
         <div className="side-foot">
           <Button variant="quiet" onClick={() => {

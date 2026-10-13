@@ -1,27 +1,34 @@
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { useEffect, useRef, useState, useSyncExternalStore, type ChangeEvent, type FormEvent } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { api, ApiError } from "../api";
 import { label, type Data } from "../core";
 import { Missing } from "../components/Missing";
 import { t, subscribe as subscribeLang, getSnapshot as language } from "../lang";
 import { keys, queries, queryClient } from "../queries";
 import { session } from "../session";
-import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 
+// The canvas lists six sample providers; the real list is every provider this server can
+// sign in to, plus any a plugin contributes. Dropping the others would remove real flows.
 const builtIn = ["claude", "codex", "antigravity", "kimi", "kimi-ai", "xai", "devin", "meta", "command-code", "nous", "github-copilot"];
 const forwarded = ["claude", "codex", "antigravity", "xai", "devin"];
 const missingActions: [string, string, string][] = [
   ["GET", "/oauth/auth-url", t("cn.miss.signin")],
   ["POST", "/oauth/import", t("cn.miss.vertex")],
 ];
+// The sign-in mode shown beside each provider.
+const mode = (p: string) => p === "claude" ? t("cn.mode.oauthPaste")
+  : p === "vertex" ? t("cn.mode.import")
+  : p === "nous" ? t("cn.mode.oauth")
+  : t("cn.mode.device");
 
 export function Connect() {
   useSyncExternalStore(subscribeLang, language);
   const state = useSyncExternalStore(session.subscribe, session.getSnapshot);
   const plugins = useQuery(queries.plugins());
-  const providers = [...new Set([...builtIn, ...(plugins.data || []).filter((p) => p.supports_oauth).map((p) => String(p.oauth_provider || p.id))])];
+  const providers = [...new Set([...builtIn, ...(plugins.data || []).filter((p: Data) => p.supports_oauth).map((p: Data) => String(p.oauth_provider || p.id))])];
   const [gone, setGone] = useState<string[]>([]);
   const [current, setCurrent] = useState<Data | null>(null);
   const [status, setStatus] = useState("");
@@ -115,10 +122,20 @@ export function Connect() {
     <div className="connect-cols">
     <section className="section connect-providers">
       <h2>{t("cn.providerList")}</h2>
-      <div className="providers">{providers.map((p) => <Button key={p}
-        aria-pressed={current?.provider === p && status === "wait"}
-        disabled={state.busy || !session.can("GET", "/oauth/auth-url") || gone.includes(p)}
-        onClick={() => void start(p)}>{label(p, t)}</Button>)}</div>
+      <div className="provider-list">{providers.map((p) => {
+        const active = current?.provider === p && status === "wait";
+        const off = state.busy || !session.can("GET", "/oauth/auth-url") || gone.includes(p);
+        const body = <><span className="name grow"><strong>{label(p, t)}</strong><small>{mode(p)}</small></span>
+          <svg className="i" aria-hidden="true"><use href="#i-chevron" /></svg></>;
+        return p === "vertex"
+          ? <label key={p} className="provider-card" aria-disabled={off}>
+              {body}
+              <input className="file" type="file" accept=".json,application/json"
+                disabled={off} onChange={vertex} />
+            </label>
+          : <button type="button" key={p} className={`provider-card${active ? " selected" : ""}`}
+              aria-pressed={active} disabled={off} onClick={() => void start(p)}>{body}</button>;
+      })}</div>
     </section>
     <section className="window flow" aria-live="polite">
       <div className="section-head"><h2>{current ? t("cn.signInTo", { provider: label(current.provider, t) }) : t("cn.signInWith")}</h2>
@@ -127,7 +144,7 @@ export function Connect() {
       {!current && <p className="muted">{t("cn.oauth")}</p>}
       {current && (status === "wait" ? <>
         <ol className="steps"><li>
-          <span>{current.user_code ? t("cn.step1Code") : t("cn.step1")}</span>
+          <span>{current.user_code ? t("cn.step1Code") : t("cn.step1Paste")}</span>
           {current.user_code && <code className="code-big">{current.user_code}</code>}
           <div className="row"><a className="key primary" href={current.url} target="_blank" rel="noopener noreferrer">
             <svg className="i" aria-hidden="true"><use href="#i-open" /></svg>{t("cn.open")}</a>
@@ -137,12 +154,12 @@ export function Connect() {
           {current.flow !== "device" && <li>
             <span>{current.provider === "command-code" ? t("cn.pasteKey") : t("cn.pasteUrl")}</span>
             <form className="form" onSubmit={sendCallback}>
-              <label className="field"><span className="sr">{current.provider === "command-code" ? t("cn.apiKey") : t("cn.callbackAddr")}</span>
+              <label className="field">{t("cn.callbackLabel")}
                 <Input type={current.provider === "command-code" ? "password" : "url"} required value={callback}
                   onChange={(event) => setCallback(event.target.value)}
-                  placeholder={current.provider === "command-code" ? t("cn.ccKey") : "http://localhost:…/callback?code=…"}
+                  placeholder={current.provider === "command-code" ? t("cn.ccKey") : "https://localhost:1455/auth/callback?code=..."}
                   autoComplete="off" /></label>
-              <Button type="submit" disabled={state.busy}>{t("common.send")}</Button>
+              <Button type="submit" disabled={state.busy}>{t("cn.finish")}</Button>
             </form>
           </li>}
         </ol>
@@ -153,16 +170,5 @@ export function Connect() {
           <div className="row"><Button onClick={() => void start(current.provider)}>{t("cn.again")}</Button></div></>)}
     </section>
     </div>
-    <section className="section connect-other">
-      <h2>{t("cn.other")}</h2>
-      <ul className="list"><li className="item"><span className="grow">{t("cn.vertexUse")}</span>
-        <label className="key" aria-disabled={!session.can("POST", "/oauth/import") || gone.includes("vertex")}>
-          <svg className="i" aria-hidden="true"><use href="#i-upload" /></svg>{t("cn.import")}
-          <input className="file" type="file" accept=".json,application/json"
-            disabled={state.busy || !session.can("POST", "/oauth/import") || gone.includes("vertex")} onChange={vertex} />
-        </label></li>
-        <li className="item"><span className="grow">{t("cn.useKey")}</span>
-          <Link className="key" to="/providers" activeProps={{}}>{t("cn.providers")}</Link></li></ul>
-    </section>
   </>;
 }
