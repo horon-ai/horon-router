@@ -23,8 +23,11 @@ export function Providers() {
     refetchInterval: 15_000,
   });
   const [family, setFamily] = useState("claude");
+  const [query, setQuery] = useState("");
   const [reveal, setReveal] = useState(false);
   const [form, setForm] = useState({ name: "", url: "", key: "" });
+  const shown = families.filter((f) =>
+    label(f, t).toLowerCase().includes(query.trim().toLowerCase()));
   const groups = readPath(config.data || {}, `api-keys/${family}`, []) as Data[];
   const compat = family === "openai-compatibility";
   function traffic(group: Data, key: Data): Buckets | null {
@@ -47,18 +50,32 @@ export function Providers() {
       ok && setForm({ name: "", url: "", key: "" }));
   }
   return <>
-    <div className="head">
-      <h1>{t("pv.title")}</h1>
+    <div className="page-head">
+      <div className="page-head-copy">
+        <h1>{t("pv.title")}</h1>
+        <p className="page-sub">{t("pv.sub")}</p>
+      </div>
       {!!groups.length && <Button variant="quiet" aria-pressed={reveal}
         onClick={() => setReveal(!reveal)}>{t(reveal ? "common.hideKeys" : "common.showKeys")}</Button>}
       <Link className="key" to="/config" activeProps={{}}><svg className="i" aria-hidden="true"><use href="#i-edit" /></svg>{t("common.edit")}</Link>
     </div>
-    <div className="seg" role="group" aria-label={t("pv.provider")}>
-      {families.map((f) => <button key={f} aria-pressed={family === f} onClick={() => setFamily(f)}>
-        {label(f, t)}<b>{readPath(config.data || {}, `api-keys/${f}`, []).length || ""}</b>
-      </button>)}
-    </div>
+    <label className="search family-filter">
+      <svg className="i" aria-hidden="true"><use href="#i-search" /></svg>
+      <span className="sr">{t("pv.filterLabel")}</span>
+      <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t("pv.filterPlaceholder")} />
+    </label>
     <Load res={config} what={t("what.providers")}>{() => <>
+      <div className="family-grid" role="list">
+        {shown.map((f) => {
+          const n = (readPath(config.data || {}, `api-keys/${f}`, []) as Data[]).length;
+          return <button type="button" role="listitem" key={f}
+            className={`window family-card${family === f ? " selected" : ""}`}
+            aria-pressed={family === f} onClick={() => setFamily(f)}>
+            <strong>{label(f, t)}</strong>
+            <span className="legend">{n ? t("pv.nKeys", { n }) : t("pv.notSet")}</span>
+          </button>;
+        })}
+      </div>
       {groups.length ? <ul className="list groups">{groups.map((group, i) =>
         <li className="stack" key={i}>
           <div className="section-head">

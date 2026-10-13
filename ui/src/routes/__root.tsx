@@ -18,9 +18,12 @@ function Mark() {
   </svg>HyperRouter</>;
 }
 function Theme() {
+  const next = session.themePref === "dark" ? "light" : session.themePref === "light" ? "system" : "dark";
+  const icon = next === "light" ? "sun" : next === "dark" ? "moon" : "system";
+  const label = next === "light" ? "app.themeLight" : next === "dark" ? "app.themeDark" : "app.themeSystem";
   return <Button variant="quiet" size="round" onClick={() => session.toggleTheme()}
-    aria-label={t(session.theme === "dark" ? "app.themeLight" : "app.themeDark")}>
-    <svg className="i" aria-hidden="true"><use href={`#i-${session.theme === "dark" ? "sun" : "moon"}`} /></svg>
+    aria-label={t(label)}>
+    <svg className="i" aria-hidden="true"><use href={`#i-${icon}`} /></svg>
   </Button>;
 }
 function Language() {
@@ -139,7 +142,7 @@ function AppShell() {
               </Link>
             : <hr key={`separator-${index}`} />)}
         </div>
-        <div className="side-foot"><Theme /><Language />
+        <div className="side-foot">
           <Button variant="quiet" onClick={() => {
             if (!session.dirty || confirm(t("app.discard"))) session.logout();
           }}><svg className="i" aria-hidden="true"><use href="#i-out" /></svg>{t("app.signOut")}</Button>
@@ -153,11 +156,15 @@ function AppShell() {
             {state.online ? <><span className="sr">{t("app.connectedTo")}</span>
               <span className="host">{location.host}{version ? ` · ${version}` : ""}</span></> : t("app.lost")}
           </span>
-          <Button ref={menuButton} size="round" className="menu" aria-label={t("app.pages")}
-            aria-expanded={menu} aria-controls="pages" onClick={() => {
-              setMenu(!menu);
-              if (!menu) requestAnimationFrame(() => document.querySelector<HTMLElement>(".nav a")?.focus());
-            }}><svg className="i" aria-hidden="true"><use href={`#i-${menu ? "close" : "menu"}`} /></svg></Button>
+          <span className="row top-tools">
+            <Theme />
+            <Language />
+            <Button ref={menuButton} size="round" className="menu" aria-label={t("app.pages")}
+              aria-expanded={menu} aria-controls="pages" onClick={() => {
+                setMenu(!menu);
+                if (!menu) requestAnimationFrame(() => document.querySelector<HTMLElement>(".nav a")?.focus());
+              }}><svg className="i" aria-hidden="true"><use href={`#i-${menu ? "close" : "menu"}`} /></svg></Button>
+          </span>
         </header>
         <main className="page" id="main" tabIndex={-1} inert={menu}><Outlet /></main>
       </div>

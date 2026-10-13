@@ -27,15 +27,18 @@ export function Keys() {
       .then((ok) => ok && setDraft(""));
   }
   return <>
-    <div className="head">
-      <h1>{t("keys.title")}{!!keys.length && <span>{keys.length}</span>}</h1>
+    <div className="page-head">
+      <div className="page-head-copy">
+        <h1>{t("keys.title")}{!!keys.length && <span>{keys.length}</span>}</h1>
+        <p className="page-sub">{t("keys.sub")}</p>
+      </div>
       {!!keys.length && <Button variant="quiet" aria-pressed={reveal}
         onClick={() => setReveal(!reveal)}>{t(reveal ? "common.hideKeys" : "common.showKeys")}</Button>}
     </div>
     <Load res={config} what={t("what.clientKeys")}>{() =>
       <section className="section">
         <p className="muted"><Rich text={t("keys.intro")} /></p>
-        {keys.length ? <ul className="list">{keys.map((key, i) =>
+        {keys.length ? <ul className="list window">{keys.map((key, i) =>
           <li className="item" key={`${key}-${i}`}>
             <code className="grow ellipsis">{reveal ? key : mask(key)}</code>
             <Button size="small" onClick={() =>
@@ -50,7 +53,7 @@ export function Keys() {
           <div className="row"><span className="lamp warn" />{t("keys.none")}</div>
           <p>{t("keys.noneBody")}</p>
         </div>}
-        <form className="form" onSubmit={add}>
+        <form className="form window" onSubmit={add}>
           <label className="field">{t("keys.new")}<Input type="password" autoComplete="off" required
             value={draft} onChange={(e) => setDraft(e.target.value)} /></label>
           <Button type="button" onClick={() => setDraft(newKey())}>{t("keys.generate")}</Button>

@@ -26,12 +26,16 @@ export function Config() {
     });
   }
   return <>
-    <div className="head"><h1>{t("cf.title")}</h1>
+    <div className="page-head">
+      <div className="page-head-copy">
+        <h1>{t("cf.title")}</h1>
+        <p className="page-sub">{t("cf.sub")}</p>
+      </div>
       {!edit && <Button disabled={state.busy} onClick={() => open("")}><svg className="i" aria-hidden="true"><use href="#i-edit" /></svg>{t("cf.editYaml")}</Button>}
     </div>
     {edit ? <Editor key={edit.path} {...edit} onclose={() => setEdit(null)} />
       : <Load res={config} what={t("what.config")}>{(data) => <>
-        <section className="section"><h2>{t("cf.strategy")}</h2>
+        <section className="section window"><h2>{t("cf.strategy")}</h2>
           <div className="seg" role="group" aria-label={t("cf.strategy")}>
             {strategies.filter((s) => !s.rust || session.kind === "rust").map((s) =>
               <button key={s.value} aria-pressed={current.value === s.value} disabled={state.busy}
@@ -39,7 +43,7 @@ export function Config() {
                 {t(s.name)}</button>)}
           </div><p className="muted">{t(current.help)}</p>
         </section>
-        <ul className="list">{[...new Set([...about, ...Object.keys(data)])].filter((k) => k !== "config-version").map((k) => {
+        <ul className="list window">{[...new Set([...about, ...Object.keys(data)])].filter((k) => k !== "config-version").map((k) => {
           const value = data[k];
           return <li key={k}><button className="item config-row" onClick={() => open(k)} disabled={state.busy}>
             <span className="name grow"><strong className="mono">{k}</strong><small>{about.includes(k) ? t(`cf.about.${k}` as Key) : t("cf.persisted")}</small></span>

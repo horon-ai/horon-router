@@ -34,8 +34,11 @@ export function Quotas() {
   }
 
   return <>
-    <div className="head">
-      <h1>{t("qt.title")}</h1>
+    <div className="page-head">
+      <div className="page-head-copy">
+        <h1>{t("qt.title")}</h1>
+        <p className="page-sub">{t("qt.sub")}</p>
+      </div>
       <Button disabled={checking || !list.some(canCheck)} onClick={() => void all()}>
         {checking ? t("common.checking") : t("qt.checkAll")}
       </Button>
@@ -47,7 +50,7 @@ export function Quotas() {
         const s = credState(a, Date.now(), t);
         const q = limits(a);
         const signals = otherSignals(a.quota, q && "windows" in q ? q.windows : []);
-        return <li className="stack quota-item" key={`${a.name}\u0000${a.auth_index}`}>
+        return <li className="stack quota-item window" key={`${a.name}\u0000${a.auth_index}`}>
           <div className="item">
             <span className={`lamp ${s.lamp}`} />
             <span className="name grow"><strong>{credName(a)}</strong><small>{label(provider(a), t)} · {s.label}</small></span>

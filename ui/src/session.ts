@@ -14,9 +14,11 @@ export const pages = [
 
 type Meta = { version: string; commit: string; built: string };
 type Quota = Record<string, { at: number; provider: string; raw: Data } | { error: string }>;
+type ThemePref = "light" | "dark" | "system";
 type State = {
   logged: boolean;
-  theme: string;
+  theme: "light" | "dark";
+  themePref: ThemePref;
   meta: Meta;
   online: boolean;
   busy: boolean;
@@ -26,8 +28,27 @@ type State = {
   quota: Quota;
 };
 const emptyMeta = (): Meta => ({ version: "", commit: "", built: "" });
+const themeOrder = ["dark", "light", "system"] as const satisfies readonly ThemePref[];
+function systemAppearance(): "light" | "dark" {
+  return matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+}
+function readThemePref(): ThemePref {
+  try {
+    const saved = localStorage.getItem("hyperrouter-theme");
+    if (saved === "light" || saved === "dark" || saved === "system") return saved;
+  } catch {}
+  return "system";
+}
+function paintTheme(pref: ThemePref): "light" | "dark" {
+  const theme = pref === "system" ? systemAppearance() : pref;
+  document.documentElement.dataset.theme = theme;
+  return theme;
+}
+const initialThemePref = readThemePref();
 let state: State = {
-  logged: false, theme: document.documentElement.dataset.theme || "dark",
+  logged: false,
+  themePref: initialThemePref,
+  theme: paintTheme(initialThemePref),
   meta: emptyMeta(), online: true, busy: false, dirty: false, toast: null, caps: {}, quota: {},
 };
 const listeners = new Set<() => void>();
@@ -37,6 +58,11 @@ const update = (change: Partial<State>) => {
   state = { ...state, ...change };
   listeners.forEach((listener) => listener());
 };
+matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => {
+  if (state.themePref !== "system") return;
+  const theme = paintTheme("system");
+  if (theme !== state.theme) update({ theme });
+});
 export const subscribe = (listener: () => void) => {
   listeners.add(listener);
   return () => { listeners.delete(listener); };
@@ -56,6 +82,7 @@ export function signInHelp(e: unknown): string {
 export const session = {
   get logged() { return state.logged; },
   get theme() { return state.theme; },
+  get themePref() { return state.themePref; },
   get meta() { return state.meta; },
   get kind(): "rust" | "go" | "unknown" {
     return state.meta.version.startsWith("hyper-router") ? "rust" : state.meta.commit || state.meta.built ? "go" : "unknown";
@@ -115,10 +142,11 @@ export const session = {
     }
   },
   toggleTheme() {
-    const theme = state.theme === "dark" ? "light" : "dark";
-    document.documentElement.dataset.theme = theme;
-    update({ theme });
-    try { localStorage.setItem("hyperrouter-theme", theme); } catch {}
+    const i = themeOrder.indexOf(state.themePref);
+    const themePref = themeOrder[(i < 0 ? 0 : i + 1) % themeOrder.length];
+    const theme = paintTheme(themePref);
+    update({ theme, themePref });
+    try { localStorage.setItem("hyperrouter-theme", themePref); } catch {}
   },
   notify(text: string, bad = false) {
     update({ toast: { text, bad } });

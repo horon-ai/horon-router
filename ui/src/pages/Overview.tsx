@@ -109,8 +109,11 @@ export function Overview() {
   }
 
   return <>
-    <div className="head">
-      <h1>{t("ov.title")}</h1>
+    <div className="page-head">
+      <div className="page-head-copy">
+        <h1>{t("ov.title")}</h1>
+        <p className="page-sub">{t("ov.sub")}</p>
+      </div>
       <Link className="key primary" to="/connect" activeProps={{}}>
         <svg className="i" aria-hidden="true"><use href="#i-plus" /></svg>{t("ov.connect")}
       </Link>
@@ -175,11 +178,11 @@ export function Overview() {
               {traffic && !total && <span className="hint">{" · "}<Link to="/keys" activeProps={{}}>{t("ov.setupTool")}</Link></span>}
             </span>
           </div>
-          <p className="routing legend">{t("ov.routing")} <b>{t(strategy(routing.strategy).name).toLowerCase()}</b>
-            {routing.retry?.["request-retry"] !== undefined && <>· {t("ov.retries", { n: routing.retry["request-retry"] })}</>}
-            {routing["session-affinity"] && <>· {t("ov.affinity")}</>}
-          </p>
         </section>
+        <p className="routing-line legend">{t("ov.routing")} <b>{t(strategy(routing.strategy).name).toLowerCase()}</b>
+          {routing.retry?.["request-retry"] !== undefined && <> · {t("ov.retries", { n: routing.retry["request-retry"] })}</>}
+          {routing["session-affinity"] && <> · {t("ov.affinity")}</>}
+        </p>
         <section className="section">
           <div className="section-head">
             <h2>{t("ov.credentials")}</h2>
@@ -189,7 +192,7 @@ export function Overview() {
               <svg className="i" width="14" height="14" aria-hidden="true"><use href="#i-chevron" /></svg>
             </Link>
           </div>
-          <ul className="list creds">
+          <ul className="list cards creds">
             {groups.flatMap((group) => [
               <li className="group" key={`${group.p}-heading`}>
                 {label(group.p, t)}<span>{group.rows.length}</span>
@@ -210,7 +213,7 @@ export function Overview() {
         </section>
         {!!limited.length && <section className="section">
           <div className="section-head"><h2>{t("ov.limits")}</h2></div>
-          <ul className="list limits">{limited.map(({ a, l }) => <li className="item" key={`${a.name}\u0000${a.auth_index}`}>
+          <ul className="list cards limits">{limited.map(({ a, l }) => <li className="item" key={`${a.name}\u0000${a.auth_index}`}>
             <span className="name"><strong>{credName(a)}</strong><small>{label(provider(a), t)}
               {l && "at" in l && l.at ? ` · ${ago(l.at, Date.now(), t)}` : ""}
             </small></span>

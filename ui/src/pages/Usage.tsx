@@ -66,8 +66,17 @@ export function Usage() {
   }, [live]);
 
   return <>
-    <div className="head"><h1>{t("us.title")}</h1></div>
-    <section className="section">
+    <div className="page-head">
+      <div className="page-head-copy">
+        <h1>{t("us.title")}</h1>
+        <p className="page-sub">{t("us.sub")}</p>
+      </div>
+      <Button disabled={!session.can("GET", "/observability/usage/queue")}
+        aria-pressed={live} onClick={() => {
+          if (live || confirm(t("us.ask"))) setLive(!live);
+        }}><span className={`lamp ${live ? "ok live" : "off"}`} />{live ? t("us.stop") : t("us.start")}</Button>
+    </div>
+    <section className="section window">
       <div className="section-head"><h2>{t("us.last200")}</h2><span className="legend">{t("us.reported")}</span></div>
       {sorted.length ? <ul className="list">{sorted.map((r) => <li className="item usage-row" key={`${r.name}:${r.via}`}>
         <span className="name grow"><strong>{r.name}</strong><small>{r.via}</small></span>
@@ -81,14 +90,10 @@ export function Usage() {
     <section className="section">
       <div className="section-head">
         <h2>{t("us.live")}</h2>
-        <Button disabled={!session.can("GET", "/observability/usage/queue")}
-          aria-pressed={live} onClick={() => {
-            if (live || confirm(t("us.ask"))) setLive(!live);
-          }}><span className={`lamp ${live ? "ok live" : "off"}`} />{live ? t("us.stop") : t("us.start")}</Button>
       </div>
       {problem && <p className="note error" role="alert"><span className="lamp bad" />{problem}</p>}
       {!events.length ? <p className="muted">{live ? t("us.listening") : t("us.hint")}</p> : <>
-        <div className="window display live-readings">
+        <div className="window display stats">
           <div className="reading"><span className="legend">{t("us.requests")}</span><strong>{fmt(stats.count)}</strong><span className="legend">{t("us.failedN", { n: stats.failed })}</span></div>
           <div className="reading"><span className="legend">{t("us.median")}</span><strong>{fmt(stats.latency)}<small>&nbsp;ms</small></strong><span className="legend">{t("us.firstToken", { v: fmt(stats.ttft, " ms") })}</span></div>
           <div className="reading"><span className="legend">{t("us.tokens")}</span><strong>{fmt(stats.input + stats.output)}</strong><span className="legend">{t("us.inOut", { in: fmt(stats.input), out: fmt(stats.output) })}</span></div>

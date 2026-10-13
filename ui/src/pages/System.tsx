@@ -29,13 +29,18 @@ export function System() {
   ];
   const disabled = latest.error instanceof ApiError && latest.error.code === "update_check_disabled";
   return <>
-    <div className="head"><h1>{t("sy.title")}</h1></div>
-    <section className="section"><dl className="facts">{facts.filter((f) => f[1]).map(([key, value, mono]) =>
+    <div className="page-head">
+      <div className="page-head-copy">
+        <h1>{t("sy.title")}</h1>
+        <p className="page-sub">{t("sy.sub")}</p>
+      </div>
+      <Button disabled={latest.isFetching || disabled} onClick={() => void latest.refetch()}>{t("sy.checkNew")}</Button>
+    </div>
+    <section className="section window"><dl className="facts">{facts.filter((f) => f[1]).map(([key, value, mono]) =>
       <div key={key}><dt>{key}</dt><dd className={mono ? "mono" : undefined}>{String(value)}</dd></div>)}</dl>
       <p className="note">{t("sy.noProc")}</p>
     </section>
-    <section className="section"><div className="section-head"><h2>{t("sy.updates")}</h2>
-      <Button disabled={latest.isFetching || disabled} onClick={() => void latest.refetch()}>{t("sy.checkNew")}</Button></div>
+    <section className="section window"><div className="section-head"><h2>{t("sy.updates")}</h2></div>
       {disabled ? <p className="note" role="status"><Rich text={t("sy.disabled")} /></p>
         : latest.data !== undefined || latest.error || latest.isFetching
           ? <Load res={latest} what={t("what.release")}>{(v) => <p className="row">

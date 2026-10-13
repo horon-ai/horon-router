@@ -58,7 +58,11 @@ export function Logs() {
   const shown = (logs.data || []).filter((line) => (own || !line.includes("/management/")) && line.toLowerCase().includes(query.trim().toLowerCase()));
   const parse = (line: string) => line.match(/^\[([^\]]*)\] \[([^\]]*)\] \[(\w+)\s*\] (?:\[[^\]]*\] )?(.*)$/);
   return <>
-    <div className="head"><h1>{t("lg.title")}</h1>
+    <div className="page-head">
+      <div className="page-head-copy">
+        <h1>{t("lg.title")}</h1>
+        <p className="page-sub">{t("lg.sub")}</p>
+      </div>
       <Button disabled={!session.can("GET", "/observability/logs")} aria-pressed={tail} onClick={() => setTail(!tail)}>
         <span className={`lamp ${tail ? "ok live" : "off"}`} />{tail ? t("lg.following") : t("lg.paused")}</Button>
       <Button variant="danger" className="quiet" disabled={state.busy || !session.can("DELETE", "/observability/logs")}
@@ -80,7 +84,7 @@ export function Logs() {
       </div>
       <p className="legend">{t("lg.count", { shown: shown.length.toLocaleString(), total: all.length.toLocaleString(), max: MAX.toLocaleString() })}</p>
     </section>}</Load>
-    <section className="section"><h2>{t("lg.request")}</h2>
+    <section className="section window"><h2>{t("lg.request")}</h2>
       <form className="form" onSubmit={(e) => { e.preventDefault(); const id = reqId.trim(); if (currentId === id) void inspect(id); else void navigate({ to: "/logs/$id", params: { id } }); }}>
         <label className="field">{t("lg.reqId")}<Input required value={reqId} onChange={(e) => setReqId(e.target.value)} placeholder={t("lg.reqPh")} /></label>
         <Button type="submit">{t("lg.open")}</Button>
@@ -89,7 +93,7 @@ export function Logs() {
       {reqError && <p className="note error"><span className="lamp bad" />{reqError}</p>}
       {reqText && <pre className="code-window request">{reqText}</pre>}
     </section>
-    <section className="section"><h2>{t("lg.errors")}</h2><Load res={files} what={t("what.errorLogs")}>{(list) =>
+    <section className="section window"><h2>{t("lg.errors")}</h2><Load res={files} what={t("what.errorLogs")}>{(list) =>
       list.length ? <ul className="list">{list.map((f) => <li className="item" key={f.name}>
         <code className="grow ellipsis">{f.name}</code><span className="legend">{f.modified ? new Date(f.modified * 1000).toLocaleString(t.lang) : ""}</span>
         <Button size="small" onClick={() => void session.act(async () => download(await api(`/observability/logs/errors/${encodeURIComponent(f.name)}`, "GET", undefined, "blob"), f.name))}>{t("common.download")}</Button>

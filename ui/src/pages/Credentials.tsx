@@ -122,9 +122,14 @@ export function Credentials({ credentialId }: { credentialId?: string }) {
     ["note", t("cr.fNote"), ""], ["priority", t("cr.fPriority"), "0"],
     ["weight", t("cr.fWeight"), "1"], ["request_retry", t("cr.fRetries"), t("cr.fGlobal")],
   ];
+  const ready = rows.filter((r) => r.s.lamp === "ok").length;
+  const cooling = rows.filter((r) => r.s.lamp === "warn").length;
   return <>
-    <div className="head">
-      <h1>{t("cr.title")}{!!rows.length && <span>{rows.length}</span>}</h1>
+    <div className="page-head">
+      <div className="page-head-copy">
+        <h1>{t("cr.title")}{!!rows.length && <span>{rows.length}</span>}</h1>
+        <p className="page-sub">{t("cr.sub")}</p>
+      </div>
       <label className="key" aria-disabled={!session.can("POST", "/credentials")}>
         <svg className="i" aria-hidden="true"><use href="#i-upload" /></svg>{t("common.upload")}
         <input className="file" type="file" accept=".json,application/json" multiple
@@ -139,6 +144,20 @@ export function Credentials({ credentialId }: { credentialId?: string }) {
     <Load res={creds} what={t("what.credentials")}>{(list) => !list.length
       ? <div className="state"><div className="row"><span className="lamp off" />{t("cr.none")}</div><p>{t("cr.noneBody")}</p></div>
       : <section className="section">
+        <section className="window display stats" aria-label={t("cr.title")}>
+          <div className="reading">
+            <span className="legend">{t("cr.total")}</span>
+            <strong>{rows.length}</strong>
+          </div>
+          <div className="reading">
+            <span className="legend">{t("cr.f.ok")}</span>
+            <strong>{ready}</strong>
+          </div>
+          <div className="reading cooling">
+            <span className="legend">{t("cr.f.warn")}</span>
+            <strong>{cooling}</strong>
+          </div>
+        </section>
         <div className="row">
           <label className="search grow"><svg className="i" aria-hidden="true"><use href="#i-search" /></svg>
             <span className="sr">{t("cr.filterLabel")}</span>
@@ -148,7 +167,7 @@ export function Credentials({ credentialId }: { credentialId?: string }) {
             {filters.map((f) => <button key={f.id} aria-pressed={filter === f.id} onClick={() => setFilter(f.id)}>{f.name}<b>{f.n}</b></button>)}
           </div>
         </div>
-        <ul className="list creds full">
+        <ul className="list cards creds full">
           <li className="columns legend" aria-hidden="true"><span /><span>{t("cr.colCred")}</span><span>{t("cr.col200")}</span>
             <span className="count">{t("cr.colReq")}</span><span>{t("cr.colState")}</span></li>
           {groups.length ? groups.map((g) => <FragmentGroup key={g.p} name={label(g.p, t)} count={g.rows.length}>

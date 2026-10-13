@@ -104,21 +104,28 @@ export function Connect() {
     }, t("cn.vertexDone"));
   }
   return <>
-    <div className="head"><h1>{t("page.connect")}</h1></div>
+    <div className="page-head">
+      <div className="page-head-copy">
+        <h1>{t("page.connect")}</h1>
+        <p className="page-sub">{t("cn.sub")}</p>
+      </div>
+    </div>
     <Missing actions={missingActions.map(([method, path], i) =>
       [method, path, t(i ? "cn.miss.vertex" : "cn.miss.signin")])} />
-    <section className="section">
-      <h2>{t("cn.signInWith")}</h2><p className="muted">{t("cn.oauth")}</p>
+    <div className="connect-cols">
+    <section className="section connect-providers">
+      <h2>{t("cn.providerList")}</h2>
       <div className="providers">{providers.map((p) => <Button key={p}
         aria-pressed={current?.provider === p && status === "wait"}
         disabled={state.busy || !session.can("GET", "/oauth/auth-url") || gone.includes(p)}
         onClick={() => void start(p)}>{label(p, t)}</Button>)}</div>
     </section>
-    {current && <section className="window flow" aria-live="polite">
-      <div className="section-head"><h2>{label(current.provider, t)}</h2>
-        <span className="row"><span className={`lamp ${status === "ok" ? "ok" : status === "wait" ? "warn live" : status === "error" ? "bad" : "off"}`} />
-          {status === "wait" ? t("cn.wait") : status === "ok" ? t("cn.ok") : status === "error" ? t("cn.fail") : t("cn.cancelled")}</span></div>
-      {status === "wait" ? <>
+    <section className="window flow" aria-live="polite">
+      <div className="section-head"><h2>{current ? t("cn.signInTo", { provider: label(current.provider, t) }) : t("cn.signInWith")}</h2>
+        {current && <span className="row"><span className={`lamp ${status === "ok" ? "ok" : status === "wait" ? "warn live" : status === "error" ? "bad" : "off"}`} />
+          {status === "wait" ? t("cn.wait") : status === "ok" ? t("cn.ok") : status === "error" ? t("cn.fail") : t("cn.cancelled")}</span>}</div>
+      {!current && <p className="muted">{t("cn.oauth")}</p>}
+      {current && (status === "wait" ? <>
         <ol className="steps"><li>
           <span>{current.user_code ? t("cn.step1Code") : t("cn.step1")}</span>
           {current.user_code && <code className="code-big">{current.user_code}</code>}
@@ -143,9 +150,11 @@ export function Connect() {
       </> : status === "ok"
         ? <><p>{t("cn.saved")}</p><div className="row"><Link className="key primary" to="/credentials" activeProps={{}}>{t("cn.viewCreds")}</Link></div></>
         : <>{problem && <p className="error">{problem}</p>}
-          <div className="row"><Button onClick={() => void start(current.provider)}>{t("cn.again")}</Button></div></>}
-    </section>}
-    <section className="section"><h2>{t("cn.other")}</h2>
+          <div className="row"><Button onClick={() => void start(current.provider)}>{t("cn.again")}</Button></div></>)}
+    </section>
+    </div>
+    <section className="section connect-other">
+      <h2>{t("cn.other")}</h2>
       <ul className="list"><li className="item"><span className="grow">{t("cn.vertexUse")}</span>
         <label className="key" aria-disabled={!session.can("POST", "/oauth/import") || gone.includes("vertex")}>
           <svg className="i" aria-hidden="true"><use href="#i-upload" /></svg>{t("cn.import")}

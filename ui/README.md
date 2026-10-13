@@ -91,4 +91,4 @@ The management key lives in `src/api.ts` module memory and is cleared on sign-ou
 
 ## Fonts
 
-Host Grotesk (SIL Open Font License, `public/fonts/OFL.txt`), subset to Latin and weights 400–650 with fontTools.
+Host Grotesk (UI) and JetBrains Mono (code), both SIL Open Font License in `public/fonts/OFL.txt`, subset to Latin with fontTools.

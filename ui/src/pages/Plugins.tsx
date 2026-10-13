@@ -36,7 +36,11 @@ export function Plugins() {
     });
   }
   return <>
-    <div className="head"><h1>{t("pg.title")}{!!plugins.data?.length && <span>{plugins.data.length}</span>}</h1>
+    <div className="page-head">
+      <div className="page-head-copy">
+        <h1>{t("pg.title")}{!!plugins.data?.length && <span>{plugins.data.length}</span>}</h1>
+        <p className="page-sub">{t("pg.sub")}</p>
+      </div>
       {!edit && <>
         <Button disabled={state.busy} onClick={() => void session.call("PUT", fieldPath("plugins/enabled"), !on, on ? t("pg.off") : t("pg.on"), "", after)}>
           <span className={`lamp ${on ? "ok" : "off"}`} />{on ? t("pg.btnOn") : t("pg.btnOff")}</Button>
@@ -46,7 +50,7 @@ export function Plugins() {
     </div>
     {edit ? <Editor key={edit.path} {...edit} onclose={() => setEdit(null)} /> : <>
       <Load res={plugins} what={t("what.plugins")}>{(list) => list.length
-        ? <ul className="list">{list.map((p) => <li className="item" key={p.id}>
+        ? <ul className="list window">{list.map((p) => <li className="item" key={p.id}>
           <span className={`lamp ${p.registered && p.effective_enabled ? "ok" : p.enabled ? "warn" : "off"}`} />
           <span className="name grow"><strong>{p.metadata?.name || p.id}</strong><small>{[p.metadata?.version, p.supports_oauth && t("pg.signin"), p.supports_quota && t("pg.quota"), !p.registered && t("pg.notLoaded")].filter(Boolean).join(" · ")}</small></span>
           <Button size="small" disabled={state.busy} onClick={() => void session.call("PUT", fieldPath(`plugins/configs/${p.id}/enabled`), !p.enabled, t("pg.savedRestart"), "", after)}>{p.enabled ? t("common.disable") : t("common.enable")}</Button>
@@ -55,7 +59,7 @@ export function Plugins() {
         </li>)}</ul>
         : <div className="state"><div className="row"><span className="lamp off" />{t("pg.none")}</div><p>{t("pg.noneBody")}</p></div>
       }</Load>
-      {browse && <section className="section"><h2>{t("pg.store")}</h2>
+      {browse && <section className="section window"><h2>{t("pg.store")}</h2>
         <Load res={market} what={t("what.pluginStore")}>{(m) => <>
           {(m.source_errors || []).map((e: Data, i: number) => <p className="note error" key={i}><span className="lamp bad" />{e.source_name}: {e.message}</p>)}
           <ul className="list">{(m.plugins || []).map((p: Data) => <li className="item" key={`${p.source_id}/${p.id}`}>

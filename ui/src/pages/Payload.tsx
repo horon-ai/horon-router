@@ -46,8 +46,11 @@ export function Payload() {
   }
 
   return <>
-    <div className="head">
-      <h1>{t("pl.title")}</h1>
+    <div className="page-head">
+      <div className="page-head-copy">
+        <h1>{t("pl.title")}</h1>
+        <p className="page-sub">{t("pl.sub")}</p>
+      </div>
       <Link className="key" to="/config" activeProps={{}}><svg className="i" aria-hidden="true"><use href="#i-edit" /></svg>{t("common.edit")}</Link>
     </div>
     <div className="seg" role="group" aria-label={t("pl.kind")}>
@@ -57,7 +60,7 @@ export function Payload() {
     </div>
     <Load res={config} what={t("what.payload")}>{() => <section className="section">
       <p className="muted">{t(`pl.${kind}` as Key)} {t("pl.match")}</p>
-      {rules.length ? <ul className="list">
+      {rules.length ? <ul className="list window">
         {rules.map((rule, i) => <li className="item rule" key={i}>
           <div className="stack grow">
             <div className="chips">{(rule.models || []).map((m: Data, n: number) =>
@@ -71,7 +74,7 @@ export function Payload() {
             )}>{t("common.remove")}</Button>
         </li>)}
       </ul> : <p className="note"><span className="lamp off" />{t("pl.noRules", { kind: t(`pl.name.${kind}` as Key) })}</p>}
-      <form className="stack" onSubmit={add}>
+      <form className="stack window" onSubmit={add}>
         <div className="form">
           <label className="field">{t("pl.model")}<Input required value={model} onChange={(e) => setModel(e.target.value)} /></label>
           <label className="field">{t("pl.protocol")}

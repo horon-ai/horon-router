@@ -19,16 +19,18 @@ const [styleTag, styleHref] = take(/<link rel="stylesheet" crossorigin href="([^
 const js = read(scriptSrc).toString("utf8");
 if (/<\/script/i.test(js)) throw new Error("panel: script contains </script and cannot be inlined safely");
 const font = `data:font/woff2;base64,${read("fonts/host-grotesk.woff2").toString("base64")}`;
+const mono = `data:font/woff2;base64,${read("fonts/jetbrains-mono.woff2").toString("base64")}`;
 const css = read(`assets/${styleHref.split("/").pop()}`)
   .toString("utf8")
-  .replace(/url\((["']?)\.\.\/fonts\/host-grotesk\.woff2\1\)/g, `url(${font})`);
+  .replace(/url\((["']?)\.\.\/fonts\/host-grotesk\.woff2\1\)/g, `url(${font})`)
+  .replace(/url\((["']?)\.\.\/fonts\/jetbrains-mono\.woff2\1\)/g, `url(${mono})`);
 if (/url\((?!["']?data:)/.test(css)) throw new Error("panel: stylesheet still references an external file");
 const icon = `data:image/svg+xml,${encodeURIComponent(read("favicon.svg").toString("utf8").trim())}`;
 
 html = html
   .replace(scriptTag, () => `<script type="module">${js}</script>`)
   .replace(styleTag, () => `<style>${css}</style>`)
-  .replace(/<link rel="preload"[^>]*>\s*/, "")
+  .replace(/<link rel="preload"[^>]*>\s*/g, "")
   .replace(/href="\.\/favicon\.svg"/, () => `href="${icon}"`);
 // Only data: URLs and in-page fragments (#i-icon sprite references) may remain.
 // Scan HTML tags, not JavaScript string literals such as React's dynamic href="..." snippets.
