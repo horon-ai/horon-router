@@ -152,10 +152,10 @@ struct Body<'a> {
     json: &'a [u8],
     nested: bool,
     exists: bool,
-    /// The raw values of the [`INDEXED_ROOTS`] members of a valid JSON object, borrowed from
-    /// the body: `None` while a root is absent, `Some(None)` for a duplicate key (gjson tries
-    /// each in turn, so those lookups scan). Most lookups here ask for a root the body lacks
-    /// or one after `messages`, which gjson finds only by scanning the whole object (a
+    /// The raw values of the [`INDEXED_ROOTS`] members of a complete JSON object, borrowed
+    /// from the body: `None` while a root is absent, `Some(None)` for a duplicate key (gjson
+    /// tries each in turn, so those lookups scan). Most lookups here ask for a root the body
+    /// lacks or one after `messages`, which gjson finds only by scanning the whole object (a
     /// coding agent's prompt is hundreds of KB). Other members are skipped without being
     /// decoded; a body with an escaped key gets no index.
     roots: Option<[Option<Option<&'a [u8]>>; INDEXED_ROOTS.len()]>,
@@ -219,29 +219,48 @@ const INDEXED_ROOTS: [&str; 52] = [
 ];
 
 impl<'a> Body<'a> {
+    /// Indexes the body in a single traversal: one [`json::object_members`] walk collects the
+    /// top-level [`INDEXED_ROOTS`] members and, from where it stops, decides whether the object
+    /// is complete. A body that is not a well-formed object (first byte not `{`, an escaped
+    /// key, an unterminated value, trailing bytes) keeps no index and every lookup scans the
+    /// whole body with gjson, exactly as the previous `json::valid` gate left it.
     fn new(payload: &'a [u8]) -> Self {
-        let object = payload.iter().find(|b| !b.is_ascii_whitespace()) == Some(&b'{');
-        let roots = (object && json::valid(payload)).then(|| {
-            let mut roots = [None; INDEXED_ROOTS.len()];
-            let mut escaped = false;
-            json::object_members(payload, |key, esc, value| {
-                escaped |= esc;
-                if let Some(at) = INDEXED_ROOTS.iter().position(|r| r.as_bytes() == key) {
-                    roots[at] = Some(if roots[at].is_some() { None } else { Some(value) });
+        let open = payload.iter().position(|b| !b.is_ascii_whitespace());
+        let object = open.is_some_and(|i| payload[i] == b'{');
+        let mut roots = None;
+        if object {
+            let mut index: [Option<Option<&'a [u8]>>; INDEXED_ROOTS.len()] = [None; INDEXED_ROOTS.len()];
+            let base = payload.as_ptr() as usize;
+            let mut end = None;
+            json::object_members(payload, |key, escaped, value| {
+                if escaped {
+                    return false;
                 }
-                !escaped
+                end = Some(value.as_ptr() as usize - base + value.len());
+                if let Some(at) = INDEXED_ROOTS.iter().position(|r| r.as_bytes() == key) {
+                    index[at] = Some(if index[at].is_some() { None } else { Some(value) });
+                }
+                true
             });
-            (!escaped).then_some(roots)
-        });
+            let tail = match end {
+                Some(end) => &payload[end..],
+                None => &payload[open.map_or(0, |i| i + 1)..],
+            };
+            if closes_object(tail) {
+                roots = Some(index);
+            }
+        }
         let mut body = Self {
             json: payload,
             nested: false,
             exists: false,
-            roots: roots.flatten(),
+            roots,
         };
         if !payload.is_empty() {
             body.nested = body.get("request").exists() && !body.get("contents").exists();
-            body.exists = json::parse(payload).exists();
+            // gjson `Parse(body).Exists()`: a body starting with `{` always exists, so only the
+            // other shapes need the probe.
+            body.exists = object || json::parse(payload).exists();
         }
         body
     }
@@ -307,6 +326,34 @@ impl<'a> Body<'a> {
             .chain(paths.iter().map(|p| self.req(p)))
             .find(|v| !v.is_empty())
             .unwrap_or_default()
+    }
+}
+
+/// Whether `tail` is only white space, the object's closing `}`, and white space: the point
+/// [`json::object_members`] leaves off once it has walked a complete object.
+fn closes_object(tail: &[u8]) -> bool {
+    let mut i = 0;
+    while i < tail.len() && tail[i].is_ascii_whitespace() {
+        i += 1;
+    }
+    if tail.get(i) != Some(&b'}') {
+        return false;
+    }
+    i += 1;
+    while i < tail.len() && tail[i].is_ascii_whitespace() {
+        i += 1;
+    }
+    i == tail.len()
+}
+
+/// A request body indexed once for the session extractors of a single request. Building it
+/// scans the body once; the `*_with` extractors reuse that index instead of rebuilding it,
+/// while the payload-taking functions build a fresh one per call.
+pub struct SessionBody<'a>(Body<'a>);
+
+impl<'a> SessionBody<'a> {
+    pub fn new(payload: &'a [u8]) -> Self {
+        Self(Body::new(payload))
     }
 }
 
@@ -564,7 +611,17 @@ pub fn extract_session_info(
     payload: &[u8],
     execution_session: Option<&str>,
 ) -> Option<SessionInfo> {
-    let body = Body::new(payload);
+    extract_session_info_with(&SessionBody::new(payload), headers, execution_session)
+}
+
+/// [`extract_session_info`] over a body already indexed for the request.
+pub fn extract_session_info_with(
+    shared: &SessionBody<'_>,
+    headers: &HeaderMap,
+    execution_session: Option<&str>,
+) -> Option<SessionInfo> {
+    let payload = shared.0.json;
+    let body = &shared.0;
     let mut info = SessionInfo::default();
     let mut parent_candidate = String::new();
     if !payload.is_empty() {
@@ -653,7 +710,7 @@ pub fn extract_session_info(
     }
 
     // 3. OpenAI / Codex CLI headers.
-    if let Some(info) = codex(headers, &body, parent) {
+    if let Some(info) = codex(headers, body, parent) {
         return finalize(info);
     }
 
@@ -691,7 +748,7 @@ pub fn extract_session_info(
     // 6. Payload inspection.
     if !payload.is_empty()
         && body.exists
-        && let Some(info) = payload_session(headers, &body, parent)
+        && let Some(info) = payload_session(headers, body, parent)
     {
         return finalize(info);
     }
@@ -1114,12 +1171,21 @@ pub struct Meta<'a> {
 /// Go `extractExplicitSessionIDs`: the explicit identity and its fallback (the parent,
 /// or the conversation alias of a prompt-cache-key session), plus the fork flag.
 pub fn explicit_session_ids(headers: &HeaderMap, payload: &[u8], meta: &Meta<'_>) -> (String, String, bool) {
-    let Some(info) = extract_session_info(headers, payload, meta.execution_session) else {
+    explicit_session_ids_with(&SessionBody::new(payload), headers, meta)
+}
+
+/// [`explicit_session_ids`] over a body already indexed for the request.
+pub fn explicit_session_ids_with(
+    shared: &SessionBody<'_>,
+    headers: &HeaderMap,
+    meta: &Meta<'_>,
+) -> (String, String, bool) {
+    let Some(info) = extract_session_info_with(shared, headers, meta.execution_session) else {
         return Default::default();
     };
     let mut fallback = info.parent_session_id;
-    if fallback.is_empty() && info.session_id.starts_with("pck:") && !payload.is_empty() {
-        fallback = conversation_alias(&Body::new(payload));
+    if fallback.is_empty() && info.session_id.starts_with("pck:") && !shared.0.json.is_empty() {
+        fallback = conversation_alias(&shared.0);
     }
     (info.session_id, fallback, info.is_fork)
 }
@@ -1127,7 +1193,13 @@ pub fn explicit_session_ids(headers: &HeaderMap, payload: &[u8], meta: &Meta<'_>
 /// Go `extractSessionIDs`: explicit identity, then `derived:<id>`, then the
 /// first-messages hash. Returns `(primary, fallback)`.
 pub fn session_ids(headers: &HeaderMap, payload: &[u8], meta: &Meta<'_>) -> (String, String) {
-    let (primary, fallback, _) = explicit_session_ids(headers, payload, meta);
+    session_ids_with(&SessionBody::new(payload), headers, meta)
+}
+
+/// [`session_ids`] over a body already indexed for the request.
+pub fn session_ids_with(shared: &SessionBody<'_>, headers: &HeaderMap, meta: &Meta<'_>) -> (String, String) {
+    let payload = shared.0.json;
+    let (primary, fallback, _) = explicit_session_ids_with(shared, headers, meta);
     if !primary.is_empty() {
         return (primary, fallback);
     }
@@ -1144,6 +1216,11 @@ pub fn session_ids(headers: &HeaderMap, payload: &[u8], meta: &Meta<'_>) -> (Str
 /// Go `ExtractSessionID`.
 pub fn extract_session_id(headers: &HeaderMap, payload: &[u8], meta: &Meta<'_>) -> String {
     session_ids(headers, payload, meta).0
+}
+
+/// [`extract_session_id`] over a body already indexed for the request.
+pub fn extract_session_id_with(shared: &SessionBody<'_>, headers: &HeaderMap, meta: &Meta<'_>) -> String {
+    session_ids_with(shared, headers, meta).0
 }
 
 /// Go `isSubagentSession`.
@@ -1164,6 +1241,13 @@ pub fn is_subagent_session(primary: &str, fallback: &str) -> bool {
 /// Go `hasExplicitSession`: whether headers or body carry any session signal, so the
 /// derived identity is not computed.
 pub fn has_explicit_session(headers: &HeaderMap, payload: &[u8]) -> bool {
+    has_explicit_session_with(&SessionBody::new(payload), headers)
+}
+
+/// [`has_explicit_session`] over a body already indexed for the request.
+pub fn has_explicit_session_with(shared: &SessionBody<'_>, headers: &HeaderMap) -> bool {
+    let payload = shared.0.json;
+    let body = &shared.0;
     const HEADERS: &[&str] = &[
         "X-Claude-Code-Session-Id",
         "X-Claude-Code-Agent-Id",
@@ -1249,7 +1333,6 @@ pub fn has_explicit_session(headers: &HeaderMap, payload: &[u8]) -> bool {
     if payload.is_empty() {
         return false;
     }
-    let body = Body::new(payload);
     if !body.first(PATHS).is_empty() {
         return true;
     }
@@ -1260,7 +1343,7 @@ pub fn has_explicit_session(headers: &HeaderMap, payload: &[u8]) -> bool {
     if user.is_empty() && body.nested {
         user = body.get("request").get("metadata.user_id").str().trim().to_owned();
     }
-    !normalize_explicit_id(&user).is_empty() || !conversation_alias(&body).is_empty()
+    !normalize_explicit_id(&user).is_empty() || !conversation_alias(body).is_empty()
 }
 
 /// Go `Enrich`'s derived identity: computed only when the request carries no explicit
@@ -1272,11 +1355,22 @@ pub fn derived_id(
     execution_session: Option<&str>,
     caller_scope: &str,
 ) -> Option<String> {
+    derived_id_with(&SessionBody::new(payload), format, headers, execution_session, caller_scope)
+}
+
+/// [`derived_id`] over a body already indexed for the request.
+pub fn derived_id_with(
+    shared: &SessionBody<'_>,
+    format: Format,
+    headers: &HeaderMap,
+    execution_session: Option<&str>,
+    caller_scope: &str,
+) -> Option<String> {
     let execution = execution_session.map(normalize_explicit_id).unwrap_or_default();
-    if !execution.is_empty() || has_explicit_session(headers, payload) {
+    if !execution.is_empty() || has_explicit_session_with(shared, headers) {
         return None;
     }
-    Some(derive_id(format, payload, caller_scope)).filter(|id| !id.is_empty())
+    Some(derive_id(format, shared.0.json, caller_scope)).filter(|id| !id.is_empty())
 }
 
 /// Go `DeriveID`: a stable identity from the leading instructions and the first
@@ -1939,6 +2033,56 @@ mod tests {
                     (fast.exists(), fast.str()),
                     (slow.exists(), slow.str()),
                     "{path} in {payload}"
+                );
+            }
+        }
+    }
+
+    /// The `_with` extractors over one shared index return exactly what the payload-taking
+    /// functions do, so a request that builds the index once sees the same identity. Covers
+    /// an envelope, a prompt-cache body, the first-messages fallback, a malformed object and
+    /// a non-object body.
+    #[test]
+    fn shared_body_matches_payload_extractors() {
+        use super::*;
+        use http::HeaderMap;
+        let bodies: [&[u8]; 6] = [
+            br#"{"metadata":{"user_id":"u1"},"conversation_id":"c1"}"#,
+            br#"{"request":{"metadata":{"user_id":"r2"}},"contents":[]}"#,
+            br#"{"session_id":"s","prompt_cache_key":"p"}"#,
+            br#"{"messages":[{"role":"user","content":"hi"}]}"#,
+            br#"{"model":"m","messages":[1,],"conversation_id":"c4"}"#,
+            b"not json",
+        ];
+        let meta = Meta {
+            execution_session: None,
+            derived: Some("d1"),
+        };
+        let mut headers = HeaderMap::new();
+        headers.insert("x-session-id", "h1".parse().unwrap());
+        let empty = HeaderMap::new();
+        for payload in bodies {
+            for h in [&headers, &empty] {
+                let shared = SessionBody::new(payload);
+                assert_eq!(
+                    session_ids_with(&shared, h, &meta),
+                    session_ids(h, payload, &meta),
+                    "session ids {payload:?}"
+                );
+                assert_eq!(
+                    extract_session_id_with(&shared, h, &meta),
+                    extract_session_id(h, payload, &meta),
+                    "session id {payload:?}"
+                );
+                assert_eq!(
+                    explicit_session_ids_with(&shared, h, &meta),
+                    explicit_session_ids(h, payload, &meta),
+                    "explicit ids {payload:?}"
+                );
+                assert_eq!(
+                    has_explicit_session_with(&shared, h),
+                    has_explicit_session(h, payload),
+                    "has explicit {payload:?}"
                 );
             }
         }

@@ -25,16 +25,18 @@ pub struct Session {
 /// Resolves the session of a request in `format` from its client headers and body.
 /// `caller` is the matched client key; it scopes the derived identity.
 pub fn resolve(format: Format, headers: &HeaderMap, body: &[u8], execution: Option<&str>, caller: &str) -> Session {
+    // One body index shared by every extractor below (derived, explicit and the fallback ids).
+    let body = identity::SessionBody::new(body);
     let scope = identity::caller_scope(caller);
-    let derived = identity::derived_id(format, headers, body, execution, &scope);
+    let derived = identity::derived_id_with(&body, format, headers, execution, &scope);
     let meta = Meta {
         execution_session: execution,
         derived: derived.as_deref(),
     };
-    let (mut primary, mut parent, fork) = identity::explicit_session_ids(headers, body, &meta);
+    let (mut primary, mut parent, fork) = identity::explicit_session_ids_with(&body, headers, &meta);
     let explicit = !primary.is_empty();
     if !explicit {
-        (primary, parent) = identity::session_ids(headers, body, &meta);
+        (primary, parent) = identity::session_ids_with(&body, headers, &meta);
     }
     let some = |s: String| (!s.is_empty()).then(|| identity::bound_session_identity(&s));
     Session {
