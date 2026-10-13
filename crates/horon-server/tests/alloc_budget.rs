@@ -1,26 +1,32 @@
-//! Memory gate: the heap a large Claude or Codex request costs on its way through the
-//! proxy.
+//! Memory gate: the heap a large request costs on its way through the proxy.
 //!
 //! A counting global allocator (this test binary only; release builds use the system
 //! allocator untouched) records live bytes and allocation calls while one streamed
-//! request of about 306 KB, then one of about 1.9 MB, goes from a client through the
-//! router to a local fake upstream and back: `/v1/messages` through the Claude executor
-//! to a fake Anthropic upstream, then `/v1/responses` through the Codex executor (an API
-//! key whose base-url is the fake upstream). `/v1/messages/count_tokens` with the same
-//! Claude bodies is counted too: an OAuth credential counts locally with the shared
-//! o200k_base encoder, which the warm-up builds. The request body is built before counting
-//! starts and handed to the router directly. The fake upstream runs on its own thread
-//! and runtime, which the allocator does not count: hyper sizes its read buffers from
-//! how much the previous read returned, so the upstream's allocations depend on
-//! scheduling, not on the proxy. Each size is sent three times and gated on the smallest
-//! peak and call count. The ceilings are the `alloc.*` lines of `bench/budgets.txt`; the
-//! measured values are printed so a change can update them with a dated note. Both
-//! routes run in one test, one after the other, because the counters are process-wide.
+//! request of about 306 KB, 1 MB, then 1.9 MB goes from a client through the router to a
+//! local fake upstream and back, on each route: `/v1/messages` through the Claude
+//! executor to a fake Anthropic upstream; `/v1/responses` through the Codex executor (an
+//! API key whose base-url is the fake upstream) and through the xAI executor (a Grok API
+//! key); `/v1/chat/completions` through the [OI]-compatible executor; and
+//! `/v1/messages/count_tokens` with the same Claude bodies, counted locally as for an
+//! OAuth login with the shared o200k_base encoder, which the warm-up builds. The request
+//! body is built before counting starts and handed to the router directly. The fake
+//! upstream runs on its own thread and runtime, which the allocator does not count: hyper
+//! sizes its read buffers from how much the previous read returned, so the upstream's
+//! allocations depend on scheduling, not on the proxy. Each size is sent three times and
+//! gated on the smallest peak and call count. The ceilings are the `alloc.*` lines of
+//! `bench/budgets.txt`; the measured values are printed so a change can update them with a
+//! dated note. Every route runs in one test, one after the other, because the counters are
+//! process-wide.
+//!
+//! The same pass also measures CPU: per route and size, the process-wide CPU delta over N
+//! requests minus a scaled idle window and the fake upstream's own thread CPU, divided by
+//! the request count (plan T18's mechanism, recorded as the pre-optimization baseline).
 
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::time::{Duration, Instant};
 
 use axum::body::{Body, Bytes};
 use axum::extract::Request;
@@ -37,6 +43,28 @@ static LIVE: AtomicUsize = AtomicUsize::new(0);
 static PEAK: AtomicUsize = AtomicUsize::new(0);
 static CALLS: AtomicUsize = AtomicUsize::new(0);
 static COUNTING: AtomicBool = AtomicBool::new(false);
+/// CPU nanoseconds the fake upstream's own thread spent inside its handler, summed over
+/// the run. `CLOCK_PROCESS_CPUTIME_ID` counts every thread of this process, so the router
+/// measurement subtracts this to isolate the proxy's own cost.
+static UPSTREAM_CPU_NS: AtomicUsize = AtomicUsize::new(0);
+
+/// `clock_gettime` for one clock, in nanoseconds.
+fn clock_ns(id: libc::clockid_t) -> usize {
+    let mut ts = libc::timespec { tv_sec: 0, tv_nsec: 0 };
+    // SAFETY: `ts` is a valid, writable `timespec` for the duration of the call.
+    unsafe { libc::clock_gettime(id, &mut ts) };
+    (ts.tv_sec as usize) * 1_000_000_000 + (ts.tv_nsec as usize)
+}
+
+/// CPU time of every thread in this process.
+fn process_cpu_ns() -> usize {
+    clock_ns(libc::CLOCK_PROCESS_CPUTIME_ID)
+}
+
+/// CPU time of the calling thread.
+fn thread_cpu_ns() -> usize {
+    clock_ns(libc::CLOCK_THREAD_CPUTIME_ID)
+}
 
 thread_local! {
     /// Set on the fake upstream's thread. `const`, so reading it never allocates.
@@ -87,12 +115,26 @@ fn grow(size: usize) {
 static ALLOCATOR: Counting = Counting;
 
 /// The fake upstream drains the request without keeping it and streams a short reply:
-/// Responses events on the Codex path (`/responses`), Claude events otherwise.
+/// [OI] chat chunks on the compatible path (`/chat/completions`), Responses events on the
+/// Codex and xAI path (`/responses`), Claude events otherwise. Its own thread's CPU is
+/// accumulated so the router measurement can subtract it.
 async fn upstream(req: Request) -> axum::response::Response {
+    let started = thread_cpu_ns();
+    let response = upstream_reply(req).await;
+    UPSTREAM_CPU_NS.fetch_add(thread_cpu_ns().saturating_sub(started), Ordering::Relaxed);
+    response
+}
+
+async fn upstream_reply(req: Request) -> axum::response::Response {
     let codex = req.uri().path().ends_with("/responses");
+    let compat = req.uri().path().ends_with("/chat/completions");
     let mut body = req.into_body().into_data_stream();
     while let Some(chunk) = body.next().await {
         drop(chunk.unwrap());
+    }
+    if compat {
+        let sse = "data: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"up-model\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"ok\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n";
+        return ([("content-type", "text/event-stream")], sse).into_response();
     }
     if codex {
         let sse = "event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_1\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"gpt-5.5\",\"output\":[]}}\n\n\
@@ -155,7 +197,7 @@ fn conversation(target: usize) -> Bytes {
 /// The same conversation for Codex, in the Responses format: 18 KB of instructions, 24
 /// function tools, then reasoning items with encrypted content, function calls and
 /// their large outputs.
-fn responses_conversation(target: usize) -> Bytes {
+fn responses_conversation(target: usize, model: &str) -> Bytes {
     use serde_json::json;
     let filler = |n: usize| "Explain the change in this diff and list any risks. ".repeat(n / 52 + 1);
     let tools: Vec<_> = (0..24)
@@ -181,7 +223,7 @@ fn responses_conversation(target: usize) -> Bytes {
         turn += 1;
     }
     let body = json!({
-        "model": "gpt-5.5",
+        "model": model,
         "instructions": filler(18_000),
         "input": input,
         "tools": tools,
@@ -192,6 +234,48 @@ fn responses_conversation(target: usize) -> Bytes {
         "stream": true,
         "include": ["reasoning.encrypted_content"],
         "prompt_cache_key": "alloc-budget",
+    });
+    Bytes::from(serde_json::to_vec(&body).unwrap())
+}
+
+/// The same conversation for an [OI]-compatible provider, in the Chat Completions
+/// format: a system message, 24 function tools, then assistant tool calls and their
+/// large outputs.
+fn chat_conversation(target: usize, model: &str) -> Bytes {
+    use serde_json::json;
+    let filler = |n: usize| "Explain the change in this diff and list any risks. ".repeat(n / 52 + 1);
+    let tools: Vec<_> = (0..24)
+        .map(|i| {
+            json!({
+                "type": "function",
+                "function": {
+                    "name": format!("tool_{i}"),
+                    "description": filler(400),
+                    "parameters": {"type": "object", "properties": {"path": {"type": "string"}, "text": {"type": "string"}}},
+                },
+            })
+        })
+        .collect();
+    let mut messages = vec![
+        json!({"role": "system", "content": filler(18_000)}),
+        json!({"role": "user", "content": filler(2000)}),
+    ];
+    let mut size = 30_000;
+    let mut turn = 0;
+    while size < target {
+        let id = format!("call_{turn:06}");
+        messages.push(json!({"role": "assistant", "content": null, "tool_calls": [
+            {"id": id, "type": "function", "function": {"name": "tool_1", "arguments": "{\"path\":\"src/main.rs\"}"}},
+        ]}));
+        messages.push(json!({"role": "tool", "tool_call_id": id, "content": filler(20_000)}));
+        size += 22_000;
+        turn += 1;
+    }
+    let body = json!({
+        "model": model,
+        "stream": true,
+        "messages": messages,
+        "tools": tools,
     });
     Bytes::from(serde_json::to_vec(&body).unwrap())
 }
@@ -240,7 +324,26 @@ async fn large_requests_stay_within_their_heap_budget() {
     )
     .unwrap();
     let mut config = Config::parse(&format!(
-        "codex-api-key:\n  - api-key: sk-FAKE-codex\n    base-url: {upstream_url}\n    models:\n      - name: gpt-5.5\n"
+        r#"codex-api-key:
+  - api-key: sk-FAKE-codex
+    base-url: {upstream_url}
+    models:
+      - name: gpt-5.5
+api-keys:
+  openai-compatibility:
+    - name: Acme
+      base-url: {upstream_url}/v1
+      models:
+        - name: up-model
+          alias: fast
+      keys:
+        - api-key: sk-fake-upstream
+  xai:
+    - name: xai-1
+      base-url: {upstream_url}/v1
+      keys:
+        - api-key: sk-fake-xai
+"#
     ))
     .unwrap();
     config.api_keys = vec!["client-key-1".into()];
@@ -269,6 +372,7 @@ async fn large_requests_stay_within_their_heap_budget() {
             let (path, done): (_, &[u8]) = match route {
                 "claude" => ("/v1/messages", b"message_stop"),
                 "count" => ("/v1/messages/count_tokens", b"\"input_tokens\""),
+                "compat" => ("/v1/chat/completions", b"[DONE]"),
                 _ => ("/v1/responses", b"response.completed"),
             };
             let request = axum::http::Request::post(path)
@@ -285,17 +389,39 @@ async fn large_requests_stay_within_their_heap_budget() {
         }
     };
 
+    // CPU baseline: the cost of an idle window (worker polling, upstream idle), measured
+    // once, is scaled to each request window and subtracted, together with the fake
+    // upstream's own CPU, from the process-wide CPU delta.
+    let idle_wall = Instant::now();
+    let idle_cpu = process_cpu_ns();
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    let idle_cpu = process_cpu_ns() - idle_cpu;
+    let idle_wall = idle_wall.elapsed().as_nanos() as f64;
+    let idle_per_ns = idle_cpu as f64 / idle_wall;
+
     let mut over = Vec::new();
+    let mut cpu_rows = Vec::new();
     for (route, name, target) in [
         ("claude", "306k", 306_000),
+        ("claude", "1000k", 1_000_000),
         ("claude", "1900k", 1_900_000),
         ("count", "count.306k", 306_000),
+        ("count", "count.1000k", 1_000_000),
         ("count", "count.1900k", 1_900_000),
         ("codex", "codex.306k", 306_000),
+        ("codex", "codex.1000k", 1_000_000),
         ("codex", "codex.1900k", 1_900_000),
+        ("xai", "xai.306k", 306_000),
+        ("xai", "xai.1000k", 1_000_000),
+        ("xai", "xai.1900k", 1_900_000),
+        ("compat", "compat.306k", 306_000),
+        ("compat", "compat.1000k", 1_000_000),
+        ("compat", "compat.1900k", 1_900_000),
     ] {
         let body = match route {
-            "codex" => responses_conversation(target),
+            "codex" => responses_conversation(target, "gpt-5.5"),
+            "xai" => responses_conversation(target, "grok-4.7"),
+            "compat" => chat_conversation(target, "fast"),
             _ => conversation(target),
         };
         // Warm-up: connection pool, registries and lazy statics.
@@ -320,12 +446,34 @@ async fn large_requests_stay_within_their_heap_budget() {
             body.len(),
             peak as f64 / body.len() as f64,
         );
+        // Per-request CPU: N sends, minus the scaled idle cost and the upstream's CPU.
+        const N: u32 = 20;
+        let up_before = UPSTREAM_CPU_NS.load(Ordering::Relaxed);
+        let cpu_before = process_cpu_ns();
+        let wall_before = Instant::now();
+        for _ in 0..N {
+            send(route, body.clone()).await;
+        }
+        let wall = wall_before.elapsed().as_nanos() as f64;
+        let cpu_delta = (process_cpu_ns() - cpu_before) as f64;
+        let upstream = (UPSTREAM_CPU_NS.load(Ordering::Relaxed) - up_before) as f64;
+        let request_cpu = (cpu_delta - idle_per_ns * wall - upstream).max(0.0) / N as f64;
+        let cpu_ms = request_cpu / 1_000_000.0;
+        println!(
+            "{name}: request CPU {cpu_ms:.3} ms ({N} requests, body {} B)",
+            body.len()
+        );
+        cpu_rows.push((name, body.len(), cpu_ms));
         if peak > peak_max {
             over.push(format!("alloc.{name}.peak_bytes {peak} > {peak_max}"));
         }
         if calls > calls_max {
             over.push(format!("alloc.{name}.allocations {calls} > {calls_max}"));
         }
+    }
+    println!("--- CPU per request (ms) ---");
+    for (name, bytes, ms) in &cpu_rows {
+        println!("{name}\t{bytes}\t{ms:.3}");
     }
     let _ = std::fs::remove_dir_all(dir);
     assert!(over.is_empty(), "over budget (bench/budgets.txt): {over:?}");
