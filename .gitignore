@@ -2,4 +2,6 @@
 ui/node_modules/
 ui/.amp/
 
+.hyper/
 .omo/
+__pycache__/
