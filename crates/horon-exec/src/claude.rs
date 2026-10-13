@@ -1115,8 +1115,12 @@ impl<'a> Ctx<'a> {
         let probe_before = signals::probe_or_helper(&body);
         let mut continuity = session::Continuity::default();
         let mut cloaked = false;
-        let before_cloak = body.clone();
+        // The pre-cloak body is only read by the reconcile captures below, which return
+        // immediately when cloaking is off, so clone it inside the branch instead of
+        // paying for a full-body copy on every request.
+        let mut before_cloak: Option<String> = None;
         if cloak {
+            before_cloak = Some(body.clone());
             if !strict && let Some(message) = cloak::invalid_system_block(&body) {
                 return Err(ExecError::local(400, FailureScope::Request, message));
             }
@@ -1202,8 +1206,9 @@ impl<'a> Ctx<'a> {
                 }
             }
         }
-        let placement = reconcile::SystemPlacement::capture(&before_cloak, &body, cloaked);
-        let fable = reconcile::FableState::capture(&before_cloak, &body, cloaked);
+        let before_cloak = before_cloak.as_deref().unwrap_or("");
+        let placement = reconcile::SystemPlacement::capture(before_cloak, &body, cloaked);
+        let fable = reconcile::FableState::capture(before_cloak, &body, cloaked);
         let (edited, touched) = horon_common::payload::apply_tracked(
             &self.payload_rules,
             &horon_common::payload::Request {
