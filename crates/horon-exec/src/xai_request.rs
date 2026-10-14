@@ -7,13 +7,14 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 
 use horon_common::gostr::GoStr;
 use horon_common::json::{self as gj, GoValue, Kind, Res};
+use horon_common::splice;
 use horon_common::thinking::{self, ModelCaps, RequestThinking, parse_suffix};
 use horon_core::config::Config;
 use horon_core::exec::{ExecError, ExecRequest, FailureScope};
 use horon_core::format::Format;
 use horon_translate::RequestCtx;
 
-use crate::openai_compat_payload::{self as compat, set_bool_if_different, set_str_if_different};
+use crate::openai_compat_payload::{self as compat, set_str_if_different};
 use crate::xai_replay::{self as replay, ReplayScope};
 use crate::xai_response::{
     self as response, CUSTOM, ClientToolKey, FUNCTION, NAMESPACE, NamespaceRef, NamespaceRefs, WEB_SEARCH, text,
@@ -125,6 +126,31 @@ fn preserve_output_controls(mut body: Vec<u8>, source: &[u8], from: Format) -> V
     body
 }
 
+/// `SetStringIfDifferent(model)`, `SetBoolIfDifferent(stream)` and the four request
+/// controls xAI's Responses API rejects, applied as one `splice` pass over the body. The
+/// conditional sets keep the sequential helpers' behavior: a value that already matches is
+/// left byte-for-byte as it was.
+fn shape_request_controls(body: Vec<u8>, base_model: &str, stream: bool) -> Vec<u8> {
+    let mut edits = Vec::with_capacity(6);
+    let model = gj::get(&body, "model");
+    if !(model.kind == Kind::String && *model.bytes() == *base_model.as_bytes()) {
+        edits.push(splice::Edit::set_str("model", base_model.to_owned()));
+    }
+    let stream_kind = if stream { Kind::True } else { Kind::False };
+    if gj::get(&body, "stream").kind != stream_kind {
+        edits.push(splice::Edit::set_raw("stream", if stream { "true" } else { "false" }));
+    }
+    for key in [
+        "previous_response_id",
+        "prompt_cache_retention",
+        "safety_identifier",
+        "stream_options",
+    ] {
+        edits.push(splice::Edit::delete(key));
+    }
+    splice::splice(&body, &edits)
+}
+
 /// `prepareResponsesRequestTo`.
 pub(crate) async fn prepare(
     req: &ExecRequest,
@@ -174,16 +200,7 @@ pub(crate) async fn prepare(
         },
         body,
     );
-    set_str_if_different(&mut body, "model", &base_model);
-    set_bool_if_different(&mut body, "stream", stream);
-    for key in [
-        "previous_response_id",
-        "prompt_cache_retention",
-        "safety_identifier",
-        "stream_options",
-    ] {
-        gj::delete(&mut body, key);
-    }
+    body = shape_request_controls(body, &base_model, stream);
     body = horon_common::codex_client::rewrite_multi_agent_v2_input(&req.headers, &body, &client.settings, false);
     let mut apply_patch = apply_patch::State::new(req.source_format, &original_payload, &original_translated);
     // A plain Go error (translator/common NormalizeApplyPatchResponsesRequest).
@@ -1350,6 +1367,11 @@ fn normalize_input_namespace_tool_calls(mut body: Vec<u8>, fold: bool) -> Vec<u8
 /// in the payload use xAI's `url` field instead of OpenAI's `image_url`. Go re-encodes
 /// the whole document when it changes anything.
 pub(crate) fn normalize_image_refs(body: Vec<u8>) -> Vec<u8> {
+    // Most bodies carry no image reference, and decoding one is the whole cost of this
+    // step: scan for the member keys first and skip the parse when none is present.
+    if !has_image_ref_key(&body) {
+        return body;
+    }
     if !gj::valid(&body) {
         return body;
     }
@@ -1360,6 +1382,25 @@ pub(crate) fn normalize_image_refs(body: Vec<u8>) -> Vec<u8> {
         return body;
     }
     value.marshal()
+}
+
+/// Whether the body may carry an `image`, `images` or `reference_images` member anywhere:
+/// a scan for the quoted key token (`"image"`, `"images"`, `"reference_images"`), the form
+/// this pipeline always writes keys in.
+// ponytail: an escaped key (`"\u0069mage"`) is not seen and the body is returned as is;
+// such a body never comes from the translation and marshal steps, and a member-key scan
+// over a decoded document is the only exact alternative.
+fn has_image_ref_key(body: &[u8]) -> bool {
+    let mut from = 0;
+    while let Some(offset) = body[from..].iter().position(|&c| c == b'"') {
+        let at = from + offset + 1;
+        let rest = &body[at..];
+        if rest.starts_with(b"image\"") || rest.starts_with(b"images\"") || rest.starts_with(b"reference_images\"") {
+            return true;
+        }
+        from = at;
+    }
+    false
 }
 
 fn image_refs_value(value: &mut GoValue) -> bool {
@@ -1418,4 +1459,105 @@ fn image_ref(value: &mut GoValue) -> bool {
     r.insert("url".into(), GoValue::String(url));
     r.remove("image_url");
     true
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::openai_compat_payload::{set_bool_if_different, set_str_if_different};
+
+    /// The pre-change sequence, kept as the oracle for [`shape_request_controls`].
+    fn sequential_controls(mut body: Vec<u8>, base_model: &str, stream: bool) -> Vec<u8> {
+        set_str_if_different(&mut body, "model", base_model);
+        set_bool_if_different(&mut body, "stream", stream);
+        for key in [
+            "previous_response_id",
+            "prompt_cache_retention",
+            "safety_identifier",
+            "stream_options",
+        ] {
+            gj::delete(&mut body, key);
+        }
+        body
+    }
+
+    #[test]
+    fn request_controls_match_the_sequential_edits() {
+        let cases: [(&[u8], &str, bool); 9] = [
+            // Model and stream already match: the sets are skipped entirely.
+            (br#"{"model":"grok-4","stream":true,"keep":1}"#, "grok-4", true),
+            // Both change, and the four dropped controls are present.
+            (
+                br#"{"model":"grok-3","stream":false,"previous_response_id":"r","prompt_cache_retention":"24h","safety_identifier":"s","stream_options":{"include_usage":true},"keep":1}"#,
+                "grok-4",
+                true,
+            ),
+            // Model missing (an append), stream missing.
+            (br#"{"keep":1}"#, "grok-4", true),
+            // Model present but not a string, stream already false.
+            (br#"{"model":7,"stream":false}"#, "grok-4", false),
+            // Escaped model text decodes to the same value: still skipped.
+            (br#"{"model":"gro\u006b-4","stream":true}"#, "grok-4", true),
+            // A nested/array value forces the splice fallback; order must still hold.
+            (br#"{"a":[1,2,3],"model":"grok-3","stream":true}"#, "grok-4", true),
+            // Non-ASCII model value.
+            (
+                "{\"model\":\"그로크\",\"stream\":false}".as_bytes(),
+                "그로크",
+                true,
+            ),
+            // Stream is a non-bool type.
+            (br#"{"model":"grok-4","stream":"yes"}"#, "grok-4", false),
+            // Empty-ish body with only the dropped keys.
+            (br#"{"stream_options":null,"stream":false}"#, "grok-4", false),
+        ];
+        for (body, model, stream) in cases {
+            assert_eq!(
+                shape_request_controls(body.to_vec(), model, stream),
+                sequential_controls(body.to_vec(), model, stream),
+                "body {}",
+                String::from_utf8_lossy(body)
+            );
+        }
+    }
+
+    #[test]
+    fn image_ref_key_scan_matches_only_member_keys() {
+        assert!(has_image_ref_key(br#"{"image":{"image_url":"u"}}"#));
+        assert!(has_image_ref_key(br#"{"images":[{"image_url":"u"}]}"#));
+        assert!(has_image_ref_key(br#"{"reference_images":[{"image_url":"u"}]}"#));
+        assert!(has_image_ref_key(br#"{ "images" : [] }"#));
+        assert!(has_image_ref_key(br#"[{"a":{"image":1}}]"#));
+        assert!(!has_image_ref_key(br#"{"prompt":"a picture"}"#));
+        assert!(!has_image_ref_key(br#"{"my_image":1}"#));
+        assert!(!has_image_ref_key(br#"{"model":"grok-4","input":"draw"}"#));
+        assert!(!has_image_ref_key(b""));
+    }
+
+    #[test]
+    fn normalize_image_refs_skips_bodies_without_image_keys() {
+        // Out-of-order keys and a `1.0` number: a parse-and-marshal would reorder and
+        // normalize them, so byte equality proves the body was not re-encoded.
+        let body = br#"{"b":1.0,"a":2,"prompt":"draw"}"#.to_vec();
+        assert_eq!(normalize_image_refs(body.clone()), body);
+    }
+
+    #[test]
+    fn normalize_image_refs_rewrites_every_ref_container() {
+        // stale-state guard: a body that does carry image references still normalizes.
+        let body = br#"{"images":[{"image_url":"a"},{"url":"b"}],"reference_images":[{"image_url":"c"}]}"#.to_vec();
+        assert_eq!(
+            String::from_utf8(normalize_image_refs(body)).unwrap(),
+            r#"{"images":[{"url":"a"},{"url":"b"}],"reference_images":[{"url":"c"}]}"#
+        );
+    }
+
+    #[test]
+    fn normalize_image_refs_rewrites_a_single_image_member() {
+        let body = br#"{"image":{"image_url":"data:x"}}"#.to_vec();
+        assert_eq!(
+            String::from_utf8(normalize_image_refs(body)).unwrap(),
+            r#"{"image":{"url":"data:x"}}"#
+        );
+    }
 }
