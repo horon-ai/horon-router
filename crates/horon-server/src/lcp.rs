@@ -31,6 +31,12 @@ const DEFAULT_MAX_TURNS: usize = 1024;
 // cut that without moving the caps; lower caps would be a difference from Go.
 const DEFAULT_MAX_GROUPS: usize = 4096;
 const DEFAULT_MAX_PREFIXES: usize = 262_144;
+// ponytail: Go's caps bound entries, not bytes. These byte bounds are a Rust-only
+// backstop, unreachable in normal operation (the caps above hold ~128 KiB per group and,
+// measured, under ~82 MB in total): under extreme load they evict the oldest groups
+// first, the same LRU as the entry bounds. This is a difference from Go.
+const DEFAULT_MAX_BYTES: usize = 128 * 1024 * 1024;
+const DEFAULT_MAX_GROUP_BYTES: usize = 4 * 1024 * 1024;
 const MAX_TURNS: usize = 4096;
 const MAX_PARTS: usize = 256;
 const MIN_COMPACTION_OVERLAP: usize = 2;
@@ -876,13 +882,17 @@ impl Match {
     }
 }
 
-/// Go `MerklePrefixMatcherConfig`.
+/// Go `MerklePrefixMatcherConfig`, plus the Rust-only byte bounds.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Limits {
     pub ttl: Duration,
     pub max_turns: usize,
     pub max_groups: usize,
     pub max_prefixes: usize,
+    /// Total estimated bytes the groups hold (0: [`DEFAULT_MAX_BYTES`]).
+    pub max_bytes: usize,
+    /// Estimated bytes a single group may hold (0: [`DEFAULT_MAX_GROUP_BYTES`]).
+    pub max_group_bytes: usize,
 }
 
 struct Group {
@@ -913,6 +923,15 @@ impl Group {
             &self.tails
         }
     }
+
+    /// Estimated bytes the group holds: the strings it keeps. The namespace indexes
+    /// (`groups`, `prefixes`, `tails`) duplicate these values, so they are excluded.
+    fn byte_len(&self) -> usize {
+        self.fingerprints.iter().map(String::len).sum::<usize>()
+            + self.tails.iter().map(String::len).sum::<usize>()
+            + self.prefix_keys.iter().map(String::len).sum::<usize>()
+            + self.environment.len()
+    }
 }
 
 fn tail_key(tails: &[String]) -> Option<String> {
@@ -930,8 +949,8 @@ struct Namespace {
     tails: HashMap<String, BTreeSet<u64>>,
 }
 
-/// Go `MerklePrefixMatcher`: bounded (by groups and prefix entries, least recently used
-/// first), expiring after the TTL, with no background task. Callers serialize access.
+/// Go `MerklePrefixMatcher`: bounded (by groups, prefix entries and bytes, least recently
+/// used first), expiring after the TTL, with no background task. Callers serialize access.
 pub struct Matcher {
     limits: Limits,
     namespaces: HashMap<String, Namespace>,
@@ -942,6 +961,8 @@ pub struct Matcher {
     next_lru: u64,
     group_count: usize,
     prefix_count: usize,
+    /// Total of every group's [`Group::byte_len`].
+    byte_count: usize,
     /// Monotonic across `clear`, so a pre-clear generation never evicts a newer binding.
     access: u64,
     operations: u64,
@@ -969,6 +990,12 @@ impl Matcher {
         if limits.max_prefixes == 0 {
             limits.max_prefixes = DEFAULT_MAX_PREFIXES;
         }
+        if limits.max_bytes == 0 {
+            limits.max_bytes = DEFAULT_MAX_BYTES;
+        }
+        if limits.max_group_bytes == 0 {
+            limits.max_group_bytes = DEFAULT_MAX_GROUP_BYTES;
+        }
         limits.max_prefixes = limits.max_prefixes.max(limits.max_turns);
         Self {
             limits,
@@ -979,6 +1006,7 @@ impl Matcher {
             next_lru: 0,
             group_count: 0,
             prefix_count: 0,
+            byte_count: 0,
             access: 0,
             operations: 0,
         }
@@ -1125,6 +1153,7 @@ impl Matcher {
         self.lru.clear();
         self.group_count = 0;
         self.prefix_count = 0;
+        self.byte_count = 0;
     }
 
     /// Go `LookupSession`: the credentials bound to an LCP session (sorted) and its
@@ -1225,11 +1254,20 @@ impl Matcher {
         let group = self.groups.get_mut(&id).expect("indexed group");
         group.expires = now + ttl;
         group.last_access = access;
+        let before = group.environment.len();
         group.environment = environment;
-        if !tails.is_empty() && group.tails != tails {
+        let after = group.environment.len();
+        let tails_changed = !tails.is_empty() && group.tails != tails;
+        // The environment digest is part of the group's bytes; keep the running total
+        // exact. The tail path below re-adds the group and re-checks through `add_group`.
+        self.byte_count = self.byte_count - before + after;
+        if tails_changed {
             let mut group = self.remove_group(id).expect("indexed group");
             group.tails = tails;
             self.add_group(id, group);
+        } else {
+            // A byte increase here (a grown environment) must re-check the bounds.
+            self.enforce_bounds(id);
         }
         self.move_to_back(id);
         true
@@ -1376,15 +1414,34 @@ impl Matcher {
         self.next_lru += 1;
         self.group_count += 1;
         self.prefix_count += group.prefix_keys.len();
+        self.byte_count += group.byte_len();
         let access = group.last_access;
         self.groups.insert(id, group);
-        while self.group_count > self.limits.max_groups || self.prefix_count > self.limits.max_prefixes {
+        self.enforce_bounds(id);
+        access
+    }
+
+    /// Keeps the matcher within its byte bounds. A single group over the per-group byte
+    /// bound is dropped whole (only `touched`, just added or updated, can newly exceed
+    /// it); the oldest-first LRU loop then evicts while any entry, prefix or total-byte
+    /// bound is exceeded.
+    fn enforce_bounds(&mut self, touched: u64) {
+        if self
+            .groups
+            .get(&touched)
+            .is_some_and(|g| g.byte_len() > self.limits.max_group_bytes)
+        {
+            self.remove_group(touched);
+        }
+        while self.group_count > self.limits.max_groups
+            || self.prefix_count > self.limits.max_prefixes
+            || self.byte_count > self.limits.max_bytes
+        {
             let Some((_, &oldest)) = self.lru.first_key_value() else {
                 break;
             };
             self.remove_group(oldest);
         }
-        access
     }
 
     /// Go `removeGroupLocked`.
@@ -1417,6 +1474,7 @@ impl Matcher {
         self.lru.remove(&group.lru);
         self.group_count = self.group_count.saturating_sub(1);
         self.prefix_count = self.prefix_count.saturating_sub(group.prefix_keys.len());
+        self.byte_count = self.byte_count.saturating_sub(group.byte_len());
         Some(group)
     }
 
