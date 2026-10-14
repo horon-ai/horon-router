@@ -795,7 +795,8 @@ impl Store {
         if !current.is_empty() {
             return upsert_builtins(current);
         }
-        let section = super::pinned().channel("devin");
+        let catalog = super::pinned();
+        let section = catalog.channel("devin");
         if !section.is_empty() {
             return upsert_builtins(section.to_vec());
         }

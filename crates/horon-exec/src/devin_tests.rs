@@ -34,7 +34,8 @@ fn catalog_matches_go_get_devin_models() {
     }
     for case in v["static_lookup"].as_array().unwrap() {
         let id = case["id"].as_str().unwrap();
-        let found = horon_core::registry::pinned().lookup(id);
+        let catalog = horon_core::registry::pinned();
+        let found = catalog.lookup(id);
         assert_eq!(
             found.map(|m| m.kind.clone()).as_deref(),
             case["type"].as_str(),
