@@ -60,7 +60,9 @@ idle.linux.1.rss_kb       23_500  10
 idle.linux.2000.wakeups        3   0
 idle.linux.2000.cpu_ticks      1   0
 idle.linux.2000.threads        6   0
-idle.linux.2000.rss_kb    71_000  10
+# 2026-10-14: auth-dir reload cache (T17) keeps each auth file's bytes + parsed
+# credential to skip re-reading unchanged files; +~14 MB at 2000 auth files.
+idle.linux.2000.rss_kb    85_000  10
 
 # Idle, macOS and Windows (release builds and the weekly idle workflow): 60 s without
 # requests, after 30 s of warm-up (10 s for the measurements below). Windows adds one
