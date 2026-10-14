@@ -830,7 +830,8 @@ impl SensitiveWords {
         #[cfg(test)]
         note_compile(&pattern);
         let built = regex::Regex::new(&pattern).ok().map(|re| Arc::new(Self(re)));
-        if cache.len() >= MAX_MATCHERS && !cache.contains_key(&pattern)
+        if cache.len() >= MAX_MATCHERS
+            && !cache.contains_key(&pattern)
             && let Some(evicted) = cache.keys().next().cloned()
         {
             cache.remove(&evicted);

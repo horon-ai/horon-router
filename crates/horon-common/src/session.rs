@@ -1355,7 +1355,13 @@ pub fn derived_id(
     execution_session: Option<&str>,
     caller_scope: &str,
 ) -> Option<String> {
-    derived_id_with(&SessionBody::new(payload), format, headers, execution_session, caller_scope)
+    derived_id_with(
+        &SessionBody::new(payload),
+        format,
+        headers,
+        execution_session,
+        caller_scope,
+    )
 }
 
 /// [`derived_id`] over a body already indexed for the request.

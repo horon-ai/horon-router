@@ -496,7 +496,8 @@ fn compiled_file_rules(value: &Value) -> Option<Vec<ErrorRule>> {
             }
             rules
         });
-    if cache.len() >= MAX_FILE_RULES && !cache.contains_key(&key)
+    if cache.len() >= MAX_FILE_RULES
+        && !cache.contains_key(&key)
         && let Some(evicted) = cache.keys().next().cloned()
     {
         cache.remove(&evicted);
@@ -604,8 +605,7 @@ impl Policy {
     }
 
     pub fn error_action(&self, c: &Credential, error: &ExecError) -> ErrorAction {
-        let file_rules: Option<Vec<ErrorRule>> =
-            metadata(c, "request_scoped_errors").and_then(compiled_file_rules);
+        let file_rules: Option<Vec<ErrorRule>> = metadata(c, "request_scoped_errors").and_then(compiled_file_rules);
         let rules = file_rules.as_ref().filter(|r| !r.is_empty()).or_else(|| {
             oauth(c)
                 .then(|| self.oauth_request_scoped_errors.get(&c.provider))
@@ -1958,7 +1958,11 @@ mod tests {
         for _ in 0..100 {
             assert!(policy.error_action(&c, &e).stop);
         }
-        assert_eq!(pattern_compilations("zqxcfg[0-9]+"), 1, "requests reuse the published regex");
+        assert_eq!(
+            pattern_compilations("zqxcfg[0-9]+"),
+            1,
+            "requests reuse the published regex"
+        );
 
         // A credential-scoped rule is compiled once by publish, then reused.
         let rules = serde_json::json!([{"status":503,"match-regexr":["zqxcred[0-9]+"],"action":"stop"}]);
