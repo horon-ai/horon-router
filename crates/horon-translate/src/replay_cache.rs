@@ -47,6 +47,9 @@ struct Caches {
     replay: HashMap<String, Entry>,
     /// model group -> text hash -> (signature, last use).
     signatures: HashMap<String, HashMap<String, (Vec<u8>, Instant)>>,
+    /// Lower bound on the oldest signature last-use; lets an over-cap write skip the
+    /// expired-entry scan when nothing can be expired yet.
+    sig_oldest_at: Option<Instant>,
     /// (ticker start, ticks already purged).
     ticker: Option<(Instant, u32)>,
 }
@@ -123,6 +126,98 @@ impl Caches {
             .entry(group.to_owned())
             .or_default()
             .insert(hash, (signature.to_vec(), now));
+        if self.sig_oldest_at.is_none() {
+            self.sig_oldest_at = Some(now);
+        }
+        if self.signatures.get(group).map_or(0, |entries| entries.len()) > MAX_SIGNATURE_ENTRIES_PER_GROUP
+            || self.signature_total() > MAX_SIGNATURE_ENTRIES
+        {
+            self.evict_signatures(now, group);
+        }
+    }
+
+    /// Total signatures across every model group.
+    fn signature_total(&self) -> usize {
+        self.signatures.values().map(|entries| entries.len()).sum()
+    }
+
+    /// Enforces the signature-cache entry caps. Expired signatures (past the 3 h TTL) go
+    /// first; only when none are expired does it drop least-recently-used signatures, oldest
+    /// last-use first. Each call sheds only the overage (one entry per insertion), and the
+    /// expired scan is skipped when the oldest last-use bound proves nothing can be expired,
+    /// so the lock shared with the replay cache is never held for a long sweep.
+    fn evict_signatures(&mut self, now: Instant, group: &str) {
+        if self
+            .sig_oldest_at
+            .is_some_and(|oldest| now.saturating_duration_since(oldest) > SIGNATURE_TTL)
+        {
+            let mut oldest: Option<Instant> = None;
+            self.signatures.retain(|_, entries| {
+                entries.retain(|_, (_, at)| {
+                    if now.saturating_duration_since(*at) <= SIGNATURE_TTL {
+                        oldest = Some(oldest.map_or(*at, |seen| seen.min(*at)));
+                        true
+                    } else {
+                        false
+                    }
+                });
+                !entries.is_empty()
+            });
+            self.sig_oldest_at = oldest;
+        }
+        while self.signatures.get(group).map_or(0, |entries| entries.len()) > MAX_SIGNATURE_ENTRIES_PER_GROUP {
+            if !self.evict_oldest_in_group(group) {
+                break;
+            }
+        }
+        while self.signature_total() > MAX_SIGNATURE_ENTRIES {
+            if !self.evict_oldest_signature() {
+                break;
+            }
+        }
+    }
+
+    /// Removes the least-recently-used signature of one group; false when it is empty.
+    fn evict_oldest_in_group(&mut self, group: &str) -> bool {
+        let Some(entries) = self.signatures.get_mut(group) else {
+            return false;
+        };
+        let Some(hash) = entries
+            .iter()
+            .min_by_key(|(_, (_, at))| *at)
+            .map(|(hash, _)| hash.clone())
+        else {
+            return false;
+        };
+        entries.remove(&hash);
+        let empty = entries.is_empty();
+        if empty {
+            self.signatures.remove(group);
+        }
+        true
+    }
+
+    /// Removes the least-recently-used signature across every group.
+    fn evict_oldest_signature(&mut self) -> bool {
+        let mut oldest: Option<(Instant, String, String)> = None;
+        for (group, entries) in &self.signatures {
+            for (hash, (_, at)) in entries {
+                if oldest.as_ref().is_none_or(|(seen, _, _)| at < seen) {
+                    oldest = Some((*at, group.clone(), hash.clone()));
+                }
+            }
+        }
+        let Some((_, group, hash)) = oldest else {
+            return false;
+        };
+        if let Some(entries) = self.signatures.get_mut(&group) {
+            entries.remove(&hash);
+            let empty = entries.is_empty();
+            if empty {
+                self.signatures.remove(&group);
+            }
+        }
+        true
     }
 
     /// A hit refreshes the entry; an expired entry is removed.
@@ -225,6 +320,13 @@ pub(crate) fn get(model: &str, session: &str) -> Option<Vec<Vec<u8>>> {
 const SIGNATURE_TTL: Duration = Duration::from_secs(3 * 3600);
 const MIN_VALID_SIGNATURE_LEN: usize = 50;
 const GEMINI_BYPASS: &str = "skip_thought_signature_validator";
+
+/// Defensive entry caps for the signature cache. Go has no cap here, so under normal
+/// operation (a 3 h TTL times a realistic write rate) neither is reached and a restore is
+/// byte-identical to Go; only extreme load reaches them, and then the oldest signature is
+/// evicted and that turn's restore falls back exactly like a cache miss (the no-cache path).
+const MAX_SIGNATURE_ENTRIES: usize = 131_072;
+const MAX_SIGNATURE_ENTRIES_PER_GROUP: usize = 8_192;
 
 static SIGNATURE_CACHE_ENABLED: AtomicBool = AtomicBool::new(true);
 static SIGNATURE_BYPASS_STRICT: AtomicBool = AtomicBool::new(false);
@@ -373,5 +475,161 @@ mod tests {
         c.cached_signature("claude", "none", t0 + min(196));
         assert!(!c.signatures.contains_key("gemini"), "empty group removed");
         assert!(c.signatures.contains_key("claude"), "refreshed at t0+100m");
+    }
+
+    /// Over the per-group cap with expired entries present: the expired signatures go first,
+    /// so the group drops far below the cap (pure overage eviction would have shed only one).
+    #[test]
+    fn over_cap_eviction_drops_expired_signatures_first() {
+        let (mut c, t0) = (Caches::default(), Instant::now());
+        let sig = vec![0u8; MIN_VALID_SIGNATURE_LEN];
+        for i in 0..MAX_SIGNATURE_ENTRIES_PER_GROUP {
+            c.cache_signature("claude", format!("old-{i}"), &sig, t0);
+        }
+        assert_eq!(c.signatures["claude"].len(), MAX_SIGNATURE_ENTRIES_PER_GROUP);
+        // A fresh write past the 3 h TTL makes every `old-*` entry expired and pushes the
+        // group one over its cap, so eviction runs while expired entries are present.
+        let now = t0 + SIGNATURE_TTL + Duration::from_secs(1);
+        c.cache_signature("claude", "fresh".into(), &sig, now);
+        let entries = &c.signatures["claude"];
+        assert_eq!(
+            entries.len(),
+            1,
+            "every expired entry was evicted, not just the overage"
+        );
+        assert!(entries.contains_key("fresh"), "the fresh signature survived");
+    }
+
+    /// Over the per-group cap with nothing expired: the least-recently-used entry goes and
+    /// the group stays at or below the cap.
+    #[test]
+    fn over_cap_eviction_without_expired_drops_least_recently_used() {
+        let (mut c, t0) = (Caches::default(), Instant::now());
+        let sig = vec![0u8; MIN_VALID_SIGNATURE_LEN];
+        for i in 0..MAX_SIGNATURE_ENTRIES_PER_GROUP {
+            c.cache_signature("claude", format!("h-{i}"), &sig, t0 + Duration::from_micros(i as u64));
+        }
+        assert_eq!(c.signatures["claude"].len(), MAX_SIGNATURE_ENTRIES_PER_GROUP);
+        c.cache_signature(
+            "claude",
+            "new".into(),
+            &sig,
+            t0 + Duration::from_micros(MAX_SIGNATURE_ENTRIES_PER_GROUP as u64),
+        );
+        let entries = &c.signatures["claude"];
+        assert!(
+            entries.len() <= MAX_SIGNATURE_ENTRIES_PER_GROUP,
+            "group stays at or below its cap, got {}",
+            entries.len()
+        );
+        assert!(
+            !entries.contains_key("h-0"),
+            "the least recently used entry was evicted"
+        );
+        assert!(entries.contains_key("new"));
+    }
+
+    /// Over the total cap while every group is under its per-group cap: the globally oldest
+    /// signature goes and the total stays at or below the cap.
+    #[test]
+    fn total_cap_evicts_least_recently_used_across_groups() {
+        let (mut c, t0) = (Caches::default(), Instant::now());
+        let sig = vec![0u8; MIN_VALID_SIGNATURE_LEN];
+        let groups = MAX_SIGNATURE_ENTRIES / MAX_SIGNATURE_ENTRIES_PER_GROUP;
+        let mut n = 0u64;
+        for g in 0..groups {
+            let group = format!("g{g}");
+            for i in 0..MAX_SIGNATURE_ENTRIES_PER_GROUP {
+                c.cache_signature(&group, format!("h-{i}"), &sig, t0 + Duration::from_micros(n));
+                n += 1;
+            }
+        }
+        assert_eq!(c.signature_total(), MAX_SIGNATURE_ENTRIES);
+        c.cache_signature("extra", "new".into(), &sig, t0 + Duration::from_micros(n));
+        assert!(c.signature_total() <= MAX_SIGNATURE_ENTRIES, "total cap held");
+        assert!(c.signatures.contains_key("extra"), "the newest signature survived");
+        assert!(
+            !c.signatures["g0"].contains_key("h-0"),
+            "the globally oldest went first"
+        );
+    }
+
+    /// Four threads mixing inserts, hits and misses keep both caps and never deadlock or panic.
+    #[test]
+    fn concurrent_signature_inserts_keep_the_cap_without_deadlock() {
+        use std::sync::Arc;
+        let caches = Arc::new(Mutex::new(Caches::default()));
+        let sig = vec![0u8; MIN_VALID_SIGNATURE_LEN];
+        let workers: Vec<_> = (0..4)
+            .map(|t| {
+                let caches = Arc::clone(&caches);
+                let sig = sig.clone();
+                let group = format!("g{t}");
+                std::thread::spawn(move || {
+                    for i in 0..10_000u32 {
+                        let hash = format!("h-{t}-{i}");
+                        let mut c = caches.lock().unwrap();
+                        let now = Instant::now();
+                        c.cache_signature(&group, hash.clone(), &sig, now);
+                        let _ = c.cached_signature(&group, &hash, now);
+                        let _ = c.cached_signature(&group, &format!("miss-{t}-{i}"), now);
+                    }
+                })
+            })
+            .collect();
+        for worker in workers {
+            worker.join().unwrap();
+        }
+        let c = caches.lock().unwrap();
+        assert!(
+            c.signature_total() <= MAX_SIGNATURE_ENTRIES,
+            "total cap held under concurrency"
+        );
+        for (group, entries) in &c.signatures {
+            assert!(
+                entries.len() <= MAX_SIGNATURE_ENTRIES_PER_GROUP,
+                "group {group} exceeded its cap with {} entries",
+                entries.len()
+            );
+        }
+    }
+
+    /// Eviction must not hold the lock shared with the replay cache for long: at the cap,
+    /// 10,000 insert/evict cycles each hold it well under 5 ms.
+    #[test]
+    fn eviction_holds_the_lock_under_five_milliseconds() {
+        let mut c = Caches::default();
+        let sig = vec![0u8; MIN_VALID_SIGNATURE_LEN];
+        let base = Instant::now();
+        for i in 0..MAX_SIGNATURE_ENTRIES_PER_GROUP {
+            c.cache_signature("claude", format!("h-{i}"), &sig, base + Duration::from_micros(i as u64));
+        }
+        let rounds = 10_000u64;
+        let (mut worst, mut total) = (Duration::ZERO, Duration::ZERO);
+        for i in 0..rounds {
+            let now = base + Duration::from_micros(MAX_SIGNATURE_ENTRIES_PER_GROUP as u64 + i);
+            let start = Instant::now();
+            c.cache_signature("claude", format!("e-{i}"), &sig, now);
+            let held = start.elapsed();
+            total += held;
+            worst = worst.max(held);
+        }
+        assert_eq!(c.signatures["claude"].len(), MAX_SIGNATURE_ENTRIES_PER_GROUP);
+        eprintln!(
+            "signature-cache eviction lock hold over {rounds} rounds: worst {worst:?}, mean {:?}",
+            total / rounds as u32
+        );
+        // The 5 ms gate is the release-build criterion (plan task 14). A debug build runs the
+        // eviction an order of magnitude slower and the harness may preempt a single call, so
+        // debug only sanity-checks; `cargo test --release` exercises the gate itself.
+        let limit = if cfg!(debug_assertions) {
+            Duration::from_millis(100)
+        } else {
+            Duration::from_millis(5)
+        };
+        assert!(
+            worst < limit,
+            "worst lock hold under eviction was {worst:?} (limit {limit:?})"
+        );
     }
 }
