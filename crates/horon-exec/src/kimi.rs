@@ -23,6 +23,7 @@ use bytes::Bytes;
 use futures_util::StreamExt;
 use horon_common::gostr::GoStr;
 use horon_common::json::{self as gj, GoValue, Kind, Res};
+use horon_common::splice::{Edit, splice};
 use horon_common::thinking::{ModelCaps, RequestThinking, apply_request_thinking, parse_suffix};
 use horon_core::config::Config;
 use horon_core::credential::{Credential, MetadataPatch};
@@ -39,7 +40,7 @@ use crate::kimi_http::{
 use crate::kimi_http::{DeferredUsage, UsageRule, apply_patch_requested, defer_usage, report_model};
 use crate::kimi_replay::{self, ReplayCache};
 use crate::meta_codex::go_trim_space;
-use crate::openai_compat_payload::ensure_responses_usage_details;
+use crate::openai_compat_payload::{bool_differs, ensure_responses_usage_details};
 use crate::proxy::{GoClients, GoHeaders, Proxy, Upstream, default_client, lines, read_all, send};
 
 const REASONING_UNAVAILABLE: &str = "[reasoning unavailable]";
@@ -355,7 +356,7 @@ async fn post(
     req: &ExecRequest,
     url: &str,
     headers: GoHeaders,
-    body: Vec<u8>,
+    body: Bytes,
 ) -> Result<Upstream, ExecError> {
     use crate::kimi_http::{account_info, capture_chunk, capture_error, capture_metadata, capture_request};
     let capture = req.capture();
@@ -431,12 +432,32 @@ async fn execute_chat(
     // Go translates the original request too (stream false) for payload-rule defaults.
     let original_translated = translate(original(&req), false)?;
     let upstream_model = normalize_upstream_model(&base_model);
-    let mut body = gj::try_set_str(&translated, "model", &upstream_model)
-        .map_err(|e| internal_error(format!("kimi executor: failed to set model in payload: {e}")))?;
-    body = thinking(&body, &req, "kimi")?;
+    // Go's order is model, thinking, then the streaming usage flag. Thinking inserts its
+    // node after the model is set, so it runs first and the two plain sets become one
+    // set/delete batch in a single offset splice (Claude/Codex pattern), byte-identical to
+    // the sequential sjson edits. `splice` skips an edit sjson rejects, so a rejected edit
+    // keeps Go's 500.
+    let mut body = thinking(&translated, &req, "kimi")?;
+    let mut edits = vec![Edit::set_str("model", upstream_model.clone())];
     if req.stream {
-        body = gj::try_set_raw(&body, "stream_options.include_usage", "true")
-            .map_err(|e| internal_error(format!("kimi executor: failed to set stream_options in payload: {e}")))?;
+        edits.push(Edit::set_raw("stream_options.include_usage", "true"));
+    }
+    body = splice(&body, &edits);
+    if *gj::get(&body, "model").bytes() != *upstream_model.as_bytes() {
+        let error = gj::try_set_str(&translated, "model", &upstream_model)
+            .err()
+            .unwrap_or_default();
+        return Err(internal_error(format!(
+            "kimi executor: failed to set model in payload: {error}"
+        )));
+    }
+    if req.stream && !gj::get(&body, "stream_options.include_usage").bool() {
+        let error = gj::try_set_raw(&body, "stream_options.include_usage", "true")
+            .err()
+            .unwrap_or_default();
+        return Err(internal_error(format!(
+            "kimi executor: failed to set stream_options in payload: {error}"
+        )));
     }
     body = payload_rules(cfg, &req, &base_model, "openai", body, &original_translated);
     body = normalize_tool_message_links(body)?;
@@ -448,16 +469,16 @@ async fn execute_chat(
         // Go's stream publishes only through its usage buffer (no EnsurePublished).
         req.usage.usage_required();
     }
+    let translated = Bytes::from(body);
     let upstream = post(
         client,
         credential,
         &req,
         &chat_url(credential),
         headers(credential, &req, req.stream),
-        body.clone(),
+        translated.clone(),
     )
     .await?;
-    let translated = Bytes::from(body);
     let ctx = ResponseCtx {
         model: &req.model,
         original_request: original(&req),
@@ -725,16 +746,6 @@ fn native_usage_body(data: &[u8]) -> Option<Vec<u8>> {
     usage_has_tokens(&gj::get(data, "usage")).then(|| data.to_vec())
 }
 
-/// `SetBoolIfDifferent`.
-fn set_bool_if_different(mut body: Vec<u8>, path: &str, value: bool) -> Vec<u8> {
-    let kind = gj::get(&body, path).kind;
-    if (value && kind == Kind::True) || (!value && kind == Kind::False) {
-        return body;
-    }
-    gj::set_bool(&mut body, path, value);
-    body
-}
-
 /// Native Responses path (executeResponses / executeResponsesStream).
 async fn execute_responses(
     client: &wreq::Client,
@@ -759,9 +770,21 @@ async fn execute_responses(
     }
     let base_model = parse_suffix(&req.model).model_name;
     let upstream_model = normalize_upstream_model(&base_model);
-    let mut body = gj::try_set_str(&req.body, "model", &upstream_model)
-        .map_err(|e| internal_error(format!("kimi executor: failed to set model in payload: {e}")))?;
-    body = set_bool_if_different(body, "stream", req.stream);
+    // The upstream model and the stream flag: one set/delete batch in a single offset
+    // splice (Claude/Codex pattern); a rejected model set keeps Go's 500.
+    let mut edits = vec![Edit::set_str("model", upstream_model.clone())];
+    if bool_differs(&req.body, "stream", req.stream) {
+        edits.push(Edit::set_raw("stream", if req.stream { "true" } else { "false" }));
+    }
+    let mut body = splice(&req.body, &edits);
+    if *gj::get(&body, "model").bytes() != *upstream_model.as_bytes() {
+        let error = gj::try_set_str(&req.body, "model", &upstream_model)
+            .err()
+            .unwrap_or_default();
+        return Err(internal_error(format!(
+            "kimi executor: failed to set model in payload: {error}"
+        )));
+    }
     body = thinking(&body, &req, "codex")?;
     // Go passes req.Payload as the original here, not OriginalRequest.
     body = payload_rules(cfg, &req, &base_model, "openai-response", body, &req.body);
@@ -774,16 +797,16 @@ async fn execute_responses(
     // Go publishes native Responses usage only when it has tokens (stream buffer, or the
     // non-stream Codex/OpenAI usage check); there is no EnsurePublished.
     req.usage.usage_required();
+    let translated = Bytes::from(body);
     let upstream = post(
         client,
         credential,
         &req,
         &responses_url(credential),
         headers(credential, &req, req.stream),
-        body.clone(),
+        translated.clone(),
     )
     .await?;
-    let translated = Bytes::from(body);
     let ctx = ResponseCtx {
         model: &req.model,
         original_request: original(&req),
