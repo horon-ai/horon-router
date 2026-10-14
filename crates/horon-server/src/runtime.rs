@@ -42,6 +42,9 @@ pub struct Runtime {
     pool_offsets: Mutex<HashMap<String, usize>>,
     /// Usage records for `GET /observability/usage/queue` (management configures it).
     usage: Arc<crate::usage::UsageQueue>,
+    /// Cumulative per-dimension token/cache usage (see [`crate::usage_stats`]); the
+    /// request path folds every published record into it.
+    usage_stats: Arc<crate::usage_stats::UsageStats>,
     /// `--local-model`: embedded model catalogs only, no remote catalog refresh.
     local_model: std::sync::atomic::AtomicBool,
     /// The native plugin host, synced with each published config (see [`crate::plugins`]).
@@ -89,6 +92,7 @@ impl Runtime {
             oauth_sink: RwLock::default(),
             pool_offsets: Mutex::default(),
             usage: Arc::default(),
+            usage_stats: Arc::default(),
             local_model: Default::default(),
             plugins: Default::default(),
             remote: RwLock::default(),
@@ -106,6 +110,12 @@ impl Runtime {
     /// `queuedUsageDetail` per upstream request when `accepts()` (additive API).
     pub fn usage_queue(&self) -> &crate::usage::UsageQueue {
         &self.usage
+    }
+
+    /// Cumulative per-dimension token/cache usage (additive API): every published
+    /// usage record folds into it while the usage queue accepts.
+    pub fn usage_stats(&self) -> &Arc<crate::usage_stats::UsageStats> {
+        &self.usage_stats
     }
 
     /// Records `--local-model` (Go `modelCatalogUpdaterPlan`'s `localModel`): remote
