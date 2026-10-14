@@ -282,6 +282,17 @@ impl Runtime {
             *current = Arc::new(policy);
         }
         self.store.clear_disabled_cooldowns();
+        self.precompile_request_regexes();
+    }
+
+    /// Precompiles the regexes the request path must not compile: credential-scoped
+    /// scheduler error rules, Claude sensitive-word matchers, and Command Code's effort
+    /// pattern. Config-derived error rules are already compiled into the policy itself.
+    pub(crate) fn precompile_request_regexes(&self) {
+        let credentials = self.store.snapshot();
+        crate::scheduler::precompile_credential_error_regexes(&credentials);
+        horon_exec::claude::precompile_sensitive_words(&self.config(), &credentials);
+        horon_exec::command_code::precompile_effort_regex();
     }
 
     /// Selects a credential that registered the route model. Waits for preparation only

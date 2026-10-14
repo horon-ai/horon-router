@@ -2,6 +2,7 @@
 //! publishes this policy through Runtime::publish_policy.
 
 use std::collections::HashMap;
+use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant, SystemTime};
 
 use horon_core::credential::Credential;
@@ -420,6 +421,98 @@ pub struct ErrorRule {
     pub match_regex: Vec<String>,
     #[serde(default)]
     pub action: String,
+    /// `match_regex` compiled at publish (config rules) or first sight (credential
+    /// rules), so the error path never compiles a pattern. Invalid patterns are
+    /// dropped, as Go's `regexp` rejects them too.
+    #[serde(skip)]
+    pub compiled: Vec<regex::Regex>,
+}
+
+impl ErrorRule {
+    /// Fills [`Self::compiled`] from [`Self::match_regex`].
+    pub fn compile(&mut self) {
+        let mut compiled = Vec::new();
+        for pattern in &self.match_regex {
+            if pattern.is_empty() {
+                continue;
+            }
+            #[cfg(test)]
+            note_compile(pattern);
+            if let Ok(re) = regex::Regex::new(pattern) {
+                compiled.push(re);
+            }
+        }
+        self.compiled = compiled;
+    }
+}
+
+/// Credential-scoped `request_scoped_errors` parsed and compiled once per distinct
+/// rule set (keyed by the rule JSON). Publish precompiles every credential's set, so a
+/// request only looks it up; the cap is never reached in normal operation.
+static FILE_RULES: OnceLock<Mutex<HashMap<String, Option<Vec<ErrorRule>>>>> = OnceLock::new();
+const MAX_FILE_RULES: usize = 64;
+
+/// Patterns compiled per process, for the compile-count test.
+#[cfg(test)]
+static PATTERN_COMPILES: OnceLock<Mutex<HashMap<String, u64>>> = OnceLock::new();
+
+#[cfg(test)]
+fn note_compile(pattern: &str) {
+    let mut counts = PATTERN_COMPILES
+        .get_or_init(|| Mutex::new(HashMap::new()))
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    *counts.entry(pattern.to_owned()).or_default() += 1;
+}
+
+/// How many times `pattern` was compiled in this process (tests only).
+#[cfg(test)]
+pub(crate) fn pattern_compilations(pattern: &str) -> u64 {
+    PATTERN_COMPILES
+        .get_or_init(|| Mutex::new(HashMap::new()))
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .get(pattern)
+        .copied()
+        .unwrap_or(0)
+}
+
+/// `serde_json::from_value` for one credential's `request_scoped_errors`, with the
+/// `match-regexr` patterns compiled once per distinct rule set.
+fn compiled_file_rules(value: &Value) -> Option<Vec<ErrorRule>> {
+    let key = value.to_string();
+    let mut cache = FILE_RULES
+        .get_or_init(|| Mutex::new(HashMap::new()))
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    if let Some(found) = cache.get(&key) {
+        return found.clone();
+    }
+    let parsed = serde_json::from_value::<Vec<ErrorRule>>(value.clone())
+        .ok()
+        .map(|mut rules| {
+            for rule in &mut rules {
+                rule.compile();
+            }
+            rules
+        });
+    if cache.len() >= MAX_FILE_RULES && !cache.contains_key(&key)
+        && let Some(evicted) = cache.keys().next().cloned()
+    {
+        cache.remove(&evicted);
+    }
+    cache.insert(key, parsed.clone());
+    parsed
+}
+
+/// Precompiles the `match-regexr` patterns of every credential's `request_scoped_errors`
+/// so no request compiles one. Config publish calls this.
+pub fn precompile_credential_error_regexes(credentials: &[std::sync::Arc<Credential>]) {
+    for credential in credentials {
+        if let Some(value) = metadata(credential, "request_scoped_errors") {
+            let _ = compiled_file_rules(value);
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -512,7 +605,7 @@ impl Policy {
 
     pub fn error_action(&self, c: &Credential, error: &ExecError) -> ErrorAction {
         let file_rules: Option<Vec<ErrorRule>> =
-            metadata(c, "request_scoped_errors").and_then(|v| serde_json::from_value(v.clone()).ok());
+            metadata(c, "request_scoped_errors").and_then(compiled_file_rules);
         let rules = file_rules.as_ref().filter(|r| !r.is_empty()).or_else(|| {
             oauth(c)
                 .then(|| self.oauth_request_scoped_errors.get(&c.provider))
@@ -526,10 +619,7 @@ impl Policy {
                     continue;
                 }
                 let matches = rule.r#match.iter().any(|s| !s.is_empty() && body.contains(s))
-                    || rule
-                        .match_regex
-                        .iter()
-                        .any(|s| !s.is_empty() && regex::Regex::new(s).is_ok_and(|re| re.is_match(&body)));
+                    || rule.compiled.iter().any(|re| re.is_match(&body));
                 if !matches {
                     continue;
                 }
@@ -1847,6 +1937,43 @@ mod tests {
             model: model.into(),
             ..Default::default()
         }
+    }
+
+    #[test]
+    fn error_regexes_compile_at_publish_not_per_request() {
+        // A config-derived rule is compiled into the policy at publish.
+        let mut rule = ErrorRule {
+            status: 503,
+            r#match: Vec::new(),
+            match_regex: vec!["zqxcfg[0-9]+".into(), "[".into()],
+            action: "stop".into(),
+            compiled: Vec::new(),
+        };
+        rule.compile();
+        assert_eq!(pattern_compilations("zqxcfg[0-9]+"), 1, "publish compiles once");
+        let mut policy = Policy::default();
+        policy.oauth_request_scoped_errors.insert("claude".into(), vec![rule]);
+        let c = cred("cfg", serde_json::json!({}));
+        let e = ExecError::local(503, FailureScope::Request, "zqxcfg7");
+        for _ in 0..100 {
+            assert!(policy.error_action(&c, &e).stop);
+        }
+        assert_eq!(pattern_compilations("zqxcfg[0-9]+"), 1, "requests reuse the published regex");
+
+        // A credential-scoped rule is compiled once by publish, then reused.
+        let rules = serde_json::json!([{"status":503,"match-regexr":["zqxcred[0-9]+"],"action":"stop"}]);
+        let c2 = cred("cred", serde_json::json!({"request_scoped_errors": rules}));
+        precompile_credential_error_regexes(&[std::sync::Arc::new(c2.clone())]);
+        assert_eq!(
+            pattern_compilations("zqxcred[0-9]+"),
+            1,
+            "publish compiles the credential rule"
+        );
+        let e2 = ExecError::local(503, FailureScope::Request, "zqxcred7");
+        for _ in 0..100 {
+            assert!(policy.error_action(&c2, &e2).stop);
+        }
+        assert_eq!(pattern_compilations("zqxcred[0-9]+"), 1, "requests compile nothing");
     }
 
     #[test]

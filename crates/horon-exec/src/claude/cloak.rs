@@ -2,6 +2,9 @@
 //! blocks, caller prompt relocation, current-date reminder, context management,
 //! cache-control placement and TTL policy, and the fake/derived user identity.
 
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex, OnceLock};
+
 use sha2::{Digest, Sha256};
 
 use super::signals;
@@ -756,25 +759,95 @@ pub(crate) fn fake_user_id(session_id: &str) -> String {
 /// Case-insensitive literal matcher, longest words first (`BuildSensitiveWordMatcher`).
 pub(crate) struct SensitiveWords(regex::Regex);
 
+/// The `(?i)` alternation for `words`, or `None` when no word is usable. This is the
+/// exact text `Regex::new` receives, so it doubles as the cache key (1:1 with the input).
+fn pattern(words: &[String]) -> Option<String> {
+    let mut valid: Vec<&str> = words
+        .iter()
+        .map(|w| w.trim())
+        .filter(|w| w.chars().count() >= 2 && !w.contains('\u{200B}'))
+        .collect();
+    if valid.is_empty() {
+        return None;
+    }
+    // Go's sort.Slice is not stable; equal-length order cannot change which
+    // text matches because alternatives of equal length cannot both match at
+    // one position unless they are equal ignoring case.
+    valid.sort_by_key(|w| std::cmp::Reverse(w.len()));
+    Some(format!(
+        "(?i){}",
+        valid.iter().map(|w| regex::escape(w)).collect::<Vec<_>>().join("|")
+    ))
+}
+
+/// Compiled matchers by pattern. Config publish precompiles every configured word-set,
+/// so a request only looks one up. The cap is never reached in normal operation because
+/// keys come from config; past it an arbitrary entry is dropped.
+static MATCHERS: OnceLock<Mutex<HashMap<String, Option<Arc<SensitiveWords>>>>> = OnceLock::new();
+const MAX_MATCHERS: usize = 64;
+
+/// Patterns compiled per process, for the compile-count test.
+#[cfg(test)]
+static COMPILES: OnceLock<Mutex<HashMap<String, u64>>> = OnceLock::new();
+
+fn matchers() -> &'static Mutex<HashMap<String, Option<Arc<SensitiveWords>>>> {
+    MATCHERS.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+#[cfg(test)]
+fn note_compile(pattern: &str) {
+    let mut counts = COMPILES
+        .get_or_init(|| Mutex::new(HashMap::new()))
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    *counts.entry(pattern.to_owned()).or_default() += 1;
+}
+
+/// How many times `words`' pattern was compiled in this process (tests only).
+#[cfg(test)]
+pub(crate) fn compilations_for(words: &[String]) -> u64 {
+    let Some(pattern) = pattern(words) else {
+        return 0;
+    };
+    COMPILES
+        .get_or_init(|| Mutex::new(HashMap::new()))
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .get(&pattern)
+        .copied()
+        .unwrap_or(0)
+}
+
 impl SensitiveWords {
-    pub fn new(words: &[String]) -> Option<Self> {
-        let mut valid: Vec<&str> = words
-            .iter()
-            .map(|w| w.trim())
-            .filter(|w| w.chars().count() >= 2 && !w.contains('\u{200B}'))
-            .collect();
-        if valid.is_empty() {
-            return None;
+    /// The matcher for `words`, from the process-wide cache. A pattern compiles at most
+    /// once per process; [`Self::precompile`] warms it at config publish.
+    pub(crate) fn get(words: &[String]) -> Option<Arc<Self>> {
+        let pattern = pattern(words)?;
+        let mut cache = matchers().lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        if let Some(found) = cache.get(&pattern) {
+            return found.clone();
         }
-        // Go's sort.Slice is not stable; equal-length order cannot change which
-        // text matches because alternatives of equal length cannot both match at
-        // one position unless they are equal ignoring case.
-        valid.sort_by_key(|w| std::cmp::Reverse(w.len()));
-        let pattern = format!(
-            "(?i){}",
-            valid.iter().map(|w| regex::escape(w)).collect::<Vec<_>>().join("|")
-        );
-        regex::Regex::new(&pattern).ok().map(Self)
+        #[cfg(test)]
+        note_compile(&pattern);
+        let built = regex::Regex::new(&pattern).ok().map(|re| Arc::new(Self(re)));
+        if cache.len() >= MAX_MATCHERS && !cache.contains_key(&pattern)
+            && let Some(evicted) = cache.keys().next().cloned()
+        {
+            cache.remove(&evicted);
+        }
+        cache.insert(pattern, built.clone());
+        built
+    }
+
+    /// Compiles `words` into the cache now (config publish), so a later request reuses it.
+    pub(crate) fn precompile(words: &[String]) -> Option<Arc<Self>> {
+        Self::get(words)
+    }
+
+    /// Raw construction, bypassing the cache (tests and one-off callers).
+    #[cfg(test)]
+    pub fn new(words: &[String]) -> Option<Self> {
+        pattern(words).and_then(|p| regex::Regex::new(&p).ok().map(Self))
     }
 
     fn apply(&self, text: &str) -> String {
@@ -912,5 +985,22 @@ mod tests {
             m.apply("my PROXY API and proxy"),
             "my P\u{200B}ROXY API and p\u{200B}roxy"
         );
+    }
+
+    #[test]
+    fn sensitive_words_compile_once_and_reuse_the_same_matcher() {
+        let words: Vec<String> = vec!["ZqxUniqueOne".into(), "zqx-unique-two-longer".into()];
+        // Config publish precompiles the word-set.
+        let published = SensitiveWords::precompile(&words).unwrap();
+        assert_eq!(compilations_for(&words), 1, "publish compiles the set exactly once");
+        // N requests reuse the published matcher without recompiling.
+        for _ in 0..1000 {
+            let m = SensitiveWords::get(&words).unwrap();
+            assert!(Arc::ptr_eq(&published, &m), "request reuses the published matcher");
+        }
+        assert_eq!(compilations_for(&words), 1, "requests compile nothing");
+        // Publishing the same word-set again adds no compile.
+        assert!(Arc::ptr_eq(&published, &SensitiveWords::precompile(&words).unwrap()));
+        assert_eq!(compilations_for(&words), 1);
     }
 }
