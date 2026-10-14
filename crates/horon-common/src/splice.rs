@@ -8,8 +8,9 @@
 //! The output is byte-identical to applying the same edits in order with
 //! [`crate::json::try_set_raw`], [`crate::json::try_set_str`] and
 //! [`crate::json::try_delete`]. Where a range cannot be resolved against the source (a
-//! path that would append, a non-simple path, overlapping edits, a malformed body) the
-//! helper falls back to sequential application, so the guarantee holds for every input.
+//! path that would append, a non-simple path, overlapping edits, a malformed body), or
+//! where two edits could interact through an index shift, the helper falls back to
+//! sequential application, so the guarantee holds for every input.
 //!
 //! This generalizes the offset edits already in the repo: `horon-exec`'s Claude
 //! `signing::Scanner` (offset-based in-place edits) and `alias::apply_at_offsets`
@@ -61,9 +62,13 @@ pub fn splice(body: &[u8], edits: &[Edit]) -> Vec<u8> {
     try_splice(body, edits).unwrap_or_else(|| sequential(body.to_vec(), edits))
 }
 
-/// The single-pass path. `Some` only when every edit's range resolves against `body`
-/// and the ranges are pairwise disjoint; `None` tells the caller to apply sequentially.
+/// The single-pass path. `Some` only when no two edits can interact through an index
+/// shift, every edit's range resolves against `body`, and the ranges are pairwise
+/// disjoint; `None` tells the caller to apply sequentially.
 pub(crate) fn try_splice(body: &[u8], edits: &[Edit]) -> Option<Vec<u8>> {
+    if edits_have_shared_ancestor(body, edits) {
+        return None;
+    }
     let mut spans: Vec<Span> = Vec::with_capacity(edits.len());
     for edit in edits {
         let path = edit.path();
@@ -103,6 +108,33 @@ pub(crate) fn try_splice(body: &[u8], edits: &[Edit]) -> Option<Vec<u8>> {
     }
     out.extend_from_slice(&body[cursor..]);
     Some(out)
+}
+
+/// Whether two edits can interact through an index shift, so that resolving every edit
+/// against the source body would diverge from sequential application.
+///
+/// The edits are order-dependent when their paths are equal, one path is an ancestor of
+/// the other, or they share an ancestor: an earlier edit that deletes an array element or
+/// rewrites an object member moves the node a later edit addresses. For the dotted paths
+/// this helper accepts, "equal, an ancestor, or a shared ancestor" is exactly "the same
+/// first path component", so a repeated first component forces the fallback. A body whose
+/// root is an array is one index space, so any two edits on it interact as well.
+fn edits_have_shared_ancestor(body: &[u8], edits: &[Edit]) -> bool {
+    if edits.len() < 2 {
+        return false;
+    }
+    if body.iter().copied().find(|&c| c > b' ') == Some(b'[') {
+        return true;
+    }
+    let mut seen: Vec<&str> = Vec::with_capacity(edits.len());
+    for edit in edits {
+        let first = edit.path().split('.').next().unwrap_or("");
+        if seen.contains(&first) {
+            return true;
+        }
+        seen.push(first);
+    }
+    false
 }
 
 struct Span {
@@ -174,16 +206,80 @@ mod tests {
 
     #[test]
     fn nested_and_array_edits_match_sequential() {
-        let body = br#"{"a":{"b":"x","c":1},"m":[1,2,3]}"#;
-        let edits = vec![
-            Edit::set_str("a.b", "y"),
-            Edit::set_raw("a.c", "9"),
-            Edit::set_raw("m.1", "7"),
-            Edit::delete("m.0"),
-        ];
+        // Distinct top-level subtrees, so no two paths share an ancestor and the single
+        // pass is sound. Covers a nested object member and an array element.
+        let body = br#"{"a":{"b":"x"},"m":[1,2,3]}"#;
+        let edits = vec![Edit::set_str("a.b", "y"), Edit::set_raw("m.1", "7")];
         let want = sequential_ref(body, &edits);
+        assert_eq!(want, br#"{"a":{"b":"y"},"m":[1,7,3]}"#);
         assert_eq!(try_splice(body, &edits).as_deref(), Some(want.as_slice()));
         assert_eq!(splice(body, &edits), want);
+    }
+
+    #[test]
+    fn order_dependent_array_edits_fall_back_and_match_sequential() {
+        // A delete shifts the array, so a later edit on the same array resolves to a
+        // different node in the intermediate body. The source ranges stay disjoint, so the
+        // byte-range check cannot see it; the shared-ancestor check must force the fallback.
+        let body = br#"{"m":[1,2,3]}"#;
+        let edits = vec![Edit::delete("m.0"), Edit::set_raw("m.1", "7")];
+        assert!(try_splice(body, &edits).is_none());
+        let want = sequential_ref(body, &edits);
+        assert_eq!(want, br#"{"m":[2,7]}"#);
+        assert_eq!(splice(body, &edits), want);
+
+        let body = br#"{"a":1,"b":[1,2,3],"c":"s"}"#;
+        let edits = vec![Edit::delete("b.1"), Edit::delete("b.2")];
+        assert!(try_splice(body, &edits).is_none());
+        let want = sequential_ref(body, &edits);
+        assert_eq!(want, br#"{"a":1,"b":[1,3],"c":"s"}"#);
+        assert_eq!(splice(body, &edits), want);
+
+        // The nested case above with the array delete moved before the index set: the order
+        // flip that the fixed order of the old test hid.
+        let body = br#"{"a":{"b":"x","c":1},"m":[1,2,3]}"#;
+        let edits = vec![
+            Edit::delete("m.0"),
+            Edit::set_raw("m.1", "7"),
+            Edit::set_str("a.b", "y"),
+            Edit::set_raw("a.c", "9"),
+        ];
+        assert!(try_splice(body, &edits).is_none());
+        let want = sequential_ref(body, &edits);
+        assert_eq!(want, br#"{"a":{"b":"y","c":9},"m":[2,7]}"#);
+        assert_eq!(splice(body, &edits), want);
+    }
+
+    #[test]
+    fn every_edit_order_matches_sequential() {
+        // A body with an array and a nested object and a fixed edit multiset that deletes
+        // and sets shared paths. Every permutation must stay byte-identical: a shared
+        // ancestor forces the fallback, and the fallback applies edits in order.
+        let body = br#"{"a":{"b":"x","c":1},"m":[1,2,3],"z":true}"#;
+        let base = [
+            Edit::delete("m.0"),
+            Edit::set_raw("m.1", "7"),
+            Edit::set_str("a.b", "y"),
+            Edit::delete("m.2"),
+            Edit::set_raw("z", "false"),
+        ];
+        let mut order: Vec<usize> = (0..base.len()).collect();
+        permute(&mut order, 0, &mut |perm: &[usize]| {
+            let edits: Vec<Edit> = perm.iter().map(|&i| base[i].clone()).collect();
+            assert_eq!(splice(body, &edits), sequential_ref(body, &edits), "perm={perm:?}");
+        });
+    }
+
+    fn permute(items: &mut [usize], k: usize, f: &mut impl FnMut(&[usize])) {
+        if k == items.len() {
+            f(items);
+            return;
+        }
+        for i in k..items.len() {
+            items.swap(k, i);
+            permute(items, k + 1, f);
+            items.swap(k, i);
+        }
     }
 
     #[test]
@@ -210,28 +306,65 @@ mod tests {
     fn random_edit_lists_match_sequential() {
         let mut rng = Rng::new(0x9E37_79B9_7F4A_7C15);
         let (mut spliced, mut fell_back) = (0usize, 0usize);
-        for case in 0..3000 {
-            let keys: Vec<String> = (0..rng.below(8) + 1).map(|i| format!("k{i}")).collect();
+        for case in 0..4000 {
+            // Bodies mix scalars, arrays and nested objects, so edit paths reach array
+            // indices and a delete can shift a later index; edits are drawn and then the
+            // order is randomly flipped.
             let mut body = b"{".to_vec();
-            for (i, key) in keys.iter().enumerate() {
+            let mut paths: Vec<String> = Vec::new();
+            let keys = rng.below(4) + 1;
+            for i in 0..keys {
                 if i > 0 {
                     body.push(b',');
                 }
+                let key = format!("k{i}");
                 body.push(b'"');
                 body.extend_from_slice(key.as_bytes());
                 body.extend_from_slice(b"\":");
-                body.extend_from_slice(&body_value(&mut rng));
+                match rng.below(3) {
+                    0 => body.extend_from_slice(&body_value(&mut rng)),
+                    1 => {
+                        body.push(b'[');
+                        for j in 0..rng.below(4) + 1 {
+                            if j > 0 {
+                                body.push(b',');
+                            }
+                            body.extend_from_slice(&body_value(&mut rng));
+                            paths.push(format!("{key}.{j}"));
+                        }
+                        body.push(b']');
+                    }
+                    _ => {
+                        body.push(b'{');
+                        for j in 0..rng.below(3) + 1 {
+                            if j > 0 {
+                                body.push(b',');
+                            }
+                            let member = format!("s{j}");
+                            body.push(b'"');
+                            body.extend_from_slice(member.as_bytes());
+                            body.extend_from_slice(b"\":");
+                            body.extend_from_slice(&body_value(&mut rng));
+                            paths.push(format!("{key}.{member}"));
+                        }
+                        body.push(b'}');
+                    }
+                }
+                paths.push(key);
             }
             body.push(b'}');
 
             let mut edits = Vec::new();
             for _ in 0..rng.below(6) + 1 {
-                let key = &keys[rng.below(keys.len())];
+                let path = paths[rng.below(paths.len())].clone();
                 edits.push(match rng.below(3) {
-                    0 => Edit::set_raw(key, body_value(&mut rng)),
-                    1 => Edit::set_str(key, edit_text(&mut rng)),
-                    _ => Edit::delete(key),
+                    0 => Edit::set_raw(path, body_value(&mut rng)),
+                    1 => Edit::set_str(path, edit_text(&mut rng)),
+                    _ => Edit::delete(path),
                 });
+            }
+            if rng.below(2) == 0 {
+                edits.reverse();
             }
 
             let want = sequential_ref(&body, &edits);
