@@ -529,6 +529,52 @@ mod tests {
         assert!(entries.contains_key("new"));
     }
 
+    /// A key the cap evicts falls back to the no-cache path: `cached_signature` returns the
+    /// same miss an empty cache would (an empty vector for a non-gemini group, the bypass
+    /// sentinel for a gemini group), never the stale signature. Without the cap the key stays
+    /// resident, so the first assertion would return its signature instead of empty.
+    #[test]
+    fn capped_key_falls_back_to_the_no_cache_path() {
+        let (mut c, t0) = (Caches::default(), Instant::now());
+        let sig = vec![0u8; MIN_VALID_SIGNATURE_LEN];
+        // Fill a claude group to its cap, `h-0` written first (least recently used).
+        for i in 0..MAX_SIGNATURE_ENTRIES_PER_GROUP {
+            c.cache_signature("claude", format!("h-{i}"), &sig, t0 + Duration::from_micros(i as u64));
+        }
+        let now = t0 + Duration::from_micros(MAX_SIGNATURE_ENTRIES_PER_GROUP as u64);
+        // One write over the cap evicts the least recently used entry.
+        c.cache_signature("claude", "new".into(), &sig, now);
+        assert!(!c.signatures["claude"].contains_key("h-0"), "the LRU key was evicted");
+
+        // The evicted key misses (`None`) exactly like a key the cache never held, so the
+        // caller takes the same no-cache path. Without the cap `h-0` stays resident and this
+        // returns `Some`, which is the mutation this test catches.
+        assert_eq!(
+            c.cached_signature("claude", "h-0", now),
+            None,
+            "an evicted signature misses like a never-stored one"
+        );
+        assert_eq!(
+            c.cached_signature("claude", "never-stored", now),
+            None,
+            "a never-stored key misses the same way"
+        );
+        // A key the cap kept still hits.
+        assert!(
+            c.cached_signature("claude", "h-1", now).is_some(),
+            "a resident key still returns its signature"
+        );
+        // The public wrapper maps that miss to the no-cache value: an empty vector for a
+        // non-gemini group, the bypass sentinel for a gemini group (empty text short-circuits
+        // before the cache, so this touches no global state).
+        assert!(cached_signature("claude", b"").is_empty(), "non-gemini miss -> empty");
+        assert_eq!(
+            cached_signature("gemini", b""),
+            GEMINI_BYPASS.as_bytes().to_vec(),
+            "gemini miss -> bypass sentinel"
+        );
+    }
+
     /// Over the total cap while every group is under its per-group cap: the globally oldest
     /// signature goes and the total stays at or below the cap.
     #[test]
