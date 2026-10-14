@@ -129,6 +129,7 @@ fn matcher_replays_go_call_by_call() {
                 max_turns: r["max_turns"].as_u64().unwrap() as usize,
                 max_groups: r["max_groups"].as_u64().unwrap() as usize,
                 max_prefixes: r["max_prefixes"].as_u64().unwrap() as usize,
+                ..Limits::default()
             });
             matchers.insert(r["m"].as_str().unwrap().to_owned(), (matcher, test));
             continue;
@@ -216,6 +217,10 @@ fn limits_default_and_cover_max_turns() {
     assert_eq!(
         (l.ttl, l.max_turns, l.max_groups, l.max_prefixes),
         (Duration::from_secs(3600), 10, 4096, 10)
+    );
+    assert_eq!(
+        (l.max_bytes, l.max_group_bytes),
+        (DEFAULT_MAX_BYTES, DEFAULT_MAX_GROUP_BYTES)
     );
 }
 
@@ -339,4 +344,106 @@ fn deeply_nested_turns_skip_the_matcher_without_overflowing() {
         .unwrap()
         .join()
         .unwrap();
+}
+
+/// Byte bound: exceeding the total cap evicts the oldest groups, keeping the most recent
+/// conversations matched. Each single-turn group holds a 64-byte fingerprint, its 64-byte
+/// tail and a 66-byte prefix key (~194 bytes), so a 500-byte cap keeps two of eight.
+#[test]
+fn total_byte_cap_evicts_oldest_groups() {
+    let now = Instant::now();
+    let ns = "lcp:v1::openai::gpt-4o::caller";
+    let mut m = Matcher::new(Limits {
+        ttl: Duration::from_secs(600),
+        max_bytes: 500,
+        ..Limits::default()
+    });
+    let mut sessions = Vec::new();
+    for t in ["a", "b", "c", "d", "e", "f", "g", "h"] {
+        sessions.push(m.bind(ns, &texts(&[t]), "auth-a", now).unwrap().session);
+    }
+    assert!(m.byte_count <= 500, "byte_count {} over the cap", m.byte_count);
+    assert!(m.groups.len() < 8, "no group was evicted");
+    assert_eq!(m.lookup(&sessions[0], now), None, "the oldest group is evicted");
+    assert!(
+        m.lookup(sessions.last().unwrap(), now).is_some(),
+        "the newest group survives"
+    );
+}
+
+/// Byte bound: a single group over the per-group cap is dropped rather than retained.
+#[test]
+fn per_group_byte_cap_drops_the_oversized_group() {
+    let now = Instant::now();
+    let ns = "lcp:v1::openai::gpt-4o::caller";
+    // A 100-byte per-group cap is below one single-turn group (~194 bytes).
+    let mut m = Matcher::new(Limits {
+        ttl: Duration::from_secs(600),
+        max_group_bytes: 100,
+        ..Limits::default()
+    });
+    let bound = m.bind(ns, &texts(&["a"]), "auth-a", now);
+    assert!(bound.is_some(), "bind still reports the session identity");
+    assert_eq!(m.groups.len(), 0, "an oversized group is not retained");
+    assert_eq!(m.byte_count, 0);
+    assert_eq!(m.find(ns, &texts(&["a"]), now), None, "nothing is remembered");
+}
+
+/// Byte bound: growing an existing group's environment re-checks the cap on the update
+/// path and evicts the oldest group.
+#[test]
+fn updating_an_existing_group_rechecks_the_byte_cap() {
+    let now = Instant::now();
+    let ns = "lcp:v1::openai::gpt-4o::caller";
+    let mut m = Matcher::new(Limits {
+        ttl: Duration::from_secs(600),
+        max_bytes: usize::MAX,
+        ..Limits::default()
+    });
+    // One group's byte size, measured rather than assumed.
+    m.bind(ns, &texts(&["a"]), "auth-a", now).unwrap();
+    let unit = m.byte_count;
+    assert!(unit > 0);
+    // Cap at two groups; a third group's worth of bytes must evict the oldest.
+    m.reset(Limits {
+        ttl: Duration::from_secs(600),
+        max_bytes: 2 * unit + 10,
+        ..Limits::default()
+    });
+    let first = m.bind(ns, &texts(&["a"]), "auth-a", now).unwrap().session;
+    m.bind(ns, &texts(&["b"]), "auth-a", now).unwrap();
+    assert_eq!(m.byte_count, 2 * unit);
+    // Grow the newest group's environment by one group's worth of bytes.
+    let mut grown = texts(&["b"]);
+    grown.environment = "x".repeat(unit);
+    assert!(m.touch(ns, &grown, "auth-a", now));
+    assert!(
+        m.byte_count <= 2 * unit + 10,
+        "byte_count {} over the cap",
+        m.byte_count
+    );
+    assert!(m.groups.len() < 2, "the update did not re-check the cap");
+    assert_eq!(m.lookup(&first, now), None, "the oldest group is evicted");
+}
+
+/// Under the cap nothing is evicted, so matching is unchanged.
+#[test]
+fn under_the_byte_cap_keeps_every_group() {
+    let now = Instant::now();
+    let ns = "lcp:v1::openai::gpt-4o::caller";
+    let mut m = Matcher::new(Limits {
+        ttl: Duration::from_secs(600),
+        ..Limits::default()
+    });
+    let mut sessions = Vec::new();
+    for t in ["a", "b", "c", "d", "e"] {
+        sessions.push(m.bind(ns, &texts(&[t]), "auth-a", now).unwrap().session);
+    }
+    assert_eq!(m.groups.len(), 5, "no group is dropped under the cap");
+    assert!(m.byte_count > 0 && m.byte_count < m.limits.max_bytes);
+    for (t, session) in ["a", "b", "c", "d", "e"].into_iter().zip(&sessions) {
+        let hit = m.find(ns, &texts(&[t]), now).expect("still matched");
+        assert_eq!(hit.prefix_length, 1, "{t}");
+        assert!(m.lookup(session, now).is_some(), "{t}");
+    }
 }
