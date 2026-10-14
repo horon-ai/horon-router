@@ -114,6 +114,37 @@ async fn pipeline_reproduces_go_upstream_captures() {
     }
 }
 
+/// The body's validity is computed once per request. The four cache-control helpers and
+/// `ensure_max_tokens` used to each call `gjson::valid`; they now read one threaded flag.
+#[tokio::test]
+async fn prepare_messages_validates_the_body_once() {
+    let captures: Value = serde_json::from_str(include_str!("testdata/go_captures.json")).unwrap();
+    let executor = ClaudeExecutor::with_client(wreq::Client::new(), DEFAULT_BASE_URL);
+    let credential = harness_credential();
+    let cfg = Config::parse("").unwrap();
+    let case = &captures["cases"][1];
+    let req = enrich(request(case));
+    let mut ctx = Ctx::new(&executor, &credential, &req, &cfg, Default::default());
+    ctx.today = "2026-10-02".into();
+    let translated = translate::request(&req, ctx.codex, &ctx.base_model, ctx.is_compat).unwrap();
+    let original = translate::original(&req, &translated, ctx.codex, &ctx.base_model, ctx.is_compat).unwrap();
+    signals::valid_calls::reset();
+    let prepared = ctx
+        .prepare_messages(&req, &translated, &original, req.stream)
+        .await
+        .unwrap();
+    assert_eq!(
+        prepared.body,
+        case["upstream_body"].as_str().unwrap(),
+        "byte parity with Go is preserved"
+    );
+    assert_eq!(
+        signals::valid_calls::count(),
+        1,
+        "the request validates the body exactly once"
+    );
+}
+
 #[tokio::test]
 async fn custom_origin_counts_locally_without_sending_credentials() {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
