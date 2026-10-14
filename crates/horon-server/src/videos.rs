@@ -41,6 +41,11 @@ const DEFAULT_SIZE: &str = "720x1280";
 const DEFAULT_RESOLUTION: &str = "720p";
 const MAX_REFERENCES: usize = 7;
 const DEFAULT_BINDING_TTL: Duration = Duration::from_secs(3 * 3600);
+// The binding cache bounds. Go's `videoAuthBindings` has none; these are a defensive
+// line that normal operation (a three-hour TTL against a realistic creation rate) does
+// not reach, so day-to-day behavior stays identical to Go.
+const MAX_BINDINGS: usize = 65_536;
+const MAX_BINDING_BYTES: usize = 64 * 1024 * 1024;
 
 // --- credential bindings ------------------------------------------------------------------
 
@@ -48,6 +53,7 @@ struct Binding {
     auth: String,
     model: String,
     expires: Instant,
+    created: Instant,
 }
 
 /// Go's process-wide `videoAuthBindings`.
@@ -57,7 +63,35 @@ fn bindings() -> std::sync::MutexGuard<'static, HashMap<String, Binding>> {
     BINDINGS.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 
-/// `setWithModel`: expired entries are swept on every write.
+/// The bytes a binding occupies: its video id, credential, and routing model.
+fn binding_bytes(video: &str, binding: &Binding) -> usize {
+    video.len() + binding.auth.len() + binding.model.len()
+}
+
+/// Sweeps expired bindings, then, while the map is still past `max_entries` or
+/// `max_bytes`, drops the oldest (earliest-created) bindings until it fits. Expired
+/// entries go first; removal never errors, so an evicted key simply misses later and
+/// falls back exactly like an expired TTL.
+fn enforce_caps(map: &mut HashMap<String, Binding>, now: Instant, max_entries: usize, max_bytes: usize) {
+    map.retain(|_, b| now <= b.expires);
+    let mut bytes: usize = map.iter().map(|(video, b)| binding_bytes(video, b)).sum();
+    if map.len() <= max_entries && bytes <= max_bytes {
+        return;
+    }
+    let mut oldest: Vec<(Instant, String)> = map.iter().map(|(video, b)| (b.created, video.clone())).collect();
+    oldest.sort();
+    for (_, video) in oldest {
+        if map.len() <= max_entries && bytes <= max_bytes {
+            break;
+        }
+        if let Some(b) = map.remove(&video) {
+            bytes = bytes.saturating_sub(binding_bytes(&video, &b));
+        }
+    }
+}
+
+/// `setWithModel`: the created (or polled) video is bound to the serving credential.
+/// Expired entries are swept and the cache is trimmed to its caps on every write.
 fn bind(video: &str, auth: &str, model: &str, ttl: Duration) {
     let (video, auth) = (video.trim(), auth.trim());
     if video.is_empty() || auth.is_empty() {
@@ -65,25 +99,25 @@ fn bind(video: &str, auth: &str, model: &str, ttl: Duration) {
     }
     let now = Instant::now();
     let mut map = bindings();
-    map.retain(|_, b| now <= b.expires);
     map.insert(
         video.to_owned(),
         Binding {
             auth: auth.to_owned(),
             model: model.trim().to_owned(),
             expires: now + ttl,
+            created: now,
         },
     );
+    enforce_caps(&mut map, now, MAX_BINDINGS, MAX_BINDING_BYTES);
 }
 
-/// `getBinding`: the credential and model, unless expired.
-fn binding(video: &str) -> Option<(String, String)> {
+/// `getBinding`: the credential and model, unless expired. An expired entry is dropped on
+/// read; a miss (expired or evicted) returns `None`, so the caller falls back.
+fn lookup(map: &mut HashMap<String, Binding>, video: &str, now: Instant) -> Option<(String, String)> {
     let video = video.trim();
     if video.is_empty() {
         return None;
     }
-    let now = Instant::now();
-    let mut map = bindings();
     match map.get(video) {
         Some(b) if now > b.expires => {
             map.remove(video);
@@ -92,6 +126,11 @@ fn binding(video: &str) -> Option<(String, String)> {
         Some(b) => Some((b.auth.clone(), b.model.clone())),
         None => None,
     }
+}
+
+/// `getBinding` over the process-wide cache.
+fn binding(video: &str) -> Option<(String, String)> {
+    lookup(&mut bindings(), video, Instant::now())
 }
 
 /// `videoAuthBindingTTL`: `multimedia.video-result-auth-cache-ttl` when it parses as a
@@ -985,3 +1024,110 @@ pub async fn content(
 #[cfg(test)]
 #[path = "videos_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+mod cap_tests {
+    use super::*;
+
+    fn entry(auth: &str, created: Instant, ttl: Duration) -> Binding {
+        Binding {
+            auth: auth.to_owned(),
+            model: "m".to_owned(),
+            created,
+            expires: created + ttl,
+        }
+    }
+
+    /// Over the entry cap, expired bindings go first: a newer expired entry is dropped
+    /// while older live ones survive, so eviction is expired-first, not oldest-first.
+    #[test]
+    fn evicts_expired_before_oldest() {
+        let base = Instant::now();
+        let now = base + Duration::from_secs(1);
+        let mut map = HashMap::new();
+        map.insert("live-old".into(), entry("a-old", base, Duration::from_secs(3600)));
+        map.insert(
+            "live-new".into(),
+            entry("a-new", base + Duration::from_millis(10), Duration::from_secs(3600)),
+        );
+        map.insert(
+            "expired-new".into(),
+            entry("a-exp", base + Duration::from_millis(20), Duration::ZERO),
+        );
+        enforce_caps(&mut map, now, 2, usize::MAX);
+        assert!(!map.contains_key("expired-new"), "the expired binding is removed first");
+        assert!(
+            map.contains_key("live-old"),
+            "an older live binding survives an expired-first eviction"
+        );
+        assert!(map.contains_key("live-new"));
+    }
+
+    /// With nothing expired, the oldest binding is dropped and the size stays within the
+    /// entry cap.
+    #[test]
+    fn evicts_oldest_past_the_entry_cap() {
+        let base = Instant::now();
+        let now = base + Duration::from_secs(1);
+        let mut map = HashMap::new();
+        map.insert("first".into(), entry("a", base, Duration::from_secs(3600)));
+        map.insert(
+            "second".into(),
+            entry("b", base + Duration::from_millis(10), Duration::from_secs(3600)),
+        );
+        map.insert(
+            "third".into(),
+            entry("c", base + Duration::from_millis(20), Duration::from_secs(3600)),
+        );
+        enforce_caps(&mut map, now, 2, usize::MAX);
+        assert_eq!(map.len(), 2, "the map stays within the entry cap");
+        assert!(!map.contains_key("first"), "the oldest binding is evicted");
+        assert!(map.contains_key("second") && map.contains_key("third"));
+    }
+
+    /// The byte cap is enforced too: the oldest bindings are dropped until the total fits.
+    #[test]
+    fn evicts_oldest_past_the_byte_cap() {
+        let base = Instant::now();
+        let now = base + Duration::from_secs(1);
+        let big = "a".repeat(10);
+        let mut map = HashMap::new();
+        map.insert("k0".into(), entry(&big, base, Duration::from_secs(3600)));
+        map.insert(
+            "k1".into(),
+            entry(&big, base + Duration::from_millis(10), Duration::from_secs(3600)),
+        );
+        map.insert(
+            "k2".into(),
+            entry(&big, base + Duration::from_millis(20), Duration::from_secs(3600)),
+        );
+        let per = binding_bytes("k2", &entry(&big, base, Duration::from_secs(3600)));
+        enforce_caps(&mut map, now, usize::MAX, per * 2);
+        let total: usize = map.iter().map(|(video, b)| binding_bytes(video, b)).sum();
+        assert!(total <= per * 2, "the map stays within the byte cap");
+        assert!(!map.contains_key("k0"), "the oldest binding is evicted to meet the byte cap");
+        assert_eq!(map.len(), 2);
+    }
+
+    /// An evicted key misses like an expired TTL: the lookup returns `None` without error,
+    /// and the request path falls back to the unbound model.
+    #[test]
+    fn evicted_binding_misses_without_error() {
+        let base = Instant::now();
+        let now = base + Duration::from_secs(1);
+        let mut map = HashMap::new();
+        map.insert("gone".into(), entry("a", base, Duration::from_secs(3600)));
+        map.insert(
+            "kept".into(),
+            entry("b", base + Duration::from_millis(10), Duration::from_secs(3600)),
+        );
+        enforce_caps(&mut map, now, 1, usize::MAX);
+        assert!(!map.contains_key("gone"), "the oldest binding was evicted");
+        assert_eq!(lookup(&mut map, "gone", now), None);
+        assert_eq!(lookup(&mut map, "kept", now), Some(("b".into(), "m".into())));
+        assert_eq!(
+            pinned_and_model("absent-cap-test", "fallback"),
+            (None, "fallback".to_owned())
+        );
+    }
+}
