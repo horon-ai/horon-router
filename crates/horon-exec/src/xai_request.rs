@@ -1386,11 +1386,17 @@ pub(crate) fn normalize_image_refs(body: Vec<u8>) -> Vec<u8> {
 
 /// Whether the body may carry an `image`, `images` or `reference_images` member anywhere:
 /// a scan for the quoted key token (`"image"`, `"images"`, `"reference_images"`), the form
-/// this pipeline always writes keys in.
-// ponytail: an escaped key (`"\u0069mage"`) is not seen and the body is returned as is;
-// such a body never comes from the translation and marshal steps, and a member-key scan
-// over a decoded document is the only exact alternative.
+/// this pipeline always writes keys in, plus any `\u` escape so an escaped key still
+/// reaches the exact decoded-member-key check instead of being skipped.
+// ponytail: the quoted-token scan cannot see a key written with a JSON escape
+// (`"\u0069mage"` decodes to `image`), so a body carrying any `\u` escape falls through to
+// the parse path where the decoded member keys are checked; bodies with neither an image
+// token nor a `\u` escape still skip the parse. A member-key scan over the decoded
+// document is the exact alternative.
 fn has_image_ref_key(body: &[u8]) -> bool {
+    if body.windows(2).any(|w| w == b"\\u") {
+        return true;
+    }
     let mut from = 0;
     while let Some(offset) = body[from..].iter().position(|&c| c == b'"') {
         let at = from + offset + 1;
@@ -1559,5 +1565,28 @@ mod tests {
             String::from_utf8(normalize_image_refs(body)).unwrap(),
             r#"{"image":{"url":"data:x"}}"#
         );
+    }
+
+    #[test]
+    fn normalize_image_refs_sees_an_escaped_image_key() {
+        // `"\u0069mage"` decodes to the member key `image`: Go decodes the whole document
+        // and re-encodes it, so the escaped-key body must normalize exactly like the
+        // literal-key form instead of being returned as is.
+        let escaped = br#"{"input":[{"\u0069mage":{"image_url":"http://x/a.png"}}]}"#.to_vec();
+        let literal = br#"{"input":[{"image":{"image_url":"http://x/a.png"}}]}"#.to_vec();
+        let want = r#"{"input":[{"image":{"url":"http://x/a.png"}}]}"#;
+        assert_eq!(String::from_utf8(normalize_image_refs(escaped)).unwrap(), want);
+        assert_eq!(String::from_utf8(normalize_image_refs(literal)).unwrap(), want);
+    }
+
+    #[test]
+    fn normalize_image_refs_keeps_escaped_bodies_without_image_keys() {
+        // A `\u` escape that is not an image key sends the body through the parse path,
+        // but it must still come back byte-identical (no spurious rewrite).
+        let body = br#"{"b":1.0,"\u0061":2,"prompt":"draw"}"#.to_vec();
+        assert_eq!(normalize_image_refs(body.clone()), body);
+        // No image key and no escape: the parse is skipped and the body is unchanged.
+        let plain = br#"{"b":1.0,"a":2,"prompt":"draw"}"#.to_vec();
+        assert_eq!(normalize_image_refs(plain.clone()), plain);
     }
 }
