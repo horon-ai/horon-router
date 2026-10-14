@@ -13,6 +13,8 @@
 //! management API exposes them. Port them with the registry/Kimi executors.
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, LazyLock, Mutex, PoisonError};
+use std::time::{Duration, SystemTime};
 
 use serde_json::{Map, Value as Json};
 use serde_yaml_ng::Value;
@@ -1264,10 +1266,118 @@ pub fn oauth_excluded(cfg: &Config) -> HashMap<String, Vec<String>> {
     out
 }
 
+/// File metadata that changes on any write or replacement: the same four values the
+/// server's config watcher compares (`crates/horon-server/src/watching.rs`), so a
+/// reload and the watcher agree on when a file must be read again.
+#[derive(Clone, Copy, PartialEq, Eq)]
+struct FileStat {
+    len: u64,
+    ino: u64,
+    mtime: (i64, i64),
+    ctime: (i64, i64),
+}
+
+impl FileStat {
+    #[cfg(unix)]
+    fn of(meta: &std::fs::Metadata) -> Self {
+        use std::os::unix::fs::MetadataExt;
+        Self {
+            len: meta.len(),
+            ino: meta.ino(),
+            mtime: (meta.mtime(), meta.mtime_nsec()),
+            ctime: (meta.ctime(), meta.ctime_nsec()),
+        }
+    }
+
+    /// ponytail: Windows exposes no stable file identity or change time here, so a
+    /// same-size rewrite with an unchanged modification time older than the racy
+    /// window is missed, exactly as in the server watcher.
+    #[cfg(not(unix))]
+    fn of(meta: &std::fs::Metadata) -> Self {
+        let mtime = meta
+            .modified()
+            .ok()
+            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+            .map_or((0, 0), |d| (d.as_secs() as i64, i64::from(d.subsec_nanos())));
+        Self {
+            len: meta.len(),
+            ino: 0,
+            mtime,
+            ctime: (0, 0),
+        }
+    }
+}
+
+/// Files modified this recently are read again even when their metadata is unchanged:
+/// coarse file timestamps cannot tell two quick same-size writes apart (the watcher's
+/// racy rule).
+const RACY: Duration = Duration::from_secs(2);
+
+/// One auth file's cached state, keyed by absolute path.
+struct CachedAuth {
+    /// The four metadata values the file had when it was last read.
+    stat: FileStat,
+    /// The bytes last read, reused when only the config-derived synthesis changed.
+    bytes: Arc<[u8]>,
+    /// The file's synthesis under `config_fp`, parsed once and reused.
+    parsed: Result<Option<Credential>, String>,
+    /// Fingerprint of the config inputs `from_file` reads (`oauth.excluded-models`).
+    config_fp: [u8; 32],
+}
+
+/// Per-file cache so a reload reads and parses only files whose metadata changed.
+/// Keyed by absolute path and compared on the same four stat values as the watcher;
+/// entries under an auth dir that no longer exist are dropped on the next scan.
+/// There is no invalidation layer: the decision is the file's own metadata, so an
+/// event never forces every file to be read again.
+static AUTH_CACHE: LazyLock<Mutex<HashMap<PathBuf, CachedAuth>>> = LazyLock::new(|| Mutex::new(HashMap::new()));
+
+/// Reads counted per path for tests: proves an unchanged file is not read.
+#[cfg(test)]
+static AUTH_READS: LazyLock<Mutex<HashMap<PathBuf, usize>>> = LazyLock::new(|| Mutex::new(HashMap::new()));
+
+fn read_auth_file(path: &Path) -> std::io::Result<Vec<u8>> {
+    #[cfg(test)]
+    {
+        let key = std::path::absolute(path).unwrap_or_else(|_| path.to_owned());
+        *AUTH_READS
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .entry(key)
+            .or_default() += 1;
+    }
+    std::fs::read(path)
+}
+
+/// A fingerprint of every config input `from_file` reads (`oauth.excluded-models`), so
+/// a config-only change re-synthesizes credentials from cached bytes instead of
+/// reading the files again.
+fn excluded_fingerprint(cfg: &Config) -> [u8; 32] {
+    let excluded = oauth_excluded(cfg);
+    let mut providers: Vec<&String> = excluded.keys().collect();
+    providers.sort();
+    let mut hasher = Sha256::new();
+    for provider in providers {
+        hasher.update(provider.as_bytes());
+        hasher.update([0]);
+        for model in &excluded[provider] {
+            hasher.update(model.as_bytes());
+            hasher.update([1]);
+        }
+        hasher.update([2]);
+    }
+    hasher.finalize().into()
+}
+
 /// Every auth-dir JSON file (case-insensitive extension, top level only), sorted by ID.
 /// Like Go's `FileSynthesizer`, an unreadable or missing directory is an empty set:
-/// it must never block publishing the rest of a valid config.
+/// it must never block publishing the rest of a valid config. Files whose metadata is
+/// unchanged and outside the racy window are neither read nor parsed.
 pub fn from_auth_dir(cfg: &Config) -> Vec<Credential> {
+    from_auth_dir_at(cfg, SystemTime::now())
+}
+
+fn from_auth_dir_at(cfg: &Config, now: SystemTime) -> Vec<Credential> {
     let entries = match std::fs::read_dir(&cfg.auth_dir) {
         Ok(entries) => entries,
         Err(e) => {
@@ -1277,6 +1387,9 @@ pub fn from_auth_dir(cfg: &Config) -> Vec<Credential> {
             return Vec::new();
         }
     };
+    let config_fp = excluded_fingerprint(cfg);
+    let mut cache = AUTH_CACHE.lock().unwrap_or_else(PoisonError::into_inner);
+    let mut seen: Vec<PathBuf> = Vec::new();
     let mut out = Vec::new();
     for entry in entries.flatten() {
         let path: PathBuf = entry.path();
@@ -1285,13 +1398,53 @@ pub fn from_auth_dir(cfg: &Config) -> Vec<Credential> {
         {
             continue;
         }
-        let Ok(data) = std::fs::read(&path) else { continue };
-        match from_file(cfg, &cfg.auth_dir, &path, &data) {
-            Ok(Some(c)) => out.push(c),
+        // A file whose metadata cannot be read is present but unknown; reload skips it.
+        let Ok(meta) = std::fs::metadata(&path) else { continue };
+        let key = std::path::absolute(&path).unwrap_or_else(|_| path.clone());
+        seen.push(key.clone());
+        let stat = FileStat::of(&meta);
+        // A file modified within the racy window is read again even when its metadata
+        // matches: coarse timestamps cannot separate two quick same-size writes.
+        let racy = meta
+            .modified()
+            .map_or(true, |m| now.duration_since(m).map_or(true, |age| age < RACY));
+        let cached = cache.get(&key);
+        // Reuse the parsed credential when nothing changed; reuse only the bytes when
+        // the file is unchanged but the config-derived synthesis changed.
+        let (bytes, parsed) = match cached {
+            Some(entry) if entry.stat == stat && !racy && entry.config_fp == config_fp => {
+                (entry.bytes.clone(), entry.parsed.clone())
+            }
+            Some(entry) if entry.stat == stat && !racy => {
+                let bytes = entry.bytes.clone();
+                let parsed = from_file(cfg, &cfg.auth_dir, &path, &bytes);
+                (bytes, parsed)
+            }
+            _ => {
+                let Ok(data) = read_auth_file(&path) else { continue };
+                let bytes: Arc<[u8]> = Arc::from(data.into_boxed_slice());
+                let parsed = from_file(cfg, &cfg.auth_dir, &path, &bytes);
+                (bytes, parsed)
+            }
+        };
+        match &parsed {
+            Ok(Some(c)) => out.push(c.clone()),
             Ok(None) => {}
             Err(e) => tracing::warn!(path = %path.display(), error = %e, "skipping auth file"),
         }
+        cache.insert(
+            key,
+            CachedAuth {
+                stat,
+                bytes,
+                parsed,
+                config_fp,
+            },
+        );
     }
+    // Drop cached files that left this auth dir; other dirs keep their entries.
+    let dir = std::path::absolute(&cfg.auth_dir).unwrap_or_else(|_| cfg.auth_dir.clone());
+    cache.retain(|path, _| !path.starts_with(&dir) || seen.contains(path));
     out.sort_by(|a, b| a.id.cmp(&b.id));
     out
 }
@@ -1492,5 +1645,133 @@ mod tests {
         assert_eq!(api_key_config_proxy(&cfg, second), "direct");
         let compat = creds.iter().find(|c| c.attributes.contains_key("compat_name")).unwrap();
         assert_eq!(api_key_config_proxy(&cfg, compat), "http://one.example.invalid:1");
+    }
+
+    /// An empty temp auth dir with a unique name per test.
+    fn auth_dir(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("cpa-cred-cache-{name}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn config_with(dir: &Path, under_oauth: &str) -> Config {
+        Config::parse(&format!("oauth:\n  auth-dir: {}\n{under_oauth}", dir.display())).unwrap()
+    }
+
+    /// Sets the file's modification time so it sits outside the 2-second racy window.
+    fn age(path: &Path, secs_ago: u64) {
+        let t = SystemTime::now() - Duration::from_secs(secs_ago);
+        std::fs::File::options()
+            .write(true)
+            .open(path)
+            .unwrap()
+            .set_modified(t)
+            .unwrap();
+    }
+
+    fn reads(path: &Path) -> usize {
+        let key = std::path::absolute(path).unwrap_or_else(|_| path.to_owned());
+        AUTH_READS.lock().unwrap().get(&key).copied().unwrap_or(0)
+    }
+
+    /// (a) Stat unchanged and outside the racy window: the file is neither read nor
+    /// parsed again (the read counter stays put).
+    #[test]
+    fn unchanged_file_is_not_read_again() {
+        let dir = auth_dir("unchanged");
+        let file = dir.join("a.json");
+        std::fs::write(&file, r#"{"type":"claude","email":"a@x.invalid"}"#).unwrap();
+        age(&file, 60);
+        let cfg = config_with(&dir, "");
+        let first = from_auth_dir(&cfg);
+        assert_eq!(first.len(), 1);
+        let after_first = reads(&file);
+        assert_eq!(after_first, 1, "the first load reads the file");
+        let second = from_auth_dir(&cfg);
+        assert_eq!(second.len(), 1);
+        assert_eq!(reads(&file), after_first, "unchanged file must not be read again");
+        assert_eq!(first[0].metadata, second[0].metadata);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// (b) A changed Stat re-reads only that file; the untouched one is skipped.
+    #[test]
+    fn changed_stat_rereads_only_that_file() {
+        let dir = auth_dir("changed");
+        let a = dir.join("a.json");
+        let b = dir.join("b.json");
+        std::fs::write(&a, r#"{"type":"claude","email":"a@x.invalid"}"#).unwrap();
+        std::fs::write(&b, r#"{"type":"claude","email":"b@x.invalid"}"#).unwrap();
+        age(&a, 60);
+        age(&b, 60);
+        let cfg = config_with(&dir, "");
+        assert_eq!(from_auth_dir(&cfg).len(), 2);
+        let (reads_a, reads_b) = (reads(&a), reads(&b));
+        assert_eq!((reads_a, reads_b), (1, 1));
+        std::fs::write(&b, r#"{"type":"claude","email":"b2@x.invalid","note":"changed"}"#).unwrap();
+        age(&b, 60);
+        let out = from_auth_dir(&cfg);
+        assert_eq!(out.len(), 2);
+        assert_eq!(reads(&a), reads_a, "the unchanged file must not be re-read");
+        assert_eq!(reads(&b), reads_b + 1, "the changed file is re-read once");
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// (c) A deleted file disappears from the result.
+    #[test]
+    fn deleted_file_disappears() {
+        let dir = auth_dir("deleted");
+        let a = dir.join("a.json");
+        let b = dir.join("b.json");
+        std::fs::write(&a, r#"{"type":"claude","email":"a@x.invalid"}"#).unwrap();
+        std::fs::write(&b, r#"{"type":"claude","email":"b@x.invalid"}"#).unwrap();
+        age(&a, 60);
+        age(&b, 60);
+        let cfg = config_with(&dir, "");
+        assert_eq!(from_auth_dir(&cfg).len(), 2);
+        std::fs::remove_file(&b).unwrap();
+        let out = from_auth_dir(&cfg);
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].id, "a.json");
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// (d) A config-only change re-synthesizes credentials without reading the files
+    /// again: the same bytes are re-parsed with the new excluded-model list.
+    #[test]
+    fn config_only_change_resynthesizes_without_rereading() {
+        let dir = auth_dir("config-only");
+        let file = dir.join("a.json");
+        std::fs::write(&file, r#"{"type":"claude","email":"a@x.invalid"}"#).unwrap();
+        age(&file, 60);
+        let before = from_auth_dir(&config_with(&dir, ""));
+        assert_eq!(before[0].attributes.get("excluded_models"), None);
+        let reads_before = reads(&file);
+        let after = from_auth_dir(&config_with(&dir, "  excluded-models:\n    claude: [gpt-x]\n"));
+        assert_eq!(reads(&file), reads_before, "a config-only change must not re-read");
+        assert_eq!(
+            after[0].attributes.get("excluded_models").map(String::as_str),
+            Some("gpt-x")
+        );
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// (e) Inside the racy window a file with an identical Stat is read again, matching
+    /// the watcher policy (`crates/horon-server/src/watching.rs`).
+    #[test]
+    fn racy_file_is_reread_with_identical_stat() {
+        let dir = auth_dir("racy");
+        let file = dir.join("a.json");
+        std::fs::write(&file, r#"{"type":"claude","email":"a@x.invalid"}"#).unwrap();
+        age(&file, 1);
+        let cfg = config_with(&dir, "");
+        let now = SystemTime::now();
+        assert_eq!(from_auth_dir_at(&cfg, now).len(), 1);
+        let after_first = reads(&file);
+        // Same stat and same `now`: still inside the racy window, so it is read again.
+        assert_eq!(from_auth_dir_at(&cfg, now).len(), 1);
+        assert_eq!(reads(&file), after_first + 1, "a racy file must be re-read");
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 }
