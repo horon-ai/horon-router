@@ -46,6 +46,7 @@ use std::sync::Arc;
 
 use bytes::{Bytes, BytesMut};
 use futures_util::StreamExt;
+use horon_common::splice::{Edit, splice};
 use horon_core::config::Config;
 use horon_core::credential::{Credential, MetadataPatch};
 use horon_core::exec::{
@@ -839,6 +840,18 @@ fn text(bytes: Vec<u8>) -> String {
     String::from_utf8(bytes).unwrap_or_else(|e| String::from_utf8_lossy(e.as_bytes()).into_owned())
 }
 
+/// Applies a batch of mutually independent edits in one pass over `body` (see
+/// [`horon_common::splice`]). Byte-identical to applying the edits in order; the caller
+/// guarantees that no edit reads a path another edit in the batch writes, so resolving
+/// every edit against the source body matches the sequential result. `splice` falls back
+/// to sequential application whenever a range cannot be resolved against the source.
+pub(crate) fn apply_edits(body: &str, edits: &[Edit]) -> String {
+    if edits.is_empty() {
+        return body.to_owned();
+    }
+    text(splice(body.as_bytes(), edits))
+}
+
 /// `helps.SetStringIfDifferent`.
 fn set_string_if_different(body: &str, path: &str, value: &str) -> String {
     let current = rawjson::get(body, path);
@@ -909,11 +922,21 @@ fn sanitize_for_upstream(body: &str, base_model: &str, preserve_empty_thinking: 
 
 /// `extractAndRemoveBetas`.
 fn extract_betas(body: &str) -> (Vec<String>, String) {
+    let betas = extract_betas_value(body);
+    if !rawjson::get(body, "betas").exists() {
+        return (betas, body.to_owned());
+    }
+    (betas, rawjson::delete(body, "betas"))
+}
+
+/// The `betas` list [`extract_betas`] reads, without the delete. A caller that batches
+/// the removal with other edits reads it here and applies `Edit::delete("betas")` itself.
+fn extract_betas_value(body: &str) -> Vec<String> {
     let v = rawjson::get(body, "betas");
     if !v.exists() {
-        return (Vec::new(), body.to_owned());
+        return Vec::new();
     }
-    let betas = if v.kind() == gjson::Kind::Array {
+    if v.kind() == gjson::Kind::Array {
         v.array()
             .iter()
             .map(|b| b.str().trim().to_owned())
@@ -924,8 +947,7 @@ fn extract_betas(body: &str) -> (Vec<String>, String) {
             .filter(|b| !b.is_empty())
             .into_iter()
             .collect()
-    };
-    (betas, rawjson::delete(body, "betas"))
+    }
 }
 
 impl<'a> Ctx<'a> {
@@ -1189,17 +1211,26 @@ impl<'a> Ctx<'a> {
                 },
             );
             let model = rawjson::string(&body, "model").trim().to_lowercase();
-            if cloak::is_opus55(&model) && !probe_before && !rawjson::get(&body, "fallbacks").exists() {
-                body = rawjson::set_raw(&body, "fallbacks", r#"[{"model":"claude-opus-4-8"}]"#);
+            // The fallback array, `thinking.display`, the cache TTL strip and the fake
+            // user ID touch four different top-level keys and read only their own, so one
+            // splice pass applies them (the TTL strip reads the block index, built from
+            // this same body).
+            let mut edits: Vec<Edit> = Vec::new();
+            // Go sets the Opus and Fable fallbacks in sequence; they share the `fallbacks`
+            // key, so a model matching both predicates keeps the Opus one. Batching must
+            // preserve that, so only the first matching predicate contributes an edit.
+            if !probe_before && !rawjson::get(&body, "fallbacks").exists() {
+                if cloak::is_opus55(&model) {
+                    edits.push(Edit::set_raw("fallbacks", r#"[{"model":"claude-opus-4-8"}]"#));
+                } else if cloak::is_fable51(&model) {
+                    edits.push(Edit::set_raw("fallbacks", r#"[{"model":"claude-opus-5"}]"#));
+                }
             }
-            if cloak::is_fable51(&model) && !probe_before && !rawjson::get(&body, "fallbacks").exists() {
-                body = rawjson::set_raw(&body, "fallbacks", r#"[{"model":"claude-opus-5"}]"#);
+            if !probe_before && let Some(edit) = cloak_thinking_display_edit(&body) {
+                edits.push(edit);
             }
-            if !probe_before {
-                body = cloak_thinking_display(&body);
-            }
-            if probe_before || (subagent && !signals::subagent_requests_1h(&req.headers, &body)) {
-                body = cloak::strip_ttl(&body, body_valid, &mut signals::Blocks::build(&body));
+            if body_valid && (probe_before || (subagent && !signals::subagent_requests_1h(&req.headers, &body))) {
+                edits.extend(cloak::strip_ttl_edits(&mut signals::Blocks::build(&body)));
             }
             if !self.cli_profile && needs_fake_user_id(&body) {
                 // Go `injectFakeUserID`: Home KV in Home mode, and its errors fail the
@@ -1212,8 +1243,9 @@ impl<'a> Ctx<'a> {
                         .map(|session| cloak::fake_user_id(&session))
                 };
                 let user_id = user_id.map_err(|e| ExecError::local(500, FailureScope::Transport, e))?;
-                body = rawjson::set_str(&body, "metadata.user_id", &user_id);
+                edits.push(Edit::set_str("metadata.user_id", user_id));
             }
+            body = apply_edits(&body, &edits);
             cloaked = true;
         }
         let probe = probe_before || signals::probe_or_helper(&body);
@@ -1298,16 +1330,28 @@ impl<'a> Ctx<'a> {
             cloaked,
             probe,
         );
-        body = self.ensure_max_tokens(&body, body_valid);
-        body = disable_thinking_if_tool_choice_forced(&body);
-        body = cloak::reconcile_context_management(
+        // `max_tokens` and the forced-tool-choice `thinking`/`output_config` deletes
+        // touch different keys and read only their own, so they share one pass.
+        let mut edits: Vec<Edit> = Vec::new();
+        if let Some(edit) = self.ensure_max_tokens_edit(&body, body_valid) {
+            edits.push(edit);
+        }
+        edits.extend(disable_thinking_if_tool_choice_forced_edits(&body));
+        body = apply_edits(&body, &edits);
+        // Both read `thinking.type` (which the pass above may have deleted) and write
+        // disjoint keys, so they share the next pass.
+        let mut edits: Vec<Edit> = Vec::new();
+        if let Some(edit) = cloak::reconcile_context_management_edits(
             &body,
             eligible,
             caller_owned_cm,
             injected_cm,
             touched("context_management"),
-        );
-        body = normalize_sampling(&body, confirmed);
+        ) {
+            edits.push(edit);
+        }
+        edits.extend(normalize_sampling_edits(&body, confirmed));
+        body = apply_edits(&body, &edits);
         // One block index for the whole cache-control region; each helper updates only
         // the entries its own edit changed, instead of re-collecting every block.
         let mut blocks = signals::Blocks::build(&body);
@@ -1327,14 +1371,19 @@ impl<'a> Ctx<'a> {
         body = cloak::normalize_ttl(&body, body_valid, &mut blocks);
         // Execute only: ExecuteStream forwards the body's own `stream` field.
         let stream_field = rawjson::get(&body, "stream");
+        // The `stream` set and the `betas` delete touch different keys.
+        let mut edits: Vec<Edit> = Vec::new();
         if !req.stream && (!detection.helper_profile || stream_field.exists() || upstream_stream) {
             let want = if upstream_stream { "true" } else { "false" };
             if stream_field.json() != want {
-                body = rawjson::set_raw(&body, "stream", want);
+                edits.push(Edit::set_raw("stream", want));
             }
         }
-        let (extra_betas, stripped) = extract_betas(&body);
-        body = stripped;
+        let extra_betas = extract_betas_value(&body);
+        if rawjson::get(&body, "betas").exists() {
+            edits.push(Edit::delete("betas"));
+        }
+        body = apply_edits(&body, &edits);
         let mut reverse = alias::Reverse::new();
         if self.cli_profile && cloaked {
             let secret = Some(req.caller.principal.trim())
@@ -1692,8 +1741,9 @@ impl<'a> Ctx<'a> {
     }
 
     /// `ensureModelMaxTokens`: only a model some Claude credential registered gets a
-    /// default `max_tokens`, its registered completion limit or 1024.
-    fn ensure_max_tokens(&self, body: &str, valid: bool) -> String {
+    /// default `max_tokens`, its registered completion limit or 1024. The edit is batched
+    /// with the other pre-cache-control edits, so it is returned rather than applied.
+    fn ensure_max_tokens_edit(&self, body: &str, valid: bool) -> Option<Edit> {
         let model = self.base_model.trim();
         if !valid
             || rawjson::get(body, "max_tokens").exists()
@@ -1701,7 +1751,7 @@ impl<'a> Ctx<'a> {
                 .iter()
                 .any(|p| p.eq_ignore_ascii_case("claude"))
         {
-            return body.to_owned();
+            return None;
         }
         let max = horon_core::registry::registered_model(model, Some("claude"))
             .and_then(|info| {
@@ -1711,7 +1761,7 @@ impl<'a> Ctx<'a> {
             })
             .filter(|n| *n > 0)
             .unwrap_or(DEFAULT_MAX_TOKENS);
-        rawjson::set_raw(body, "max_tokens", &max.to_string())
+        Some(Edit::set_raw("max_tokens", max.to_string()))
     }
 }
 
@@ -1720,12 +1770,20 @@ const DEFAULT_MAX_TOKENS: i64 = 1024;
 
 /// Fill `thinking.display: updates` for progress-display models with active thinking.
 fn cloak_thinking_display(body: &str) -> String {
+    match cloak_thinking_display_edit(body) {
+        Some(edit) => apply_edits(body, &[edit]),
+        None => body.to_owned(),
+    }
+}
+
+/// The `thinking.display` edit [`cloak_thinking_display`] would apply, if any.
+fn cloak_thinking_display_edit(body: &str) -> Option<Edit> {
     if rawjson::get(body, "thinking.display").exists() || !betas::progress_display(&rawjson::string(body, "model")) {
-        return body.to_owned();
+        return None;
     }
     match rawjson::string(body, "thinking.type").trim().to_lowercase().as_str() {
-        "adaptive" | "enabled" => rawjson::set_str(body, "thinking.display", "updates"),
-        _ => body.to_owned(),
+        "adaptive" | "enabled" => Some(Edit::set_str("thinking.display", "updates")),
+        _ => None,
     }
 }
 
@@ -1757,55 +1815,57 @@ fn inject_diagnostics(body: &str, previous_message_id: &str) -> String {
     rawjson::set_raw(body, "diagnostics", &value)
 }
 
-/// `disableThinkingIfToolChoiceForced`.
-fn disable_thinking_if_tool_choice_forced(body: &str) -> String {
+/// `disableThinkingIfToolChoiceForced`: the `thinking`/`output_config` deletes, in order.
+/// The `output_config` removal fires only when deleting `effort` empties the object, which
+/// is read from `body` before the batch is applied.
+fn disable_thinking_if_tool_choice_forced_edits(body: &str) -> Vec<Edit> {
     if !matches!(rawjson::get(body, "tool_choice.type").str(), "any" | "tool") {
-        return body.to_owned();
+        return Vec::new();
     }
-    let mut body = rawjson::delete(body, "thinking");
-    body = rawjson::delete(&body, "output_config.effort");
-    let oc = rawjson::get(&body, "output_config");
+    let oc = rawjson::get(body, "output_config");
     let mut members = 0;
     oc.each(|_, _| {
         members += 1;
         true
     });
-    if oc.kind() == gjson::Kind::Object && members == 0 {
-        body = rawjson::delete(&body, "output_config");
+    let mut edits = vec![Edit::delete("thinking"), Edit::delete("output_config.effort")];
+    if oc.kind() == gjson::Kind::Object && members == usize::from(rawjson::get(body, "output_config.effort").exists()) {
+        edits.push(Edit::delete("output_config"));
     }
-    body
+    edits
 }
 
-/// `normalizeClaudeSamplingForUpstream`.
-fn normalize_sampling(body: &str, native: bool) -> String {
+/// `normalizeClaudeSamplingForUpstream`: the sampling-parameter deletes, in order.
+fn normalize_sampling_edits(body: &str, native: bool) -> Vec<Edit> {
     let thinking = matches!(
         rawjson::string(body, "thinking.type").trim().to_lowercase().as_str(),
         "enabled" | "adaptive" | "auto"
     );
-    let mut body = body.to_owned();
+    let mut edits = Vec::new();
     if !native {
-        body = rawjson::delete(&body, "temperature");
-        body = rawjson::delete(&body, "top_p");
+        edits.push(Edit::delete("temperature"));
+        edits.push(Edit::delete("top_p"));
         if thinking {
-            body = rawjson::delete(&body, "top_k");
+            edits.push(Edit::delete("top_k"));
         }
-        return body;
+        return edits;
     }
     if thinking {
-        let t = rawjson::get(&body, "temperature");
+        let t = rawjson::get(body, "temperature");
         if t.exists() && t.f64() != 1.0 {
-            body = rawjson::delete(&body, "temperature");
+            edits.push(Edit::delete("temperature"));
         }
-        let p = rawjson::get(&body, "top_p");
+        let p = rawjson::get(body, "top_p");
         if p.exists() && p.f64() < 0.95 {
-            body = rawjson::delete(&body, "top_p");
+            edits.push(Edit::delete("top_p"));
         }
-        return rawjson::delete(&body, "top_k");
+        edits.push(Edit::delete("top_k"));
+        return edits;
     }
-    if rawjson::get(&body, "temperature").exists() && rawjson::get(&body, "top_p").exists() {
-        body = rawjson::delete(&body, "top_p");
+    if rawjson::get(body, "temperature").exists() && rawjson::get(body, "top_p").exists() {
+        edits.push(Edit::delete("top_p"));
     }
-    body
+    edits
 }
 
 fn has_mid_system(body: &str) -> bool {
@@ -1851,8 +1911,14 @@ fn rebuild_mid_system(body: &str) -> String {
     }
     let mut parts = system_text_parts(&rawjson::get(body, "system"));
     parts.extend(moved);
-    let body = rawjson::set_raw(body, "system", &format!("[{}]", parts.join(",")));
-    rawjson::set_raw(&body, "messages", &format!("[{}]", kept.join(",")))
+    // The `system` and `messages` rewrites touch different top-level keys.
+    apply_edits(
+        body,
+        &[
+            Edit::set_raw("system", format!("[{}]", parts.join(","))),
+            Edit::set_raw("messages", format!("[{}]", kept.join(","))),
+        ],
+    )
 }
 
 /// `claudeSystemTextParts`: strings become text blocks, text objects stay raw.

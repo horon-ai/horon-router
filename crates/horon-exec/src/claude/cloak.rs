@@ -5,6 +5,7 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, OnceLock};
 
+use horon_common::splice::Edit;
 use sha2::{Digest, Sha256};
 
 use super::signals;
@@ -462,25 +463,26 @@ pub(crate) fn inject_context_management(body: &str) -> Option<String> {
         .then(|| rawjson::set_raw(body, "context_management", CONTEXT_MANAGEMENT))
 }
 
-/// `reconcileClaudeCodeContextManagement` without payload-rule ownership.
-pub(crate) fn reconcile_context_management(
+/// `reconcileClaudeCodeContextManagement` without payload-rule ownership: the
+/// `context_management` edit, batched with the adjacent sampling edits.
+pub(crate) fn reconcile_context_management_edits(
     body: &str,
     eligible: bool,
     caller_owned: bool,
     injected: bool,
     payload_touched: bool,
-) -> String {
+) -> Option<Edit> {
     let current = rawjson::get(body, "context_management");
     if !thinking_accepts_clear(body) {
         if caller_owned || !injected || payload_touched || current.json() != CONTEXT_MANAGEMENT {
-            return body.to_owned();
+            return None;
         }
-        return rawjson::delete(body, "context_management");
+        return Some(Edit::delete("context_management"));
     }
     if !eligible || caller_owned || payload_touched || current.exists() {
-        return body.to_owned();
+        return None;
     }
-    rawjson::set_raw(body, "context_management", CONTEXT_MANAGEMENT)
+    Some(Edit::set_raw("context_management", CONTEXT_MANAGEMENT))
 }
 
 fn has_cache_control(body: &str, path: &str) -> bool {
@@ -527,18 +529,24 @@ pub(crate) fn strip_ttl(body: &str, valid: bool, blocks: &mut signals::Blocks) -
     if !valid {
         return body.to_owned();
     }
-    let mut out = body.to_owned();
+    super::apply_edits(body, &strip_ttl_edits(blocks))
+}
+
+/// The `cache_control.ttl` deletes [`strip_ttl`] would apply, updating `blocks` in place.
+/// A caller that batches the strip with other edits uses this and applies the result.
+pub(crate) fn strip_ttl_edits(blocks: &mut signals::Blocks) -> Vec<Edit> {
+    let mut edits = Vec::new();
     for item in blocks.items_mut() {
         if !item.cc.as_ref().is_some_and(|cc| cc.is_object && cc.ttl_present) {
             continue;
         }
-        out = rawjson::delete(&out, &format!("{}.cache_control.ttl", item.path));
+        edits.push(Edit::delete(format!("{}.cache_control.ttl", item.path)));
         if let Some(cc) = item.cc.as_mut() {
             cc.ttl_present = false;
             cc.ttl_str = None;
         }
     }
-    out
+    edits
 }
 
 /// `normalizeCacheControlTTL`: a 1h marker may not follow a 5m one in evaluation order.
@@ -638,27 +646,29 @@ fn cacheable_system(body: &str) -> bool {
     }
 }
 
-/// `ensureCacheControl`: CPA-owned breakpoints for non-native callers.
+/// `ensureCacheControl`: CPA-owned breakpoints for non-native callers. The three
+/// injections touch `tools`, `system` and `messages`, so one splice pass applies them.
 pub(crate) fn ensure_cache_control(body: &str, blocks: &mut signals::Blocks) -> String {
-    let mut body = body.to_owned();
-    if !cacheable_system(&body) {
-        body = inject_tools_cache(&body, blocks);
+    let mut edits = Vec::new();
+    if !cacheable_system(body) {
+        edits.extend(inject_tools_cache_edits(body, blocks));
     }
-    body = inject_system_cache(&body, blocks);
-    inject_messages_cache(&body, blocks)
+    edits.extend(inject_system_cache_edits(body, blocks));
+    edits.extend(inject_messages_cache_edits(body, blocks));
+    super::apply_edits(body, &edits)
 }
 
 const MARKER: &str = r#"{"type":"ephemeral"}"#;
 
-fn inject_tools_cache(body: &str, blocks: &mut signals::Blocks) -> String {
+fn inject_tools_cache_edits(body: &str, blocks: &mut signals::Blocks) -> Vec<Edit> {
     let tools = rawjson::get(body, "tools");
     if tools.kind() != gjson::Kind::Array {
-        return body.to_owned();
+        return Vec::new();
     }
     let mut last = None;
     for (i, tool) in tools.array().iter().enumerate() {
         if tool.get("cache_control").exists() {
-            return body.to_owned();
+            return Vec::new();
         }
         if !tool.get("defer_loading").bool() {
             last = Some(i);
@@ -667,34 +677,34 @@ fn inject_tools_cache(body: &str, blocks: &mut signals::Blocks) -> String {
     match last {
         Some(i) => {
             let path = format!("tools.{i}");
-            let out = rawjson::set_raw(body, &format!("{path}.cache_control"), MARKER);
             blocks.set_cc(&path, MARKER);
-            out
+            vec![Edit::set_raw(format!("{path}.cache_control"), MARKER)]
         }
-        None => body.to_owned(),
+        None => Vec::new(),
     }
 }
 
-fn inject_system_cache(body: &str, blocks: &mut signals::Blocks) -> String {
+fn inject_system_cache_edits(body: &str, blocks: &mut signals::Blocks) -> Vec<Edit> {
     let system = rawjson::get(body, "system");
     match system.kind() {
         gjson::Kind::Array => {
             let items = system.array();
             if items.is_empty() || items.iter().any(|b| b.get("cache_control").exists()) {
-                return body.to_owned();
+                return Vec::new();
             }
             let path = format!("system.{}", items.len() - 1);
-            let out = rawjson::set_raw(body, &format!("{path}.cache_control"), MARKER);
             blocks.set_cc(&path, MARKER);
-            out
+            vec![Edit::set_raw(format!("{path}.cache_control"), MARKER)]
         }
         gjson::Kind::String if !system.str().trim().is_empty() => {
             // The rewrite turns a string system into a one-element array: a new block.
-            let out = rawjson::set_raw(body, "system", &format!("[{}]", text_block(system.str(), EPHEMERAL)));
             blocks.insert("system.0".to_owned(), MARKER);
-            out
+            vec![Edit::set_raw(
+                "system",
+                format!("[{}]", text_block(system.str(), EPHEMERAL)),
+            )]
         }
-        _ => body.to_owned(),
+        _ => Vec::new(),
     }
 }
 
@@ -716,17 +726,17 @@ fn eligible_for_rolling_cache(message: &gjson::Value) -> bool {
     )
 }
 
-fn inject_messages_cache(body: &str, blocks: &mut signals::Blocks) -> String {
+fn inject_messages_cache_edits(body: &str, blocks: &mut signals::Blocks) -> Vec<Edit> {
     let messages = rawjson::get(body, "messages");
     if messages.kind() != gjson::Kind::Array {
-        return body.to_owned();
+        return Vec::new();
     }
     let msgs = messages.array();
     let last_eligible = msgs
         .iter()
         .rposition(|m| matches!(m.get("role").str(), "user" | "assistant") && eligible_for_rolling_cache(m));
     let Some(idx) = last_eligible else {
-        return body.to_owned();
+        return Vec::new();
     };
     if let Some(final_msg) = msgs.last() {
         let content = final_msg.get("content");
@@ -735,9 +745,11 @@ fn inject_messages_cache(body: &str, blocks: &mut signals::Blocks) -> String {
             && !content.str().trim().is_empty()
         {
             let path = format!("messages.{}.content", msgs.len() - 1);
-            let out = rawjson::set_raw(body, &path, &format!("[{}]", text_block(content.str(), EPHEMERAL)));
             blocks.insert(format!("{path}.0"), MARKER);
-            return out;
+            return vec![Edit::set_raw(
+                path,
+                format!("[{}]", text_block(content.str(), EPHEMERAL)),
+            )];
         }
     }
     let path = format!("messages.{idx}.content");
@@ -746,19 +758,18 @@ fn inject_messages_cache(body: &str, blocks: &mut signals::Blocks) -> String {
         gjson::Kind::Array => {
             let arr = content.array();
             if arr.iter().any(|b| b.get("cache_control").exists()) || arr.is_empty() {
-                return body.to_owned();
+                return Vec::new();
             }
             let block_path = format!("{path}.{}", arr.len() - 1);
-            let out = rawjson::set_raw(body, &format!("{block_path}.cache_control"), MARKER);
             blocks.set_cc(&block_path, MARKER);
-            out
+            vec![Edit::set_raw(format!("{block_path}.cache_control"), MARKER)]
         }
         gjson::Kind::String => {
-            let out = rawjson::set_raw(body, &path, &format!("[{}]", text_block(content.str(), EPHEMERAL)));
+            let replacement = format!("[{}]", text_block(content.str(), EPHEMERAL));
             blocks.insert(format!("{path}.0"), MARKER);
-            out
+            vec![Edit::set_raw(path, replacement)]
         }
-        _ => body.to_owned(),
+        _ => Vec::new(),
     }
 }
 
