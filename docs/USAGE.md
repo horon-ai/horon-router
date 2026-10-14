@@ -165,6 +165,61 @@ observability:
 - `GET /observability/usage/api-keys`는 API 키 항목별(제공자, 주소, 키) 성공 수와 실패 수, 최근 요청 구간별 건수를 돌려줍니다. 대시보드의 Providers 페이지가 15초마다 읽어 키별 트래픽을 보여 줍니다.
 - 이 숫자는 토큰이 아니라 요청 건수입니다.
 
+<a id="per-model-rollup"></a>
+## 모델별 누적 집계
+
+사용 기록은 요청 한 건마다 만들어지는 반면, 서버는 그 기록을 차원별 누적치로도 접어 둡니다. 그래서 "어떤 모델이 토큰을 얼마나, 캐시를 얼마나 썼는지"를 조회 주소 하나로 확인합니다.
+
+- **조회 주소:** `GET /v8/management/observability/usage/stats`. v0 표기는 `GET /v0/management/usage-stats`입니다. 사용 기록 큐를 읽는 조회와 달리 이 주소는 큐를 소비하지 않습니다. 같은 값을 몇 번을 읽어도 그대로입니다.
+- **`group_by`:** 차원을 고르는 쿼리 값입니다. `model`(기본값), `provider`, `auth_index` 가운데 하나입니다. 다른 값을 주면 `400`과 `group_by must be one of model, provider, auth_index`로 답합니다.
+
+<a id="rollup-response"></a>
+### 응답의 모양
+
+응답은 `group_by`, `rows`, `totals`, `dropped`를 담은 객체 하나입니다. `rows`는 차원별 행의 목록이고, `last_seen`이 늦은 순으로 정렬합니다.
+
+각 행의 필드는 다음과 같습니다.
+
+| 필드 | 뜻 |
+|---|---|
+| `key` | 그 차원의 값입니다(모델 이름, 제공자 이름, 계정 인덱스). |
+| `requests` | 요청 수입니다. |
+| `failed` | 그중 실패한 요청 수입니다. |
+| `input_tokens`, `output_tokens`, `reasoning_tokens` | 입력·출력·추론 토큰 합계입니다. |
+| `cached_tokens`, `cache_read_tokens`, `cache_creation_tokens` | 캐시 토큰 합계입니다. |
+| `total_tokens` | 전체 토큰 합계입니다. |
+| `unclassified_tokens` | 입력과 출력 어디에도 붙지 못한 토큰 합계입니다. |
+| `quality` | `complete`, `unclassified`, `inconsistent` 세 값으로 나눈 기록 수입니다. |
+| `first_seen`, `last_seen` | 그 차원의 값이 처음·마지막으로 관측된 시각입니다(RFC 3339). |
+| `providers` | 그 행에 섞인 제공자 이름의 목록입니다. |
+
+`totals`는 같은 숫자 필드를 `rows` 전체에 대해 더한 값이고, `quality`도 함께 들어갑니다. `dropped`는 상한 때문에 밀려난 행의 누적 수입니다.
+
+<a id="rollup-limits"></a>
+### 켜는 방법과 한계
+
+- `observability.usage.usage-statistics-enabled: true`로 켭니다. 사용 기록을 만드는 것과 같은 플래그이며, 별도 설정 키는 없습니다. 꺼져 있으면 집계도 하지 않습니다.
+- 값은 메모리에만 있습니다. 재시작하면 초기화되고, 계정으로 요청이 다시 들어오면서 쌓입니다.
+- 차원마다 행을 최대 4096개까지 둡니다. 상한에 닿은 채 새 키가 들어오면 `last_seen`이 가장 오래된 행을 하나 밀어내고, 밀려난 수는 `dropped`에 더합니다. 이때 `totals`는 지금 남아 있는 행만 더하므로, 밀려난 행의 누적치는 합계에서 빠집니다. 정상 운전에서는 닿지 않는 안전장치입니다.
+
+<a id="rollup-cache-semantics"></a>
+### 제공자별 캐시 의미
+
+캐시 토큰이 입력 토큰과 어떻게 겹치는지는 제공자마다 다릅니다(`crates/horon-server/src/usage_record.rs`의 `semantics`). 기록 한 건의 분류([토큰 수를 세는 방식](#how-tokens-are-counted))와 같은 규칙이며, 누적치에도 그대로 적용됩니다.
+
+- **포함형(Subset):** 캐시 토큰이 입력 토큰 안에 들어 있고, 추론 토큰도 출력 토큰 안에 들어 있습니다. `input_tokens`에 캐시가 이미 포함되어 있습니다. OpenAI 호환(`openai-compatibility`), Codex, xAI(Grok), Kimi, Qwen, DeepSeek, OpenRouter, Command Code, Nous, GitHub Copilot이 여기 해당합니다.
+- **독립형(Independent):** 입력, 캐시 읽기, 캐시 쓰기를 따로 셉니다. Claude/Anthropic이 여기 해당하고, `cache_read_tokens`와 `cache_creation_tokens`가 `input_tokens` 밖에 따로 잡힙니다.
+- **추론 분리형(SeparateReasoning):** 캐시를 입력 안에 두고, 추론 토큰을 출력과 따로 셉니다. Gemini 계열(aistudio, antigravity, vertex, interaction)이 여기 해당합니다.
+
+어느 규칙에도 맞지 않는 제공자는 합계만 남기고 `unclassified_tokens`로 잡습니다.
+
+<a id="rollup-dashboard"></a>
+### 대시보드에서
+
+대시보드의 Usage 페이지가 이 주소를 읽어 모델별 토큰·캐시 표를 그립니다. 입력, 출력, 추론, 캐시 읽기, 캐시 쓰기, 전체 토큰, 품질 열을 보여 주며, 차원 선택으로 모델·제공자·계정을 바꿉니다.
+
+**참고:** [없는 것](#what-is-not-there)의 "누적 합산"은 서버가 디스크에 일별·월별 토큰 합계를 남기지 않는다는 뜻입니다. 위의 모델별 집계는 메모리에만 있는, 크기가 제한된 누적치이며 재시작하면 사라집니다.
+
 <a id="when-a-limit-is-hit"></a>
 ## 한도에 걸렸을 때
 
