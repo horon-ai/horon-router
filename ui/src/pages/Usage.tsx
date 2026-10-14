@@ -2,8 +2,9 @@ import { Button } from "../components/ui/button";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api, missing, text } from "../api";
-import { buckets, sumBuckets, sum, label, provider, cleanEvent, usageStats, type Buckets, type Data, type Event } from "../core";
+import { buckets, sumBuckets, sum, label, provider, cleanEvent, statsRows, usageStats, type Buckets, type Data, type Event } from "../core";
 import { Grille } from "../components/Grille";
+import type { Key } from "../i18n";
 import { t, subscribe as subscribeLang, getSnapshot as language } from "../lang";
 import { queries } from "../queries";
 import { session } from "../session";
@@ -13,6 +14,10 @@ const toBuckets = (rows: Data[]): Buckets => ({
   total: rows.map((b) => (b.success || 0) + (b.failed || 0)),
   failed: rows.map((b) => b.failed || 0),
 });
+// The cumulative token/cache table can group by any of the server's three dimensions.
+const dims = ["model", "provider", "auth_index"] as const;
+type Dim = (typeof dims)[number];
+const dimLabel: Record<Dim, Key> = { model: "us.dim.model", provider: "us.dim.provider", auth_index: "us.dim.authIndex" };
 
 export function Usage() {
   useSyncExternalStore(subscribeLang, language);
@@ -22,6 +27,13 @@ export function Usage() {
   const [live, setLive] = useState(false);
   const [events, setEvents] = useState<Event[]>([]);
   const [problem, setProblem] = useState("");
+  const [dim, setDim] = useState<Dim>("model");
+  const byDim = useQuery({
+    queryKey: ["observability", "usage", "stats", dim],
+    queryFn: (): Promise<Data> => api(`/observability/usage/stats?group_by=${dim}`),
+    refetchInterval: 15_000,
+  });
+  const dimRows = statsRows(byDim.data);
   const rows = new Map<string, { name: string; via: string; b: Buckets | null }>();
   for (const a of creds.data || []) {
     const p = provider(a);
@@ -106,6 +118,49 @@ export function Usage() {
         </ul>
       </div>
       <p className="note">{t("us.ask")}</p>
+    </section>
+    <section className="section">
+      <div className="section-head">
+        <h2>{t("us.statsTitle")}</h2>
+        <div className="seg" role="group" aria-label={t("us.groupBy")}>
+          {dims.map((d) => <button key={d} type="button" aria-pressed={dim === d}
+            onClick={() => setDim(d)}>{t(dimLabel[d])}</button>)}
+        </div>
+      </div>
+      {byDim.error ? <p className="note"><span className={`lamp ${missing(byDim.error) ? "off" : "bad"}`} />
+        {missing(byDim.error) ? t("us.statsNA") : text(byDim.error)}</p>
+      : !byDim.data ? <div aria-busy="true"><div className="skel" /></div>
+      : !dimRows.length ? <div className="state"><p>{t("us.statsNone")}</p></div>
+      : <div className="window"><div className="scroll">
+        <table className="usage-stats">
+          <thead><tr>
+            <th scope="col">{t(dimLabel[dim])}</th>
+            <th scope="col">{t("us.colRequests")}</th>
+            <th scope="col">{t("us.colFailed")}</th>
+            <th scope="col">{t("us.colInput")}</th>
+            <th scope="col">{t("us.colOutput")}</th>
+            <th scope="col">{t("us.colReasoning")}</th>
+            <th scope="col">{t("us.colCacheRead")}</th>
+            <th scope="col">{t("us.colCacheCreation")}</th>
+            <th scope="col">{t("us.colTotal")}</th>
+            <th scope="col">{t("us.colQuality")}<small>complete / unclassified / inconsistent</small></th>
+          </tr></thead>
+          <tbody>{dimRows.map((r) => <tr key={r.key}>
+            <th scope="row"><strong className="mono">{r.key || t("us.never")}</strong>
+              {dim !== "provider" && r.providers.length > 0 && <small>{r.providers.join(", ")}</small>}</th>
+            <td className="num">{r.requests.toLocaleString()}</td>
+            <td className="num">{r.failed.toLocaleString()}</td>
+            <td className="num">{r.input.toLocaleString()}</td>
+            <td className="num">{r.output.toLocaleString()}</td>
+            <td className="num">{r.reasoning.toLocaleString()}</td>
+            <td className="num">{r.cacheRead.toLocaleString()}</td>
+            <td className="num">{r.cacheCreation.toLocaleString()}</td>
+            <td className="num">{r.total.toLocaleString()}</td>
+            <td className="num">{`${r.complete} / ${r.unclassifiedQ} / ${r.inconsistent}`}</td>
+          </tr>)}</tbody>
+        </table>
+      </div></div>}
+      <p className="note">{t("us.qualityNote")}</p>
     </section>
   </>;
 }

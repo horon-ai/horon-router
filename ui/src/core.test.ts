@@ -17,6 +17,7 @@ import {
   signalWindows,
   snippet,
   span,
+  statsRows,
   strategy,
   sumBuckets,
   usageStats,
@@ -94,13 +95,55 @@ test("usage events keep display fields only and summarise by model", () => {
     tokens: { input_tokens: 10, output_tokens: 5 },
   };
   const e = cleanEvent(raw);
-  assert.deepEqual(Object.keys(e).sort(), ["at", "auth", "failed", "id", "input", "latency", "model", "output", "provider", "status", "ttft"]);
+  assert.deepEqual(Object.keys(e).sort(), ["at", "auth", "cacheCreation", "cacheRead", "failed", "id", "input", "latency", "model", "output", "provider", "reasoning", "status", "ttft"]);
   assert.equal(JSON.stringify(e).includes("secret"), false);
   assert.deepEqual([e.model, e.status, e.at], ["daily", 529, Date.parse(raw.timestamp)]);
+  // Cache and reasoning token counts ride along; a record without them reads as zero.
+  assert.deepEqual([e.reasoning, e.cacheRead, e.cacheCreation], [0, 0, 0]);
+  const cached = cleanEvent({ tokens: { input_tokens: 1, cache_read_tokens: 40, cache_creation_tokens: 12, reasoning_tokens: 7 } });
+  assert.deepEqual([cached.reasoning, cached.cacheRead, cached.cacheCreation], [7, 40, 12]);
   const s = usageStats([e, cleanEvent({ model: "m", latency_ms: 0 }), cleanEvent({ model: "m", latency_ms: 300, ttft_ms: 0 })]);
   assert.deepEqual([s.count, s.failed, s.latency, s.ttft], [3, 1, 100, 40]);
   assert.deepEqual(s.models.map((m) => [m.model, m.count]), [["m", 2], ["daily", 1]]);
   assert.equal(usageStats([]).latency, null);
+});
+
+test("usage stats rows normalise the server snapshot and tolerate a missing body", () => {
+  // No body, an empty body and a body without rows all read as no rows.
+  assert.deepEqual(statsRows(null), []);
+  assert.deepEqual(statsRows(undefined), []);
+  assert.deepEqual(statsRows({}), []);
+  assert.deepEqual(statsRows({ rows: [] }), []);
+  const rows = statsRows({
+    group_by: "model",
+    rows: [
+      {
+        key: "claude-sonnet", requests: 3, failed: 1, input_tokens: 100, output_tokens: 50,
+        reasoning_tokens: 20, cache_read_tokens: 10, cache_creation_tokens: 5, total_tokens: 185,
+        unclassified_tokens: 0, quality: { complete: 3, unclassified: 0, inconsistent: 0 },
+        providers: ["claude"], last_seen: "2026-01-01T00:00:05Z",
+      },
+      { key: "mystery" },
+    ],
+    totals: {},
+    dropped: 0,
+  });
+  assert.deepEqual(rows[0], {
+    key: "claude-sonnet", requests: 3, failed: 1, input: 100, output: 50, reasoning: 20,
+    cacheRead: 10, cacheCreation: 5, total: 185, unclassified: 0, complete: 3, unclassifiedQ: 0,
+    inconsistent: 0, providers: ["claude"], lastSeen: "2026-01-01T00:00:05Z",
+  });
+  // Missing fields default to 0, missing providers to an empty list.
+  assert.deepEqual(rows[1], {
+    key: "mystery", requests: 0, failed: 0, input: 0, output: 0, reasoning: 0, cacheRead: 0,
+    cacheCreation: 0, total: 0, unclassified: 0, complete: 0, unclassifiedQ: 0, inconsistent: 0,
+    providers: [], lastSeen: "",
+  });
+  // Non-numeric and null fields read as 0 rather than NaN.
+  const odd = statsRows({ rows: [{ key: "x", requests: "many", input_tokens: null, quality: { complete: 2 } }] })[0];
+  assert.deepEqual([odd.requests, odd.input, odd.complete, odd.failed], [0, 0, 2, 0]);
+  // A row that is not an object is dropped rather than crashing the table.
+  assert.deepEqual(statsRows({ rows: [null, 7, { key: "ok" }] }).map((r) => r.key), ["ok"]);
 });
 
 test("quota is percent used, not remaining; unknown payloads stay empty", () => {

@@ -98,6 +98,7 @@ const MANAGEMENT_INVENTORY: &[(&str, &[&str])] = &[
     ("/v8/management/routing/cooldown/reset", &["post"]),
     ("/v8/management/observability/usage/api-keys", &["get"]),
     ("/v8/management/observability/usage/queue", &["get"]),
+    ("/v8/management/observability/usage/stats", &["get"]),
     ("/v8/management/observability/logs", &["get", "delete"]),
     ("/v8/management/observability/logs/errors", &["get"]),
     ("/v8/management/observability/logs/errors/{name}", &["get"]),
@@ -130,6 +131,7 @@ const MANAGEMENT_INVENTORY: &[(&str, &[&str])] = &[
     ("/v0/management/reset-quota", &["post"]),
     ("/v0/management/api-key-usage", &["get"]),
     ("/v0/management/usage-queue", &["get"]),
+    ("/v0/management/usage-stats", &["get"]),
     ("/v0/management/get-auth-status", &["get"]),
     ("/v0/management/oauth-session", &["delete"]),
     ("/v0/management/oauth-callback", &["get", "post"]),
@@ -774,8 +776,8 @@ fn general_inventory_matches_the_document() {
     assert_eq!(ops, 51, "expected 51 general operations");
 }
 
-/// The document's `paths` equals the management inventory exactly: 99 paths, 191
-/// operations, so the two surfaces together are 145 paths.
+/// The document's `paths` equals the management inventory exactly: 101 paths, 193
+/// operations, so the two surfaces together are 147 paths.
 #[test]
 fn management_inventory_matches_the_document() {
     let document = horon_server::openapi::document();
@@ -788,10 +790,10 @@ fn management_inventory_matches_the_document() {
 
     let spec = spec_inventory(&document, is_management);
     let ops: usize = MANAGEMENT_INVENTORY.iter().map(|(_, m)| m.len()).sum();
-    assert_eq!(spec.len(), 99, "expected 99 management paths");
-    assert_eq!(ops, 191, "expected 191 management operations");
+    assert_eq!(spec.len(), 101, "expected 101 management paths");
+    assert_eq!(ops, 193, "expected 193 management operations");
     let total = spec_inventory(&document, |_| true).len();
-    assert_eq!(total, 145, "the two surfaces together must be exactly 145 paths");
+    assert_eq!(total, 147, "the two surfaces together must be exactly 147 paths");
 }
 
 /// The docs surface, the static control-panel assets and the dynamic plugin routes are

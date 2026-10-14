@@ -813,6 +813,30 @@ fn v8_paths() -> Vec<(String, Value)> {
             )]),
         ),
         (
+            "/v8/management/observability/usage/stats".into(),
+            path_item(vec![(
+                "get",
+                mgmt_op(
+                    false,
+                    (
+                        "managementObservabilityUsageStats",
+                        "Cumulative per-dimension token and cache usage",
+                    ),
+                    management_security(),
+                    vec![query_param(
+                        "group_by",
+                        "Dimension to group by: model (default), provider, or auth_index",
+                    )],
+                    None,
+                    vec![ok(
+                        "Cumulative usage rows, totals, and the evicted-row count.",
+                        "UsageStats",
+                    )],
+                    vec![e400("`group_by` is not one of model, provider, auth_index")],
+                ),
+            )]),
+        ),
+        (
             "/v8/management/observability/logs".into(),
             path_item(vec![
                 (
@@ -1196,6 +1220,30 @@ fn v0_paths() -> Vec<(String, Value)> {
                     None,
                     vec![ok("The popped usage records.", "UsageQueue")],
                     vec![e400("`count` is not a positive integer")],
+                ),
+            )]),
+        ),
+        (
+            "/v0/management/usage-stats".into(),
+            path_item(vec![(
+                "get",
+                mgmt_op(
+                    true,
+                    (
+                        "managementLegacyUsageStats",
+                        "Cumulative per-dimension token and cache usage",
+                    ),
+                    management_security(),
+                    vec![query_param(
+                        "group_by",
+                        "Dimension to group by: model (default), provider, or auth_index",
+                    )],
+                    None,
+                    vec![ok(
+                        "Cumulative usage rows, totals, and the evicted-row count.",
+                        "UsageStats",
+                    )],
+                    vec![e400("`group_by` is not one of model, provider, auth_index")],
                 ),
             )]),
         ),
@@ -2298,6 +2346,53 @@ fn schemas_list() -> Vec<(&'static str, Value)> {
             }),
         ),
         (
+            "UsageStats",
+            json!({
+                "type": "object",
+                "description": "Cumulative token/cache usage grouped by one dimension, plus \
+            the running totals and the evicted-row count.",
+                "properties": {
+                    "group_by": { "type": "string" },
+                    "rows": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "key": { "type": "string" },
+                                "requests": { "type": "integer" },
+                                "failed": { "type": "integer" },
+                                "input_tokens": { "type": "integer" },
+                                "output_tokens": { "type": "integer" },
+                                "reasoning_tokens": { "type": "integer" },
+                                "cached_tokens": { "type": "integer" },
+                                "cache_read_tokens": { "type": "integer" },
+                                "cache_creation_tokens": { "type": "integer" },
+                                "total_tokens": { "type": "integer" },
+                                "unclassified_tokens": { "type": "integer" },
+                                "quality": {
+                                    "type": "object",
+                                    "properties": {
+                                        "complete": { "type": "integer" },
+                                        "unclassified": { "type": "integer" },
+                                        "inconsistent": { "type": "integer" }
+                                    },
+                                    "additionalProperties": true
+                                },
+                                "first_seen": { "type": "string" },
+                                "last_seen": { "type": "string" },
+                                "providers": { "type": "array", "items": { "type": "string" } }
+                            },
+                            "additionalProperties": true
+                        }
+                    },
+                    "totals": { "type": "object", "additionalProperties": true },
+                    "dropped": { "type": "integer" }
+                },
+                "required": ["group_by", "rows", "totals", "dropped"],
+                "additionalProperties": true
+            }),
+        ),
+        (
             "LogsPage",
             json!({
                 "type": "object",
@@ -2794,6 +2889,7 @@ mod tests {
             ("/v8/management/routing/cooldown/reset", &["post"][..]),
             ("/v8/management/observability/usage/api-keys", &["get"][..]),
             ("/v8/management/observability/usage/queue", &["get"][..]),
+            ("/v8/management/observability/usage/stats", &["get"][..]),
             ("/v8/management/observability/logs", &["get", "delete"][..]),
             ("/v8/management/observability/logs/errors", &["get"][..]),
             ("/v8/management/observability/logs/errors/{name}", &["get"][..]),
@@ -2816,6 +2912,7 @@ mod tests {
             ("/v0/management/reset-quota", &["post"][..]),
             ("/v0/management/api-key-usage", &["get"][..]),
             ("/v0/management/usage-queue", &["get"][..]),
+            ("/v0/management/usage-stats", &["get"][..]),
             ("/v0/management/get-auth-status", &["get"][..]),
             ("/v0/management/oauth-session", &["delete"][..]),
             ("/v0/management/oauth-callback", &["get", "post"][..]),

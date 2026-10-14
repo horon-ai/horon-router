@@ -500,6 +500,10 @@ pub fn router(state: Arc<Management>) -> Router {
             "observability/usage/queue",
             methods().get(guarded!(s, observability::usage_queue)),
         ),
+        (
+            "observability/usage/stats",
+            methods().get(guarded!(s, observability::usage_stats)),
+        ),
         ("oauth/auth-url", methods().get(guarded!(s, oauth::auth_url))),
         ("oauth/status", methods().get(guarded!(s, oauth::status))),
         ("oauth/session", methods().delete(guarded!(s, oauth::cancel))),
@@ -543,6 +547,7 @@ pub fn router(state: Arc<Management>) -> Router {
             methods().get(guarded!(s, observability::api_key_usage)),
         ),
         ("usage-queue", methods().get(guarded!(s, observability::usage_queue))),
+        ("usage-stats", methods().get(guarded!(s, observability::usage_stats))),
         ("get-auth-status", methods().get(guarded!(s, oauth::status))),
         ("oauth-session", methods().delete(guarded!(s, oauth::cancel))),
         (

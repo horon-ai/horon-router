@@ -196,6 +196,28 @@ pub(crate) async fn usage_queue(State(state): State<Arc<Management>>, RawQuery(r
     super::json_ordered(StatusCode::OK, &Value::Array(records))
 }
 
+/// `GET /observability/usage/stats`: cumulative per-dimension token/cache usage
+/// (additive API; see [`crate::usage_stats`]).
+pub(crate) async fn usage_stats(State(state): State<Arc<Management>>, RawQuery(raw): RawQuery) -> Response {
+    let q = Query::parse(raw);
+    let value = q.first("group_by").trim();
+    let dim = if value.is_empty() {
+        crate::usage_stats::Dim::Model
+    } else {
+        match crate::usage_stats::parse(value) {
+            Some(dim) => dim,
+            None => {
+                return fail(
+                    StatusCode::BAD_REQUEST,
+                    "group_by must be one of model, provider, auth_index",
+                );
+            }
+        }
+    };
+    let body = state.rt.usage_stats().snapshot(dim);
+    super::json_ordered(StatusCode::OK, &body)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
