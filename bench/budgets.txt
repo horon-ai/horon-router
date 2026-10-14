@@ -1,5 +1,5 @@
 # Performance budgets, checked by bench/gate.sh (size, idle) and by
-# crates/hr-server/tests/alloc_budget.rs (heap per request) on GitHub-hosted runners.
+# crates/horon-server/tests/alloc_budget.rs (heap per request) on GitHub-hosted runners.
 #
 #   <key> <value> <tolerance %>
 #
@@ -60,7 +60,9 @@ idle.linux.1.rss_kb       23_500  10
 idle.linux.2000.wakeups        3   0
 idle.linux.2000.cpu_ticks      1   0
 idle.linux.2000.threads        6   0
-idle.linux.2000.rss_kb    71_000  10
+# 2026-10-14: auth-dir reload cache (T17) keeps each auth file's bytes + parsed
+# credential to skip re-reading unchanged files; +~14 MB at 2000 auth files.
+idle.linux.2000.rss_kb    85_000  10
 
 # Idle, macOS and Windows (release builds and the weekly idle workflow): 60 s without
 # requests, after 30 s of warm-up (10 s for the measurements below). Windows adds one
@@ -123,3 +125,38 @@ alloc.count.306k.peak_bytes       2_259_573  2
 alloc.count.306k.allocations        275_337  3
 alloc.count.1900k.peak_bytes     13_530_973  2
 alloc.count.1900k.allocations     1_630_109  3
+
+# Pre-optimization baseline (plan T1): the 1 MB size point for the Claude, count_tokens
+# and Codex routes, and the xAI (`/v1/responses`, Grok) and [OI]-compatible
+# (`/v1/chat/completions`) routes at all three sizes. Values are the first (pre-optimization)
+# measurements; later optimization lowers them. Ceilings are the measurement plus 2%.
+# 2026-10-13: first baseline measurement on Apple M1 Max (macOS 26.4, rustc 1.97.1).
+alloc.1000k.peak_bytes       5_969_393  2
+alloc.1000k.allocations          4_491  2
+alloc.count.1000k.peak_bytes       7_235_477  2
+alloc.count.1000k.allocations        877_476  2
+alloc.codex.1000k.peak_bytes       9_010_523  2
+alloc.codex.1000k.allocations          2_738  2
+alloc.xai.306k.peak_bytes       2_835_565  2
+alloc.xai.306k.allocations          4_218  2
+alloc.xai.1000k.peak_bytes       9_162_445  2
+alloc.xai.1000k.allocations          7_218  2
+alloc.xai.1900k.peak_bytes      17_036_485  2
+alloc.xai.1900k.allocations         10_899  2
+alloc.compat.306k.peak_bytes       1_239_850  2
+alloc.compat.306k.allocations          1_693  2
+alloc.compat.1000k.peak_bytes       3_830_314  2
+alloc.compat.1000k.allocations          2_529  2
+alloc.compat.1900k.peak_bytes       7_068_394  2
+alloc.compat.1900k.allocations          3_571  2
+
+# Kimi route (plan T18): one streamed /v1/messages request through the Kimi executor's
+# Claude-delegated path (a static token, base-url = the fake upstream, model kimi-k2).
+# 2026-10-14: first measurement (plan T18) on Apple M1 Max (macOS 26.4, rustc 1.97.1);
+# ceilings are the measurement plus 2%.
+alloc.kimi.306k.peak_bytes    1_298_745  2
+alloc.kimi.306k.allocations       2_174  2
+alloc.kimi.1000k.peak_bytes   4_048_441  2
+alloc.kimi.1000k.allocations      3_640  2
+alloc.kimi.1900k.peak_bytes   7_487_230  2
+alloc.kimi.1900k.allocations      5_453  2

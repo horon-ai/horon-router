@@ -6,9 +6,9 @@ name: Installers
 on:
   push:
     branches: [dev]
-    paths: [install.sh, install.ps1, .github/workflows/install.yml, .github/scripts/test-installers.py, .github/scripts/installer-fixture.rs, crates/horonrouter/**, crates/hr-server/src/logging.rs]
+    paths: [install.sh, install.ps1, .github/workflows/install.yml, .github/scripts/test-installers.py, .github/scripts/installer-fixture.rs, crates/horon-router/**, crates/horon-server/src/logging.rs]
   pull_request:
-    paths: [install.sh, install.ps1, .github/workflows/install.yml, .github/scripts/test-installers.py, .github/scripts/installer-fixture.rs, crates/horonrouter/**, crates/hr-server/src/logging.rs]
+    paths: [install.sh, install.ps1, .github/workflows/install.yml, .github/scripts/test-installers.py, .github/scripts/installer-fixture.rs, crates/horon-router/**, crates/horon-server/src/logging.rs]
   workflow_dispatch:
     inputs:
       version:
@@ -150,7 +150,7 @@ jobs:
         run: rustup toolchain install stable --profile minimal && rustup default stable
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
       - name: Build the candidate, not a release lacking --log-file
-        run: cargo build --locked -p horonrouter
+        run: cargo build --locked -p horon-router
       - name: Build local release fixtures before network isolation
         run: |
           mkdir -p target/installer-fixtures

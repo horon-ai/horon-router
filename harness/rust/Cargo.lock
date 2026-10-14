@@ -386,11 +386,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7704b5fdd17b18ae31c4c1da5a2e0305a2bf17b5249300a9ee9ed7b72114c636"
 
 [[package]]
-name = "hr-common"
+name = "horon-common"
 version = "0.2.2"
 dependencies = [
  "base64 0.22.1",
- "hr-core",
+ "horon-core",
  "gjson",
  "http",
  "memchr",
@@ -401,7 +401,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "hr-core"
+name = "horon-core"
 version = "0.2.2"
 dependencies = [
  "anyhow",
@@ -419,20 +419,20 @@ dependencies = [
 ]
 
 [[package]]
-name = "hr-differential-driver"
+name = "horon-differential-driver"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum",
- "hr-core",
- "hr-exec",
- "hr-server",
+ "horon-core",
+ "horon-exec",
+ "horon-server",
  "tokio",
  "wreq",
 ]
 
 [[package]]
-name = "hr-exec"
+name = "horon-exec"
 version = "0.2.2"
 dependencies = [
  "async-compression",
@@ -441,10 +441,10 @@ dependencies = [
  "btls",
  "bytes",
  "chrono",
- "hr-common",
- "hr-core",
- "hr-home",
- "hr-translate",
+ "horon-common",
+ "horon-core",
+ "horon-home",
+ "horon-translate",
  "flate2",
  "futures-util",
  "getrandom 0.3.4",
@@ -468,15 +468,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "hr-home"
+name = "horon-home"
 version = "0.2.2"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
  "btls",
  "chrono",
- "hr-common",
- "hr-core",
+ "horon-common",
+ "horon-core",
  "serde",
  "serde_json",
  "serde_yaml_ng",
@@ -489,17 +489,17 @@ dependencies = [
 ]
 
 [[package]]
-name = "hr-plugin"
+name = "horon-plugin"
 version = "0.2.2"
 dependencies = [
  "async-compression",
  "base64 0.22.1",
  "bytes",
  "chrono",
- "hr-common",
- "hr-core",
- "hr-exec",
- "hr-translate",
+ "horon-common",
+ "horon-core",
+ "horon-exec",
+ "horon-translate",
  "flate2",
  "futures-util",
  "http",
@@ -515,7 +515,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "hr-server"
+name = "horon-server"
 version = "0.2.2"
 dependencies = [
  "anyhow",
@@ -526,11 +526,11 @@ dependencies = [
  "btls",
  "bytes",
  "chrono",
- "hr-common",
- "hr-core",
- "hr-exec",
- "hr-plugin",
- "hr-translate",
+ "horon-common",
+ "horon-core",
+ "horon-exec",
+ "horon-plugin",
+ "horon-translate",
  "futures-util",
  "getrandom 0.3.4",
  "gjson",
@@ -558,13 +558,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "hr-translate"
+name = "horon-translate"
 version = "0.2.2"
 dependencies = [
  "base64 0.22.1",
  "bytes",
- "hr-common",
- "hr-core",
+ "horon-common",
+ "horon-core",
  "rand",
  "regex",
  "serde_json",

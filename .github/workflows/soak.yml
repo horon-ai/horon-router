@@ -96,7 +96,7 @@ jobs:
       - name: Build
         if: matrix.binary == 'build'
         run: |
-          cargo build --release --locked -p horonrouter
+          cargo build --release --locked -p horon-router
           echo "BIN=target/release/horonrouter" >> "$GITHUB_ENV"
       - name: Release binary
         if: matrix.binary != 'build'

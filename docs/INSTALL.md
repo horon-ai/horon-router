@@ -164,11 +164,11 @@ macOS에서는 `xcode-select --install`과 `brew install cmake`로 충분합니�
 ```sh
 git clone https://github.com/alpoxdev/horon-router.git
 cd horon-router
-cargo build --release -p horonrouter
+cargo build --release -p horon-router
 ./target/release/horonrouter --version
 ```
 
-WebRTC 미디어 릴레이는 선택 기능이고 릴리스 실행 파일이나 Docker 이미지에 들어 있지 않습니다. 포함하려면 `cargo build --release -p horonrouter --features hr-server/media-relay`로 빌드하십시오.
+WebRTC 미디어 릴레이는 선택 기능이고 릴리스 실행 파일이나 Docker 이미지에 들어 있지 않습니다. 포함하려면 `cargo build --release -p horon-router --features horon-server/media-relay`로 빌드하십시오.
 
 `ui/dist`의 대시보드는 저장소에 들어 있으므로 보통 빌드에는 Node가 필요하지 않습니다. 대시보드를 바꾸려면 [ui/README.md](../ui/README.md)를 보고 실행 파일을 빌드하기 전에 UI를 다시 빌드하십시오.
 

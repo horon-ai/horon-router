@@ -119,6 +119,14 @@
   --sunk: none;
   --lift: none;
 
+  /* Liquid-glass header: the one element that floats above scrolling content, a
+     deliberate exception to the flat-surface rule. Values follow baalda.com. */
+  --glass-fill: linear-gradient(rgba(255, 255, 255, 0.5) 10%, rgba(255, 255, 255, 0.72));
+  --glass-line: rgba(3, 3, 2, 0.08);
+  --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  --glass-shadow: 0 12px 12px 2px rgba(0, 0, 0, 0.06), 0 2px 4px -1px rgba(0, 0, 0, 0.05);
+  --glass-blur: blur(16px) saturate(180%);
+
   /* Canvas Foundations b67W7z: space, radius, type. Numbers are px. */
   --space-1: 4px;
   --space-2: 8px;
@@ -197,6 +205,11 @@
   --warn: #ffb900;
   --warn-ink: #ffb900;
   --bad-ink: #ff6467;
+
+  --glass-fill: linear-gradient(rgba(255, 255, 255, 0.06) 10%, rgba(255, 255, 255, 0.11));
+  --glass-line: rgba(255, 255, 255, 0.09);
+  --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --glass-shadow: 0 12px 12px 2px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.5);
   color-scheme: dark;
 }
 
@@ -365,11 +378,16 @@ input[type="radio"] { width: 20px; height: 20px; margin: 0; accent-color: var(--
 .side-foot { margin-top: auto; display: flex; }
 .side-foot .key { flex: 1; }
 .main { min-width: 0; display: flex; flex-direction: column; }
+/* The header floats as a liquid-glass pill over the page it scrolls above. */
 .top {
-  position: sticky; top: 0; z-index: 4;
+  position: sticky; top: 14px; z-index: 4;
   display: flex; align-items: center; gap: 10px;
-  min-height: 56px; padding: 0 24px; font-size: var(--size-meta); color: var(--ink-2);
-  background: var(--body); border-bottom: 1px solid var(--line);
+  min-height: 52px; margin: 14px 24px 0; padding: 0 8px 0 22px;
+  font-size: var(--size-meta); color: var(--ink-2);
+  border-radius: var(--radius-key);
+  background: var(--glass-fill); border: 1px solid var(--glass-line);
+  box-shadow: var(--glass-highlight), var(--glass-shadow);
+  -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
 }
 .top [role="status"] { margin-right: auto; }
 .top .menu, .top .brand { display: none; }
@@ -565,7 +583,7 @@ select { appearance: none; padding-right: 34px; background: var(--raised) url("d
   .shell { display: grid; grid-template-columns: 216px minmax(0, 1fr); }
   .side { display: flex; position: sticky; height: 100dvh; padding: 20px 12px 16px 16px; }
   .side > .brand { display: inline-flex; }
-  .top { min-height: 56px; padding: 0 24px; }
+  .top { min-height: 52px; padding: 0 8px 0 22px; }
   .top .menu, .top .brand { display: none; }
   .top .host { display: inline; }
   .page { padding: 16px 24px 48px; gap: 32px; max-width: none; }
@@ -586,7 +604,7 @@ select { appearance: none; padding-right: 34px; background: var(--raised) url("d
   .side {
     display: none; position: fixed; inset: 0; z-index: 5; height: auto;
     background: var(--body); border: 0;
-    padding-top: calc(56px + var(--safe-top));
+    padding-top: calc(78px + var(--safe-top));
     padding-right: max(18px, var(--safe-right));
     padding-bottom: max(20px, var(--safe-bottom));
     padding-left: max(26px, var(--safe-left));
@@ -594,13 +612,10 @@ select { appearance: none; padding-right: 34px; background: var(--raised) url("d
   .side.open { display: flex; }
   .side > .brand { display: none; }
   .top {
-    position: sticky; top: 0; z-index: 6;
-    min-height: calc(56px + var(--safe-top));
-    padding-top: var(--safe-top);
-    padding-right: max(16px, var(--safe-right));
-    padding-bottom: 0;
-    padding-left: max(16px, var(--safe-left));
-    background: var(--body); border-bottom: 1px solid var(--line);
+    position: sticky; top: calc(10px + var(--safe-top)); z-index: 6;
+    min-height: 52px;
+    margin: 10px max(12px, var(--safe-right)) 0 max(12px, var(--safe-left));
+    padding: 0 8px 0 16px;
   }
   .top .brand { display: inline-flex; }
   .top [role="status"] { margin-right: auto; }

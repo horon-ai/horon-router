@@ -60,7 +60,7 @@ horon-router 서버는 자기가 아는 HTTP 경로를 OpenAPI 3.1 명세로 내
 | npm 패키지 | `@scalar/api-reference` |
 | 버전 | `1.73.1` (registry `dist-tags.latest`, 조회 시점 2026-10-11) |
 | 라이선스 | MIT (`Copyright (c) 2023-present Scalar`) |
-| 저장 위치 | `crates/hr-server/assets/scalar/scalar-standalone.js` |
+| 저장 위치 | `crates/horon-server/assets/scalar/scalar-standalone.js` |
 | SHA-256 | `62c34a0dda38945864011ebaf6e7fa7812a332429120d18922b34d01c4f7ccc8` |
 
 번들은 자체 완결형(IIFE)이라 외부 청크나 상대 경로 import가 없고, CSS도 번들 안에 들어 있습니다. 그래서 CDN이나 글꼴 서버, 대시보드 빌드 의존성 없이 오프라인에서 동작합니다.
@@ -70,16 +70,16 @@ horon-router 서버는 자기가 아는 HTTP 경로를 OpenAPI 3.1 명세로 내
 <a id="updating-the-asset"></a>
 ## Scalar 문서 화면의 버전 올리기
 
-화면이 쓰는 Scalar 번들의 버전을 올릴 때는 코드가 아니라 자산과 그 기록을 바꿉니다. 명세의 내용 자체는 `crates/hr-server/src/openapi.rs`와 `crates/hr-server/src/openapi/management.rs`가 코드로 만들며, 이 절차와 별개입니다.
+화면이 쓰는 Scalar 번들의 버전을 올릴 때는 코드가 아니라 자산과 그 기록을 바꿉니다. 명세의 내용 자체는 `crates/horon-server/src/openapi.rs`와 `crates/horon-server/src/openapi/management.rs`가 코드로 만들며, 이 절차와 별개입니다.
 
 1. `curl -sS https://registry.npmjs.org/@scalar/api-reference`로 `dist-tags.latest`를 확인합니다.
 2. 그 버전 tarball을 내려받아 sha512(base64)와 sha1을 registry `dist` 값과 대조합니다.
-3. `tar xzf <tarball> package/dist/browser/standalone.js`로 바이트를 그대로 뽑아 `crates/hr-server/assets/scalar/scalar-standalone.js`를 덮어씁니다.
-4. 새 버전의 LICENSE 원문을 https://raw.githubusercontent.com/scalar/scalar/main/LICENSE 에서 받아 대조하고, `crates/hr-server/assets/scalar/PROVENANCE.md`의 버전·해시·크기 표를 갱신합니다.
+3. `tar xzf <tarball> package/dist/browser/standalone.js`로 바이트를 그대로 뽑아 `crates/horon-server/assets/scalar/scalar-standalone.js`를 덮어씁니다.
+4. 새 버전의 LICENSE 원문을 https://raw.githubusercontent.com/scalar/scalar/main/LICENSE 에서 받아 대조하고, `crates/horon-server/assets/scalar/PROVENANCE.md`의 버전·해시·크기 표를 갱신합니다.
 5. `window.Scalar.createApiReference` 노출과 자체 완결성(외부 청크 참조 없음)을 다시 확인합니다.
-6. `crates/hr-server/tests/openapi.rs`의 `PINNED_ASSET_SHA256` 상수를 새 번들의 SHA-256으로 갱신합니다. 이 값이 저장한 바이트와 다르면 테스트가 실패합니다.
+6. `crates/horon-server/tests/openapi.rs`의 `PINNED_ASSET_SHA256` 상수를 새 번들의 SHA-256으로 갱신합니다. 이 값이 저장한 바이트와 다르면 테스트가 실패합니다.
 
-이 갱신에는 새 npm 의존성이나 빌드 단계가 필요하지 않습니다. 번들은 Rust 빌드 시 `include_bytes!`로 실행 파일에 내장되고, 테스트가 그 바이트를 `PINNED_ASSET_SHA256`과 대조합니다. 출처와 무결성 기록의 원본은 `crates/hr-server/assets/scalar/PROVENANCE.md`입니다.
+이 갱신에는 새 npm 의존성이나 빌드 단계가 필요하지 않습니다. 번들은 Rust 빌드 시 `include_bytes!`로 실행 파일에 내장되고, 테스트가 그 바이트를 `PINNED_ASSET_SHA256`과 대조합니다. 출처와 무결성 기록의 원본은 `crates/horon-server/assets/scalar/PROVENANCE.md`입니다.
 
 <a id="verifying-in-a-browser"></a>
 ## 브라우저에서 확인하기

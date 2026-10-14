@@ -1,0 +1,1089 @@
+//! Claude Code cloaking (claude_executor_cloaking.go): billing and identity system
+//! blocks, caller prompt relocation, current-date reminder, context management,
+//! cache-control placement and TTL policy, and the fake/derived user identity.
+
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex, OnceLock};
+
+use horon_common::splice::Edit;
+use sha2::{Digest, Sha256};
+
+use super::signals;
+use crate::rawjson::{self, js_string};
+
+pub(crate) const CLI_IDENTITY: &str = "You are Claude Code, Anthropic's official CLI for Claude.";
+pub(crate) const BILLING_PREFIX: &str = "x-anthropic-billing-header:";
+const FINGERPRINT_SALT: &str = "59cf53e54c78";
+pub(crate) const CONTEXT_MANAGEMENT: &str = r#"{"edits":[{"type":"clear_thinking_20251015","keep":"all"}]}"#;
+pub(crate) const FABLE_REPORTING: &str = "# Reporting outcomes\n\nReport what actually happened, not what you intended. When you say something is done, sent, saved, fixed, or verified, that claim must rest on a result you observed in this session — tool output, the file as it now reads, the page as it now loads — not on what the step should have produced. If you did not check, say you did not check. If any step failed, was skipped, or came back different from what you expected, say so in the first sentence of your report, before anything else, even when the rest of the work succeeded. Never quietly work around a failure in a way that makes it look resolved; a problem the user can see is recoverable, one your summary hides is not. When you stop before the task is complete, your first line says so plainly and names what is left. Do not describe partial work as done, and do not let a summary read as more certain than the evidence behind it.";
+
+/// Official model IDs that reject a mid-conversation `role: system` turn.
+const LEGACY_SYSTEM_REMINDER_MODELS: &[&str] = &[
+    "claude-3-5-haiku-20241022",
+    "claude-3-5-haiku-latest",
+    "claude-3-7-sonnet-20250219",
+    "claude-3-7-sonnet-latest",
+    "claude-haiku-4-5",
+    "claude-haiku-4-5-20251001",
+    "claude-opus-4",
+    "claude-opus-4-20250514",
+    "claude-opus-4-1",
+    "claude-opus-4-1-20250805",
+    "claude-opus-4-5",
+    "claude-opus-4-5-20251101",
+    "claude-opus-4-6",
+    "claude-opus-4-7",
+    "claude-sonnet-4",
+    "claude-sonnet-4-20250514",
+    "claude-sonnet-4-5",
+    "claude-sonnet-4-5-20250929",
+    "claude-sonnet-4-6",
+];
+
+/// Lowercased model without any `provider/` prefix.
+pub(crate) fn canonical_model(model: &str) -> String {
+    let m = model.trim().to_lowercase();
+    m.rsplit('/').next().unwrap_or_default().to_owned()
+}
+
+pub(crate) fn legacy_system_reminder(body: &str) -> bool {
+    LEGACY_SYSTEM_REMINDER_MODELS.contains(&canonical_model(rawjson::get(body, "model").str()).as_str())
+}
+
+pub(crate) fn is_fable51(model: &str) -> bool {
+    let m = model.trim().to_lowercase();
+    ["fable-5-1", "fable-5.1", "mythos-5-1", "mythos-5.1"].iter().any(|t| {
+        m.match_indices(t).take(1).any(|(i, _)| {
+            let next = i + t.len();
+            next >= m.len() || !m.as_bytes()[next].is_ascii_digit()
+        })
+    })
+}
+pub(crate) fn is_opus55(model: &str) -> bool {
+    let m = canonical_model(model);
+    m == "claude-opus-5-5" || m.starts_with("claude-opus-5-5[")
+}
+
+/// `{"type":"text","text":...}` with JSON.stringify escaping and an optional marker.
+pub(crate) fn text_block(text: &str, cache: Option<&str>) -> String {
+    match cache {
+        Some(ttl) if !ttl.is_empty() => {
+            format!(
+                r#"{{"type":"text","text":{},"cache_control":{{"type":"ephemeral","ttl":{}}}}}"#,
+                js_string(text),
+                js_string(ttl)
+            )
+        }
+        Some(_) => format!(
+            r#"{{"type":"text","text":{},"cache_control":{{"type":"ephemeral"}}}}"#,
+            js_string(text)
+        ),
+        None => format!(r#"{{"type":"text","text":{}}}"#, js_string(text)),
+    }
+}
+const EPHEMERAL: Option<&str> = Some("");
+
+/// The 3-character build hash Claude Code embeds in `cc_version`, sampling UTF-16
+/// code units 4, 7 and 20 of the first user text.
+fn fingerprint(message: &str, version: &str) -> String {
+    let units: Vec<u16> = message.encode_utf16().collect();
+    let sampled: Vec<u16> = [4, 7, 20]
+        .iter()
+        .map(|&i| units.get(i).copied().unwrap_or(u16::from(b'0')))
+        .collect();
+    let sampled = String::from_utf16_lossy(&sampled);
+    let digest = Sha256::digest(format!("{FINGERPRINT_SALT}{sampled}{version}").as_bytes());
+    super::session::hex(&digest)[..3].to_owned()
+}
+
+pub(crate) struct Billing<'a> {
+    pub signed: bool,
+    pub version: &'a str,
+    pub message: &'a str,
+    pub entrypoint: &'a str,
+    pub workload: &'a str,
+    pub subagent: bool,
+    pub prev_req: &'a str,
+    pub prompt_id: &'a str,
+    pub human_turn: bool,
+}
+
+/// `generateBillingHeader`.
+pub(crate) fn billing_header(b: &Billing<'_>) -> String {
+    let entrypoint = if b.entrypoint.is_empty() { "cli" } else { b.entrypoint };
+    let mut s = format!(
+        "{BILLING_PREFIX} cc_version={}.{}; cc_entrypoint={entrypoint};",
+        b.version,
+        fingerprint(b.message, b.version)
+    );
+    if b.signed {
+        s.push_str(" cch=00000;");
+    }
+    if !b.workload.is_empty() {
+        s.push_str(&format!(" cc_workload={};", b.workload));
+    }
+    if b.subagent {
+        s.push_str(" cc_is_subagent=true;");
+    }
+    if b.signed {
+        if !b.prev_req.is_empty() {
+            s.push_str(&format!(" cc_prev_req={};", b.prev_req));
+        }
+        if !b.prompt_id.is_empty() {
+            s.push_str(&format!(" cc_prompt_id={};", b.prompt_id));
+        }
+        if b.human_turn {
+            s.push_str(" cc_turn_origin=human;");
+        }
+    }
+    s
+}
+
+pub(crate) fn first_user_index(body: &str) -> Option<usize> {
+    rawjson::get(body, "messages")
+        .array()
+        .iter()
+        .position(|m| m.get("role").str() == "user")
+}
+
+fn date_reminder_prefix(text: &str) -> bool {
+    text.starts_with("<system-reminder>\nAs you answer the user's questions, you can use the following context:\n# currentDate\nToday's date is ")
+}
+fn context_reminder(text: &str) -> bool {
+    text.starts_with("<system-reminder>") && text.contains("</system-reminder>")
+}
+
+/// `claudeBillingFingerprintMessageText`: the first user text that is not a reminder.
+pub(crate) fn fingerprint_message(body: &str) -> String {
+    let Some(idx) = first_user_index(body) else {
+        return String::new();
+    };
+    let content = rawjson::get(body, "messages").array()[idx]
+        .get("content")
+        .json()
+        .to_owned();
+    let content = gjson::parse(&content);
+    match content.kind() {
+        gjson::Kind::String => content.str().to_owned(),
+        gjson::Kind::Array => content
+            .array()
+            .iter()
+            .filter(|p| p.get("type").str() == "text")
+            .map(|p| p.get("text").str().to_owned())
+            .find(|t| !date_reminder_prefix(t) && !context_reminder(t))
+            .unwrap_or_default(),
+        _ => String::new(),
+    }
+}
+
+/// `collectForwardedClaudeSystemPromptBlocks`.
+pub(crate) fn forwarded_system_blocks(body: &str) -> Vec<String> {
+    let system = rawjson::get(body, "system");
+    let keep = |t: &str| !t.trim().is_empty() && !t.trim_start().starts_with(BILLING_PREFIX) && t != CLI_IDENTITY;
+    match system.kind() {
+        gjson::Kind::Array => system
+            .array()
+            .iter()
+            .filter(|p| p.get("type").str() == "text")
+            .map(|p| p.get("text").str().to_owned())
+            .filter(|t| keep(t))
+            .collect(),
+        gjson::Kind::String if keep(system.str()) => vec![system.str().to_owned()],
+        _ => Vec::new(),
+    }
+}
+
+/// `validateClaudeCallerSystemBlocks`: non-text system blocks have no destination.
+pub(crate) fn invalid_system_block(body: &str) -> Option<String> {
+    let system = rawjson::get(body, "system");
+    if system.kind() != gjson::Kind::Array {
+        return None;
+    }
+    system.array().iter().enumerate().find_map(|(i, p)| {
+        let kind = p.get("type").str().trim().to_owned();
+        (kind != "text").then(|| {
+            let kind = if kind.is_empty() { "unknown".to_owned() } else { kind };
+            format!(
+                "invalid_request_error: system.{i}.type: Input should be 'text'. System instructions support text only, but this block has type {}. Move non-text content into a user message.",
+                rawjson::go_string(&kind).replace("\\u003c", "<").replace("\\u003e", ">").replace("\\u0026", "&")
+            )
+        })
+    })
+}
+
+fn reminder(text: &str) -> String {
+    let mut r = format!("<system-reminder>\n{text}");
+    if !text.ends_with('\n') {
+        r.push('\n');
+    }
+    r.push_str("</system-reminder>");
+    r
+}
+
+/// Legacy models: caller system prompts become reminders in the first user turn.
+pub(crate) fn prepend_reminders(body: &str, texts: &[String]) -> String {
+    let Some(idx) = first_user_index(body) else {
+        return body.to_owned();
+    };
+    if texts.is_empty() {
+        return body.to_owned();
+    }
+    let reminders: Vec<String> = texts.iter().map(|t| reminder(t)).collect();
+    let path = format!("messages.{idx}.content");
+    let content = rawjson::get(body, &path);
+    if content.kind() == gjson::Kind::Array {
+        let blocks = content.array();
+        let mut existing: std::collections::HashMap<String, usize> = Default::default();
+        for b in &blocks {
+            if b.get("type").str() == "text" {
+                *existing.entry(b.get("text").str().to_owned()).or_default() += 1;
+            }
+        }
+        let mut new_blocks = Vec::new();
+        for r in &reminders {
+            match existing.get_mut(r) {
+                Some(n) if *n > 0 => *n -= 1,
+                _ => new_blocks.push(text_block(r, None)),
+            }
+        }
+        if new_blocks.is_empty() {
+            return body.to_owned();
+        }
+        let at = blocks
+            .iter()
+            .take_while(|b| b.get("type").str() == "tool_result")
+            .count();
+        let mut raw: Vec<String> = blocks.iter().map(|b| b.json().to_owned()).collect();
+        raw.splice(at..at, new_blocks);
+        return rawjson::set_raw(body, &path, &format!("[{}]", raw.join(",")));
+    }
+    if content.kind() == gjson::Kind::String {
+        let mut raw: Vec<String> = reminders.iter().map(|r| text_block(r, None)).collect();
+        raw.push(text_block(content.str(), None));
+        return rawjson::set_raw(body, &path, &format!("[{}]", raw.join(",")));
+    }
+    body.to_owned()
+}
+
+pub(crate) fn message_text(content: &gjson::Value) -> String {
+    match content.kind() {
+        gjson::Kind::String => content.str().to_owned(),
+        gjson::Kind::Array => content
+            .array()
+            .iter()
+            .filter(|b| b.get("type").str() == "text")
+            .map(|b| b.get("text").str().to_owned())
+            .collect::<Vec<_>>()
+            .join("\n\n"),
+        _ => String::new(),
+    }
+}
+
+/// Current models: each caller system block becomes an operator-level system turn
+/// after the first user turn(s), leaving the cached top-level prefix untouched.
+pub(crate) fn insert_mid_system(body: &str, texts: &[String]) -> String {
+    let Some(first) = first_user_index(body) else {
+        return body.to_owned();
+    };
+    let messages = rawjson::get(body, "messages");
+    if texts.is_empty() || messages.kind() != gjson::Kind::Array {
+        return body.to_owned();
+    }
+    let msgs = messages.array();
+    let mut at = first + 1;
+    while at < msgs.len() && msgs[at].get("role").str() == "user" {
+        at += 1;
+    }
+    if msgs.len() - at >= texts.len()
+        && texts.iter().enumerate().all(|(i, t)| {
+            let m = &msgs[at + i];
+            m.get("role").str() == "system" && message_text(&m.get("content")) == *t
+        })
+    {
+        return body.to_owned();
+    }
+    let inserted: Vec<String> = texts
+        .iter()
+        .map(|t| format!(r#"{{"role":"system","content":[{}]}}"#, text_block(t, EPHEMERAL)))
+        .collect();
+    let mut raw: Vec<String> = msgs.iter().map(|m| m.json().to_owned()).collect();
+    raw.splice(at..at, inserted);
+    rawjson::set_raw(body, "messages", &format!("[{}]", raw.join(",")))
+}
+
+/// Advisor results are bound to message positions; splicing would break them.
+pub(crate) fn has_advisor_history(body: &str) -> bool {
+    rawjson::get(body, "messages").array().iter().any(|msg| {
+        let content = msg.get("content");
+        match content.kind() {
+            gjson::Kind::Array => content.array().iter().any(|b| match b.get("type").str() {
+                "advisor_tool_result" | "advisor_redacted_result" => true,
+                "server_tool_use" => b.get("name").str() == "advisor",
+                "tool_result" => {
+                    let inner = b.get("content");
+                    match inner.kind() {
+                        gjson::Kind::Array => inner
+                            .array()
+                            .iter()
+                            .any(|x| x.get("type").str() == "advisor_redacted_result"),
+                        gjson::Kind::Object => inner.get("type").str() == "advisor_redacted_result",
+                        _ => false,
+                    }
+                }
+                _ => false,
+            }),
+            gjson::Kind::Object => matches!(
+                content.get("type").str(),
+                "advisor_tool_result" | "advisor_redacted_result"
+            ),
+            _ => false,
+        }
+    })
+}
+
+pub(crate) fn date_reminder(date: &str) -> String {
+    format!(
+        "<system-reminder>\nAs you answer the user's questions, you can use the following context:\n# currentDate\nToday's date is {date}.\n\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\n</system-reminder>\n\n"
+    )
+}
+
+/// `withEphemeralCacheControl`.
+fn with_ephemeral(raw: &str) -> String {
+    rawjson::set_raw(raw, "cache_control", r#"{"type":"ephemeral"}"#)
+}
+
+/// `injectClaudeCodeCurrentDate`: date reminder first (after tool results), and the
+/// first real user text carries the default breakpoint.
+pub(crate) fn inject_current_date(body: &str, date: &str) -> String {
+    let Some(idx) = first_user_index(body) else {
+        return body.to_owned();
+    };
+    let path = format!("messages.{idx}.content");
+    let content = rawjson::get(body, &path);
+    let date_block = text_block(&date_reminder(date), None);
+    if content.kind() == gjson::Kind::String {
+        let user = text_block(content.str(), EPHEMERAL);
+        return rawjson::set_raw(body, &path, &format!("[{date_block},{user}]"));
+    }
+    if content.kind() != gjson::Kind::Array {
+        return body.to_owned();
+    }
+    let mut raw = Vec::new();
+    let mut cached = false;
+    for block in content.array() {
+        if block.get("type").str() == "text" {
+            let text = block.get("text").str().to_owned();
+            if date_reminder_prefix(&text) {
+                continue;
+            }
+            if !cached && !context_reminder(&text) {
+                raw.push(with_ephemeral(block.json()));
+                cached = true;
+                continue;
+            }
+        }
+        raw.push(block.json().to_owned());
+    }
+    let at = raw
+        .iter()
+        .take_while(|b| gjson::get(b, "type").str() == "tool_result")
+        .count();
+    raw.insert(at, date_block);
+    rawjson::set_raw(body, &path, &format!("[{}]", raw.join(",")))
+}
+
+pub(crate) struct SystemPlan<'a> {
+    pub strict: bool,
+    pub billing: Billing<'a>,
+    pub date: &'a str,
+}
+
+/// `checkSystemInstructionsWithSigningModeAt`.
+pub(crate) fn install_system(body: &str, plan: &SystemPlan<'_>) -> String {
+    let forwarded = forwarded_system_blocks(body);
+    let message = fingerprint_message(body);
+    let billing = Billing {
+        message: &message,
+        ..plan.billing
+    };
+    let mut blocks = vec![
+        text_block(&billing_header(&billing), None),
+        text_block(CLI_IDENTITY, EPHEMERAL),
+    ];
+    if is_fable51(rawjson::get(body, "model").str()) && !signals::probe_or_helper(body) {
+        blocks.push(text_block(FABLE_REPORTING, None));
+    }
+    let mut body = rawjson::set_raw(body, "system", &format!("[{}]", blocks.join(",")));
+    if !plan.strict && !forwarded.is_empty() {
+        if has_advisor_history(&body) {
+            blocks.extend(forwarded.iter().map(|t| text_block(t, None)));
+            body = rawjson::set_raw(&body, "system", &format!("[{}]", blocks.join(",")));
+        } else if legacy_system_reminder(&body) {
+            body = prepend_reminders(&body, &forwarded);
+        } else {
+            body = insert_mid_system(&body, &forwarded);
+        }
+    }
+    inject_current_date(&body, plan.date)
+}
+
+/// `relocateClaudeSystemPromptForCountTokens`: count_tokens carries no CLI blocks
+/// but caller system text is still counted in its Messages position.
+pub(crate) fn relocate_system_for_count(body: &str, strict: bool) -> String {
+    if !rawjson::get(body, "system").exists() {
+        return body.to_owned();
+    }
+    let forwarded = if strict {
+        Vec::new()
+    } else {
+        forwarded_system_blocks(body)
+    };
+    if forwarded.is_empty() {
+        return rawjson::delete(body, "system");
+    }
+    if has_advisor_history(body) {
+        let blocks: Vec<_> = forwarded.iter().map(|t| text_block(t, None)).collect();
+        return rawjson::set_raw(body, "system", &format!("[{}]", blocks.join(",")));
+    }
+    let body = rawjson::delete(body, "system");
+    if legacy_system_reminder(&body) {
+        prepend_reminders(&body, &forwarded)
+    } else {
+        insert_mid_system(&body, &forwarded)
+    }
+}
+
+pub(crate) fn thinking_accepts_clear(body: &str) -> bool {
+    matches!(rawjson::get(body, "thinking.type").str(), "enabled" | "adaptive")
+}
+
+/// `injectClaudeCodeContextManagement`.
+pub(crate) fn inject_context_management(body: &str) -> Option<String> {
+    (!rawjson::get(body, "context_management").exists() && thinking_accepts_clear(body))
+        .then(|| rawjson::set_raw(body, "context_management", CONTEXT_MANAGEMENT))
+}
+
+/// `reconcileClaudeCodeContextManagement` without payload-rule ownership: the
+/// `context_management` edit, batched with the adjacent sampling edits.
+pub(crate) fn reconcile_context_management_edits(
+    body: &str,
+    eligible: bool,
+    caller_owned: bool,
+    injected: bool,
+    payload_touched: bool,
+) -> Option<Edit> {
+    let current = rawjson::get(body, "context_management");
+    if !thinking_accepts_clear(body) {
+        if caller_owned || !injected || payload_touched || current.json() != CONTEXT_MANAGEMENT {
+            return None;
+        }
+        return Some(Edit::delete("context_management"));
+    }
+    if !eligible || caller_owned || payload_touched || current.exists() {
+        return None;
+    }
+    Some(Edit::set_raw("context_management", CONTEXT_MANAGEMENT))
+}
+
+fn has_cache_control(body: &str, path: &str) -> bool {
+    gjson::get(body, &format!("{path}.cache_control")).exists()
+}
+
+pub(crate) fn count_cache_controls(blocks: &signals::Blocks) -> usize {
+    // Go counts system, tools, then messages; the total is order-independent.
+    blocks.count_marked()
+}
+
+/// `upgradeClaudeCacheControlTTL`: every marker without an explicit ttl joins `ttl`.
+pub(crate) fn upgrade_ttl(body: &str, ttl: &str, valid: bool, blocks: &mut signals::Blocks) -> String {
+    if !valid {
+        return body.to_owned();
+    }
+    // Go visits the blocks of the payload it was given; each edit touches only its own
+    // block, so the remaining blocks read the same from either copy. The index is
+    // updated in place as each marker is upgraded.
+    let mut out = body.to_owned();
+    for item in blocks.items_mut() {
+        let (cc_type, scope) = match &item.cc {
+            Some(cc) if cc.is_object && !cc.ttl_present && cc.cc_type.is_some() => {
+                (cc.cc_type.clone().unwrap(), cc.scope.clone())
+            }
+            _ => continue,
+        };
+        let mut upgraded = format!(r#"{{"type":{},"ttl":{}"#, js_string(&cc_type), js_string(ttl));
+        if let Some(scope) = &scope {
+            upgraded.push_str(&format!(r#","scope":{scope}"#));
+        }
+        upgraded.push('}');
+        out = rawjson::set_raw(&out, &format!("{}.cache_control", item.path), &upgraded);
+        if let Some(cc) = item.cc.as_mut() {
+            cc.ttl_present = true;
+            cc.ttl_str = Some(ttl.to_owned());
+        }
+    }
+    out
+}
+
+/// `stripClaudeCacheControlTTL`.
+pub(crate) fn strip_ttl(body: &str, valid: bool, blocks: &mut signals::Blocks) -> String {
+    if !valid {
+        return body.to_owned();
+    }
+    super::apply_edits(body, &strip_ttl_edits(blocks))
+}
+
+/// The `cache_control.ttl` deletes [`strip_ttl`] would apply, updating `blocks` in place.
+/// A caller that batches the strip with other edits uses this and applies the result.
+pub(crate) fn strip_ttl_edits(blocks: &mut signals::Blocks) -> Vec<Edit> {
+    let mut edits = Vec::new();
+    for item in blocks.items_mut() {
+        if !item.cc.as_ref().is_some_and(|cc| cc.is_object && cc.ttl_present) {
+            continue;
+        }
+        edits.push(Edit::delete(format!("{}.cache_control.ttl", item.path)));
+        if let Some(cc) = item.cc.as_mut() {
+            cc.ttl_present = false;
+            cc.ttl_str = None;
+        }
+    }
+    edits
+}
+
+/// `normalizeCacheControlTTL`: a 1h marker may not follow a 5m one in evaluation order.
+pub(crate) fn normalize_ttl(body: &str, valid: bool, blocks: &mut signals::Blocks) -> String {
+    if !valid {
+        return body.to_owned();
+    }
+    let mut out = body.to_owned();
+    let mut seen_5m = false;
+    for item in blocks.items_mut() {
+        let Some(cc) = item.cc.as_ref() else { continue };
+        if !(cc.is_object && cc.ttl_str.as_deref() == Some("1h")) {
+            seen_5m = true;
+            continue;
+        }
+        if seen_5m {
+            out = rawjson::delete(&out, &format!("{}.cache_control.ttl", item.path));
+            if let Some(cc) = item.cc.as_mut() {
+                cc.ttl_present = false;
+                cc.ttl_str = None;
+            }
+        }
+    }
+    out
+}
+
+/// `enforceCacheControlLimit`: drop the earliest non-final system/tool markers, then
+/// message markers, then any remaining system/tool markers.
+pub(crate) fn enforce_cache_limit(body: &str, max: usize, valid: bool, blocks: &mut signals::Blocks) -> String {
+    if !valid {
+        return body.to_owned();
+    }
+    let total = blocks.count_marked();
+    if total <= max {
+        return body.to_owned();
+    }
+    let mut excess = total - max;
+    let mut body = body.to_owned();
+    fn remove(body: &mut String, blocks: &mut signals::Blocks, section: &str, keep_last: bool, excess: &mut usize) {
+        let items = gjson::get(body, section).array().len();
+        let marked: Vec<usize> = (0..items)
+            .filter(|i| has_cache_control(body, &format!("{section}.{i}")))
+            .collect();
+        let last = if keep_last { marked.last().copied() } else { None };
+        for i in marked {
+            if *excess == 0 {
+                break;
+            }
+            if Some(i) == last {
+                continue;
+            }
+            let path = format!("{section}.{i}");
+            *body = rawjson::delete(body, &format!("{path}.cache_control"));
+            blocks.clear_cc(&path);
+            *excess -= 1;
+        }
+    }
+    remove(&mut body, blocks, "system", true, &mut excess);
+    if excess > 0 {
+        remove(&mut body, blocks, "tools", true, &mut excess);
+    }
+    if excess > 0 {
+        let messages = gjson::get(&body, "messages").array().len();
+        'outer: for m in 0..messages {
+            let content = gjson::get(&body, &format!("messages.{m}.content")).json().to_owned();
+            if gjson::parse(&content).kind() != gjson::Kind::Array {
+                continue;
+            }
+            for i in 0..gjson::parse(&content).array().len() {
+                if excess == 0 {
+                    break 'outer;
+                }
+                let path = format!("messages.{m}.content.{i}");
+                if has_cache_control(&body, &path) {
+                    body = rawjson::delete(&body, &format!("{path}.cache_control"));
+                    blocks.clear_cc(&path);
+                    excess -= 1;
+                }
+            }
+        }
+    }
+    if excess > 0 {
+        remove(&mut body, blocks, "system", false, &mut excess);
+    }
+    if excess > 0 {
+        remove(&mut body, blocks, "tools", false, &mut excess);
+    }
+    body
+}
+
+fn cacheable_system(body: &str) -> bool {
+    let system = rawjson::get(body, "system");
+    match system.kind() {
+        gjson::Kind::Array => !system.array().is_empty(),
+        gjson::Kind::String => !system.str().trim().is_empty(),
+        _ => false,
+    }
+}
+
+/// `ensureCacheControl`: CPA-owned breakpoints for non-native callers. The three
+/// injections touch `tools`, `system` and `messages`, so one splice pass applies them.
+pub(crate) fn ensure_cache_control(body: &str, blocks: &mut signals::Blocks) -> String {
+    let mut edits = Vec::new();
+    if !cacheable_system(body) {
+        edits.extend(inject_tools_cache_edits(body, blocks));
+    }
+    edits.extend(inject_system_cache_edits(body, blocks));
+    edits.extend(inject_messages_cache_edits(body, blocks));
+    super::apply_edits(body, &edits)
+}
+
+const MARKER: &str = r#"{"type":"ephemeral"}"#;
+
+fn inject_tools_cache_edits(body: &str, blocks: &mut signals::Blocks) -> Vec<Edit> {
+    let tools = rawjson::get(body, "tools");
+    if tools.kind() != gjson::Kind::Array {
+        return Vec::new();
+    }
+    let mut last = None;
+    for (i, tool) in tools.array().iter().enumerate() {
+        if tool.get("cache_control").exists() {
+            return Vec::new();
+        }
+        if !tool.get("defer_loading").bool() {
+            last = Some(i);
+        }
+    }
+    match last {
+        Some(i) => {
+            let path = format!("tools.{i}");
+            blocks.set_cc(&path, MARKER);
+            vec![Edit::set_raw(format!("{path}.cache_control"), MARKER)]
+        }
+        None => Vec::new(),
+    }
+}
+
+fn inject_system_cache_edits(body: &str, blocks: &mut signals::Blocks) -> Vec<Edit> {
+    let system = rawjson::get(body, "system");
+    match system.kind() {
+        gjson::Kind::Array => {
+            let items = system.array();
+            if items.is_empty() || items.iter().any(|b| b.get("cache_control").exists()) {
+                return Vec::new();
+            }
+            let path = format!("system.{}", items.len() - 1);
+            blocks.set_cc(&path, MARKER);
+            vec![Edit::set_raw(format!("{path}.cache_control"), MARKER)]
+        }
+        gjson::Kind::String if !system.str().trim().is_empty() => {
+            // The rewrite turns a string system into a one-element array: a new block.
+            blocks.insert("system.0".to_owned(), MARKER);
+            vec![Edit::set_raw(
+                "system",
+                format!("[{}]", text_block(system.str(), EPHEMERAL)),
+            )]
+        }
+        _ => Vec::new(),
+    }
+}
+
+fn eligible_for_rolling_cache(message: &gjson::Value) -> bool {
+    let content = message.get("content");
+    if content.kind() == gjson::Kind::String {
+        return true;
+    }
+    let blocks = content.array();
+    if content.kind() != gjson::Kind::Array || blocks.is_empty() {
+        return false;
+    }
+    if message.get("role").str() != "assistant" {
+        return true;
+    }
+    !matches!(
+        blocks.last().map(|b| b.get("type").str().to_owned()).as_deref(),
+        Some("thinking" | "redacted_thinking")
+    )
+}
+
+fn inject_messages_cache_edits(body: &str, blocks: &mut signals::Blocks) -> Vec<Edit> {
+    let messages = rawjson::get(body, "messages");
+    if messages.kind() != gjson::Kind::Array {
+        return Vec::new();
+    }
+    let msgs = messages.array();
+    let last_eligible = msgs
+        .iter()
+        .rposition(|m| matches!(m.get("role").str(), "user" | "assistant") && eligible_for_rolling_cache(m));
+    let Some(idx) = last_eligible else {
+        return Vec::new();
+    };
+    if let Some(final_msg) = msgs.last() {
+        let content = final_msg.get("content");
+        if final_msg.get("role").str() == "system"
+            && content.kind() == gjson::Kind::String
+            && !content.str().trim().is_empty()
+        {
+            let path = format!("messages.{}.content", msgs.len() - 1);
+            blocks.insert(format!("{path}.0"), MARKER);
+            return vec![Edit::set_raw(
+                path,
+                format!("[{}]", text_block(content.str(), EPHEMERAL)),
+            )];
+        }
+    }
+    let path = format!("messages.{idx}.content");
+    let content = rawjson::get(body, &path);
+    match content.kind() {
+        gjson::Kind::Array => {
+            let arr = content.array();
+            if arr.iter().any(|b| b.get("cache_control").exists()) || arr.is_empty() {
+                return Vec::new();
+            }
+            let block_path = format!("{path}.{}", arr.len() - 1);
+            blocks.set_cc(&block_path, MARKER);
+            vec![Edit::set_raw(format!("{block_path}.cache_control"), MARKER)]
+        }
+        gjson::Kind::String => {
+            let replacement = format!("[{}]", text_block(content.str(), EPHEMERAL));
+            blocks.insert(format!("{path}.0"), MARKER);
+            vec![Edit::set_raw(path, replacement)]
+        }
+        _ => Vec::new(),
+    }
+}
+
+/// `generateFakeUserIDWithSessionID` for non-CLI-profile cloaking.
+pub(crate) fn fake_user_id(session_id: &str) -> String {
+    let session = uuid::Uuid::parse_str(session_id)
+        .map(|_| session_id.to_owned())
+        .unwrap_or_else(|_| super::session::new_v4());
+    let mut bytes = [0u8; 32];
+    let _ = getrandom::fill(&mut bytes);
+    format!(
+        r#"{{"device_id":"{}","account_uuid":"","session_id":{}}}"#,
+        super::session::hex(&bytes),
+        rawjson::go_string(&session)
+    )
+}
+
+/// Case-insensitive literal matcher, longest words first (`BuildSensitiveWordMatcher`).
+pub(crate) struct SensitiveWords(regex::Regex);
+
+/// The `(?i)` alternation for `words`, or `None` when no word is usable. This is the
+/// exact text `Regex::new` receives, so it doubles as the cache key (1:1 with the input).
+fn pattern(words: &[String]) -> Option<String> {
+    let mut valid: Vec<&str> = words
+        .iter()
+        .map(|w| w.trim())
+        .filter(|w| w.chars().count() >= 2 && !w.contains('\u{200B}'))
+        .collect();
+    if valid.is_empty() {
+        return None;
+    }
+    // Go's sort.Slice is not stable; equal-length order cannot change which
+    // text matches because alternatives of equal length cannot both match at
+    // one position unless they are equal ignoring case.
+    valid.sort_by_key(|w| std::cmp::Reverse(w.len()));
+    Some(format!(
+        "(?i){}",
+        valid.iter().map(|w| regex::escape(w)).collect::<Vec<_>>().join("|")
+    ))
+}
+
+/// Compiled matchers by pattern. Config publish precompiles every configured word-set,
+/// so a request only looks one up. The cap is never reached in normal operation because
+/// keys come from config; past it an arbitrary entry is dropped.
+static MATCHERS: OnceLock<Mutex<HashMap<String, Option<Arc<SensitiveWords>>>>> = OnceLock::new();
+const MAX_MATCHERS: usize = 64;
+
+/// Patterns compiled per process, for the compile-count test.
+#[cfg(test)]
+static COMPILES: OnceLock<Mutex<HashMap<String, u64>>> = OnceLock::new();
+
+fn matchers() -> &'static Mutex<HashMap<String, Option<Arc<SensitiveWords>>>> {
+    MATCHERS.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+#[cfg(test)]
+fn note_compile(pattern: &str) {
+    let mut counts = COMPILES
+        .get_or_init(|| Mutex::new(HashMap::new()))
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    *counts.entry(pattern.to_owned()).or_default() += 1;
+}
+
+/// How many times `words`' pattern was compiled in this process (tests only).
+#[cfg(test)]
+pub(crate) fn compilations_for(words: &[String]) -> u64 {
+    let Some(pattern) = pattern(words) else {
+        return 0;
+    };
+    COMPILES
+        .get_or_init(|| Mutex::new(HashMap::new()))
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .get(&pattern)
+        .copied()
+        .unwrap_or(0)
+}
+
+impl SensitiveWords {
+    /// The matcher for `words`, from the process-wide cache. A pattern compiles at most
+    /// once per process; [`Self::precompile`] warms it at config publish.
+    pub(crate) fn get(words: &[String]) -> Option<Arc<Self>> {
+        let pattern = pattern(words)?;
+        let mut cache = matchers().lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        if let Some(found) = cache.get(&pattern) {
+            return found.clone();
+        }
+        #[cfg(test)]
+        note_compile(&pattern);
+        let built = regex::Regex::new(&pattern).ok().map(|re| Arc::new(Self(re)));
+        if cache.len() >= MAX_MATCHERS
+            && !cache.contains_key(&pattern)
+            && let Some(evicted) = cache.keys().next().cloned()
+        {
+            cache.remove(&evicted);
+        }
+        cache.insert(pattern, built.clone());
+        built
+    }
+
+    /// Compiles `words` into the cache now (config publish), so a later request reuses it.
+    pub(crate) fn precompile(words: &[String]) -> Option<Arc<Self>> {
+        Self::get(words)
+    }
+
+    /// Raw construction, bypassing the cache (tests and one-off callers).
+    #[cfg(test)]
+    pub fn new(words: &[String]) -> Option<Self> {
+        pattern(words).and_then(|p| regex::Regex::new(&p).ok().map(Self))
+    }
+
+    fn apply(&self, text: &str) -> String {
+        self.0
+            .replace_all(text, |c: &regex::Captures<'_>| {
+                let word = &c[0];
+                let mut chars = word.chars();
+                match chars.next() {
+                    Some(first) if !word.contains('\u{200B}') && first.len_utf8() < word.len() => {
+                        format!("{first}\u{200B}{}", chars.as_str())
+                    }
+                    _ => word.to_owned(),
+                }
+            })
+            .into_owned()
+    }
+
+    /// `ObfuscateSensitiveWords`: system (except billing) and message text.
+    pub fn obfuscate(&self, body: &str) -> String {
+        let mut body = body.to_owned();
+        let system = rawjson::get(&body, "system");
+        match system.kind() {
+            gjson::Kind::Array => {
+                let edits: Vec<(String, String)> = system
+                    .array()
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, b)| b.get("type").str() == "text" && !b.get("text").str().starts_with(BILLING_PREFIX))
+                    .filter_map(|(i, b)| {
+                        let text = b.get("text").str().to_owned();
+                        let out = self.apply(&text);
+                        (out != text).then(|| (format!("system.{i}.text"), out))
+                    })
+                    .collect();
+                for (path, text) in edits {
+                    body = rawjson::set_str(&body, &path, &text);
+                }
+            }
+            gjson::Kind::String if !system.str().starts_with(BILLING_PREFIX) => {
+                let text = system.str().to_owned();
+                let out = self.apply(&text);
+                if out != text {
+                    body = rawjson::set_str(&body, "system", &out);
+                }
+            }
+            _ => {}
+        }
+        let count = rawjson::get(&body, "messages").array().len();
+        for m in 0..count {
+            let path = format!("messages.{m}.content");
+            let content = gjson::get(&body, &path).json().to_owned();
+            let parsed = gjson::parse(&content);
+            match parsed.kind() {
+                gjson::Kind::String => {
+                    let out = self.apply(parsed.str());
+                    if out != parsed.str() {
+                        body = rawjson::set_str(&body, &path, &out);
+                    }
+                }
+                gjson::Kind::Array => {
+                    for (i, block) in parsed.array().iter().enumerate() {
+                        if block.get("type").str() != "text" {
+                            continue;
+                        }
+                        let text = block.get("text").str().to_owned();
+                        let out = self.apply(&text);
+                        if out != text {
+                            body = rawjson::set_str(&body, &format!("{path}.{i}.text"), &out);
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        body
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn billing_header_matches_go_capture() {
+        let b = Billing {
+            signed: true,
+            version: "2.1.280",
+            message: "Local question",
+            entrypoint: "cli",
+            workload: "",
+            subagent: false,
+            prev_req: "",
+            prompt_id: "83ec619f-ab81-4d70-9c67-44c3865291b9",
+            human_turn: true,
+        };
+        assert_eq!(
+            billing_header(&b),
+            "x-anthropic-billing-header: cc_version=2.1.280.b43; cc_entrypoint=cli; cch=00000; cc_prompt_id=83ec619f-ab81-4d70-9c67-44c3865291b9; cc_turn_origin=human;"
+        );
+    }
+
+    #[test]
+    fn cache_control_walk_reads_each_block_in_go_order() {
+        // Evaluation order is tools, system, messages; the 1h marker on tools comes
+        // first and stays, the system marker is 5m, so the later 1h message marker loses
+        // its ttl. Text that mentions cache_control and a string content are not blocks.
+        let body = r#"{"messages":[{"role":"user","content":"cache_control"},{"role":"user","content":[{"type":"text","text":"\"cache_control\":{}"},{"type":"text","text":"b","cache_control":{"type":"ephemeral","ttl":"1h"}}]}],"system":[{"type":"text","text":"s","cache_control":{"type":"ephemeral"}}],"tools":[{"name":"t","cache_control":{"type":"ephemeral","ttl":"1h"}}]}"#;
+        assert_eq!(count_cache_controls(&signals::Blocks::build(body)), 3);
+        assert!(signals::has_1h_ttl(body));
+        assert_eq!(
+            normalize_ttl(body, true, &mut signals::Blocks::build(body)),
+            body.replace(
+                r#""text":"b","cache_control":{"type":"ephemeral","ttl":"1h"}"#,
+                r#""text":"b","cache_control":{"type":"ephemeral"}"#
+            )
+        );
+        assert_eq!(
+            strip_ttl(body, true, &mut signals::Blocks::build(body))
+                .matches(r#""ttl""#)
+                .count(),
+            0
+        );
+        let upgraded = upgrade_ttl(body, "1h", true, &mut signals::Blocks::build(body));
+        assert!(
+            upgraded
+                .contains(r#""system":[{"type":"text","text":"s","cache_control":{"type":"ephemeral","ttl":"1h"}}]"#)
+        );
+        assert_eq!(upgraded.matches(r#""ttl":"1h""#).count(), 3);
+        let paths: Vec<String> = signals::Blocks::build(body)
+            .items()
+            .iter()
+            .map(|b| b.path.clone())
+            .collect();
+        assert_eq!(
+            paths,
+            ["tools.0", "system.0", "messages.1.content.0", "messages.1.content.1"]
+        );
+    }
+
+    #[test]
+    fn cache_control_region_builds_the_block_index_once() {
+        // The cache-control region collects the block list once and each helper updates
+        // it in place, even though every helper edits the body (Go re-collects per call).
+        signals::block_builds::reset();
+        let body = r#"{"messages":[{"role":"user","content":[{"type":"text","text":"a","cache_control":{"type":"ephemeral"}},{"type":"text","text":"b","cache_control":{"type":"ephemeral"}},{"type":"text","text":"c","cache_control":{"type":"ephemeral"}},{"type":"text","text":"d","cache_control":{"type":"ephemeral"}},{"type":"text","text":"e","cache_control":{"type":"ephemeral"}}]}]}"#;
+        let mut blocks = signals::Blocks::build(body);
+        let body = ensure_cache_control(body, &mut blocks);
+        let body = enforce_cache_limit(&body, 4, true, &mut blocks);
+        let body = upgrade_ttl(&body, "1h", true, &mut blocks);
+        let body = strip_ttl(&body, true, &mut blocks);
+        let _ = normalize_ttl(&body, true, &mut blocks);
+        assert_eq!(signals::block_builds::count(), 1, "the region builds the index once");
+    }
+
+    #[test]
+    fn incremental_index_matches_a_fresh_build_after_edits() {
+        // Adversarial check for stale state: after every helper edits the body through the
+        // incrementally-updated index, a fresh build of the final body must agree with it.
+        let bodies = [
+            r#"{"messages":[{"role":"user","content":[{"type":"text","text":"a","cache_control":{"type":"ephemeral"}},{"type":"text","text":"b","cache_control":{"type":"ephemeral"}},{"type":"text","text":"c","cache_control":{"type":"ephemeral"}},{"type":"text","text":"d","cache_control":{"type":"ephemeral"}},{"type":"text","text":"e","cache_control":{"type":"ephemeral"}}]}]}"#,
+            r#"{"messages":[{"role":"user","content":"hi"}],"system":"sys","tools":[{"name":"t"},{"name":"u","defer_loading":true}]}"#,
+            r#"{"messages":[{"role":"assistant","content":[{"type":"text","text":"x","cache_control":{"type":"ephemeral","ttl":"1h"}},{"type":"text","text":"y","cache_control":{"type":"ephemeral"}}]}]}"#,
+        ];
+        for body in bodies {
+            let mut blocks = signals::Blocks::build(body);
+            let body = ensure_cache_control(body, &mut blocks);
+            let body = enforce_cache_limit(&body, 4, true, &mut blocks);
+            let body = upgrade_ttl(&body, "1h", true, &mut blocks);
+            let body = strip_ttl(&body, true, &mut blocks);
+            let body = normalize_ttl(&body, true, &mut blocks);
+            let fresh = signals::Blocks::build(&body);
+            assert_eq!(blocks.count_marked(), fresh.count_marked(), "marked count: {body}");
+            assert_eq!(blocks.has_1h(), fresh.has_1h(), "has_1h: {body}");
+            assert_eq!(
+                blocks.items().iter().map(|b| b.path.clone()).collect::<Vec<_>>(),
+                fresh.items().iter().map(|b| b.path.clone()).collect::<Vec<_>>(),
+                "block paths: {body}"
+            );
+        }
+    }
+
+    #[test]
+    fn sensitive_words_split_first_rune() {
+        let m = SensitiveWords::new(&["Proxy".into(), "x".into(), "proxy api".into()]).unwrap();
+        assert_eq!(
+            m.apply("my PROXY API and proxy"),
+            "my P\u{200B}ROXY API and p\u{200B}roxy"
+        );
+    }
+
+    #[test]
+    fn sensitive_words_compile_once_and_reuse_the_same_matcher() {
+        let words: Vec<String> = vec!["ZqxUniqueOne".into(), "zqx-unique-two-longer".into()];
+        // Config publish precompiles the word-set.
+        let published = SensitiveWords::precompile(&words).unwrap();
+        assert_eq!(compilations_for(&words), 1, "publish compiles the set exactly once");
+        // N requests reuse the published matcher without recompiling.
+        for _ in 0..1000 {
+            let m = SensitiveWords::get(&words).unwrap();
+            assert!(Arc::ptr_eq(&published, &m), "request reuses the published matcher");
+        }
+        assert_eq!(compilations_for(&words), 1, "requests compile nothing");
+        // Publishing the same word-set again adds no compile.
+        assert!(Arc::ptr_eq(&published, &SensitiveWords::precompile(&words).unwrap()));
+        assert_eq!(compilations_for(&words), 1);
+    }
+}

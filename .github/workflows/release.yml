@@ -100,7 +100,7 @@ jobs:
           rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --target ${{ matrix.target }}
           rustup default "$RUST_TOOLCHAIN"
       - name: Build
-        run: cargo build --release --locked -p horonrouter --target ${{ matrix.target }}
+        run: cargo build --release --locked -p horon-router --target ${{ matrix.target }}
       # Pull requests gate Linux; macOS and Windows are gated here, before anything is
       # published, and weekly by idle.yml. CPU time, wakeups, threads and memory over a
       # minute without requests, against bench/budgets.txt.

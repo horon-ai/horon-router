@@ -11,6 +11,6 @@ publish = false
 anyhow = "1"
 axum = "0.8.9"
 tokio = { version = "1.53", features = ["full"] }
-hr-core = { path = "../../../crates/hr-core" }
-hr-exec = { path = "../../../crates/hr-exec" }
-hr-server = { path = "../../../crates/hr-server" }
+horon-core = { path = "../../../crates/horon-core" }
+horon-exec = { path = "../../../crates/horon-exec" }
+horon-server = { path = "../../../crates/horon-server" }
