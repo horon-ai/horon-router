@@ -1945,11 +1945,10 @@ impl Tracker {
                 .plugins()
                 .publish_usage(self.plugin_record(&record, latency, ttft));
         }
-        // The aggregator is gated by the same flag as the queue: `Tracker` only exists
-        // while usage statistics are on, so this fold is unconditional and harmless
-        // when the queue is disabled (no `Tracker` is built then).
-        self.queue.usage_stats().record(&record);
         if queue.accepts() {
+            // The aggregator shares the queue's gate: statistics on and management
+            // enabled. `accepts()` is exactly that flag pair.
+            self.queue.usage_stats().record(&record);
             queue.enqueue(queued(&record, self.client.as_ref().unwrap_or(&self.facts.client)));
         }
         warn_model_substitution(&record, &reported.upstream_model, &self.auth_id);
