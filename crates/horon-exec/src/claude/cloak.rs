@@ -487,79 +487,83 @@ fn has_cache_control(body: &str, path: &str) -> bool {
     gjson::get(body, &format!("{path}.cache_control")).exists()
 }
 
-pub(crate) fn count_cache_controls(body: &str) -> usize {
+pub(crate) fn count_cache_controls(blocks: &signals::Blocks) -> usize {
     // Go counts system, tools, then messages; the total is order-independent.
-    signals::blocks(body)
-        .iter()
-        .filter(|(_, block)| gjson::get(block, "cache_control").exists())
-        .count()
+    blocks.count_marked()
 }
 
 /// `upgradeClaudeCacheControlTTL`: every marker without an explicit ttl joins `ttl`.
-pub(crate) fn upgrade_ttl(body: &str, ttl: &str) -> String {
-    if !gjson::valid(body) {
+pub(crate) fn upgrade_ttl(body: &str, ttl: &str, valid: bool, blocks: &mut signals::Blocks) -> String {
+    if !valid {
         return body.to_owned();
     }
     // Go visits the blocks of the payload it was given; each edit touches only its own
-    // block, so the remaining blocks read the same from either copy.
+    // block, so the remaining blocks read the same from either copy. The index is
+    // updated in place as each marker is upgraded.
     let mut out = body.to_owned();
-    for (path, block) in signals::blocks(body) {
-        let parsed = gjson::get(&block, "cache_control");
-        if parsed.kind() != gjson::Kind::Object
-            || parsed.get("ttl").exists()
-            || parsed.get("type").kind() != gjson::Kind::String
-        {
-            continue;
-        }
+    for item in blocks.items_mut() {
+        let (cc_type, scope) = match &item.cc {
+            Some(cc) if cc.is_object && !cc.ttl_present && cc.cc_type.is_some() => {
+                (cc.cc_type.clone().unwrap(), cc.scope.clone())
+            }
+            _ => continue,
+        };
         let mut upgraded = format!(
             r#"{{"type":{},"ttl":{}"#,
-            js_string(parsed.get("type").str()),
+            js_string(&cc_type),
             js_string(ttl)
         );
-        let scope = parsed.get("scope");
-        if scope.exists() {
-            upgraded.push_str(&format!(r#","scope":{}"#, scope.json()));
+        if let Some(scope) = &scope {
+            upgraded.push_str(&format!(r#","scope":{scope}"#));
         }
         upgraded.push('}');
-        out = rawjson::set_raw(&out, &format!("{path}.cache_control"), &upgraded);
+        out = rawjson::set_raw(&out, &format!("{}.cache_control", item.path), &upgraded);
+        if let Some(cc) = item.cc.as_mut() {
+            cc.ttl_present = true;
+            cc.ttl_str = Some(ttl.to_owned());
+        }
     }
     out
 }
 
 /// `stripClaudeCacheControlTTL`.
-pub(crate) fn strip_ttl(body: &str) -> String {
-    if !gjson::valid(body) {
+pub(crate) fn strip_ttl(body: &str, valid: bool, blocks: &mut signals::Blocks) -> String {
+    if !valid {
         return body.to_owned();
     }
     let mut out = body.to_owned();
-    for (path, block) in signals::blocks(body) {
-        let cc = gjson::get(&block, "cache_control");
-        if cc.kind() == gjson::Kind::Object && cc.get("ttl").exists() {
-            out = rawjson::delete(&out, &format!("{path}.cache_control.ttl"));
+    for item in blocks.items_mut() {
+        if !item.cc.as_ref().is_some_and(|cc| cc.is_object && cc.ttl_present) {
+            continue;
+        }
+        out = rawjson::delete(&out, &format!("{}.cache_control.ttl", item.path));
+        if let Some(cc) = item.cc.as_mut() {
+            cc.ttl_present = false;
+            cc.ttl_str = None;
         }
     }
     out
 }
 
 /// `normalizeCacheControlTTL`: a 1h marker may not follow a 5m one in evaluation order.
-pub(crate) fn normalize_ttl(body: &str) -> String {
-    if !gjson::valid(body) {
+pub(crate) fn normalize_ttl(body: &str, valid: bool, blocks: &mut signals::Blocks) -> String {
+    if !valid {
         return body.to_owned();
     }
     let mut out = body.to_owned();
     let mut seen_5m = false;
-    for (path, block) in signals::blocks(body) {
-        let parsed = gjson::get(&block, "cache_control");
-        if !parsed.exists() {
-            continue;
-        }
-        let ttl = parsed.get("ttl");
-        if parsed.kind() != gjson::Kind::Object || ttl.kind() != gjson::Kind::String || ttl.str() != "1h" {
+    for item in blocks.items_mut() {
+        let Some(cc) = item.cc.as_ref() else { continue };
+        if !(cc.is_object && cc.ttl_str.as_deref() == Some("1h")) {
             seen_5m = true;
             continue;
         }
         if seen_5m {
-            out = rawjson::delete(&out, &format!("{path}.cache_control.ttl"));
+            out = rawjson::delete(&out, &format!("{}.cache_control.ttl", item.path));
+            if let Some(cc) = item.cc.as_mut() {
+                cc.ttl_present = false;
+                cc.ttl_str = None;
+            }
         }
     }
     out
@@ -567,17 +571,23 @@ pub(crate) fn normalize_ttl(body: &str) -> String {
 
 /// `enforceCacheControlLimit`: drop the earliest non-final system/tool markers, then
 /// message markers, then any remaining system/tool markers.
-pub(crate) fn enforce_cache_limit(body: &str, max: usize) -> String {
-    if !gjson::valid(body) {
+pub(crate) fn enforce_cache_limit(body: &str, max: usize, valid: bool, blocks: &mut signals::Blocks) -> String {
+    if !valid {
         return body.to_owned();
     }
-    let total = count_cache_controls(body);
+    let total = blocks.count_marked();
     if total <= max {
         return body.to_owned();
     }
     let mut excess = total - max;
     let mut body = body.to_owned();
-    let remove = |body: &mut String, section: &str, keep_last: bool, excess: &mut usize| {
+    fn remove(
+        body: &mut String,
+        blocks: &mut signals::Blocks,
+        section: &str,
+        keep_last: bool,
+        excess: &mut usize,
+    ) {
         let items = gjson::get(body, section).array().len();
         let marked: Vec<usize> = (0..items)
             .filter(|i| has_cache_control(body, &format!("{section}.{i}")))
@@ -590,13 +600,15 @@ pub(crate) fn enforce_cache_limit(body: &str, max: usize) -> String {
             if Some(i) == last {
                 continue;
             }
-            *body = rawjson::delete(body, &format!("{section}.{i}.cache_control"));
+            let path = format!("{section}.{i}");
+            *body = rawjson::delete(body, &format!("{path}.cache_control"));
+            blocks.clear_cc(&path);
             *excess -= 1;
         }
-    };
-    remove(&mut body, "system", true, &mut excess);
+    }
+    remove(&mut body, blocks, "system", true, &mut excess);
     if excess > 0 {
-        remove(&mut body, "tools", true, &mut excess);
+        remove(&mut body, blocks, "tools", true, &mut excess);
     }
     if excess > 0 {
         let messages = gjson::get(&body, "messages").array().len();
@@ -612,16 +624,17 @@ pub(crate) fn enforce_cache_limit(body: &str, max: usize) -> String {
                 let path = format!("messages.{m}.content.{i}");
                 if has_cache_control(&body, &path) {
                     body = rawjson::delete(&body, &format!("{path}.cache_control"));
+                    blocks.clear_cc(&path);
                     excess -= 1;
                 }
             }
         }
     }
     if excess > 0 {
-        remove(&mut body, "system", false, &mut excess);
+        remove(&mut body, blocks, "system", false, &mut excess);
     }
     if excess > 0 {
-        remove(&mut body, "tools", false, &mut excess);
+        remove(&mut body, blocks, "tools", false, &mut excess);
     }
     body
 }
@@ -636,18 +649,18 @@ fn cacheable_system(body: &str) -> bool {
 }
 
 /// `ensureCacheControl`: CPA-owned breakpoints for non-native callers.
-pub(crate) fn ensure_cache_control(body: &str) -> String {
+pub(crate) fn ensure_cache_control(body: &str, blocks: &mut signals::Blocks) -> String {
     let mut body = body.to_owned();
     if !cacheable_system(&body) {
-        body = inject_tools_cache(&body);
+        body = inject_tools_cache(&body, blocks);
     }
-    body = inject_system_cache(&body);
-    inject_messages_cache(&body)
+    body = inject_system_cache(&body, blocks);
+    inject_messages_cache(&body, blocks)
 }
 
 const MARKER: &str = r#"{"type":"ephemeral"}"#;
 
-fn inject_tools_cache(body: &str) -> String {
+fn inject_tools_cache(body: &str, blocks: &mut signals::Blocks) -> String {
     let tools = rawjson::get(body, "tools");
     if tools.kind() != gjson::Kind::Array {
         return body.to_owned();
@@ -662,12 +675,17 @@ fn inject_tools_cache(body: &str) -> String {
         }
     }
     match last {
-        Some(i) => rawjson::set_raw(body, &format!("tools.{i}.cache_control"), MARKER),
+        Some(i) => {
+            let path = format!("tools.{i}");
+            let out = rawjson::set_raw(body, &format!("{path}.cache_control"), MARKER);
+            blocks.set_cc(&path, MARKER);
+            out
+        }
         None => body.to_owned(),
     }
 }
 
-fn inject_system_cache(body: &str) -> String {
+fn inject_system_cache(body: &str, blocks: &mut signals::Blocks) -> String {
     let system = rawjson::get(body, "system");
     match system.kind() {
         gjson::Kind::Array => {
@@ -675,10 +693,16 @@ fn inject_system_cache(body: &str) -> String {
             if items.is_empty() || items.iter().any(|b| b.get("cache_control").exists()) {
                 return body.to_owned();
             }
-            rawjson::set_raw(body, &format!("system.{}.cache_control", items.len() - 1), MARKER)
+            let path = format!("system.{}", items.len() - 1);
+            let out = rawjson::set_raw(body, &format!("{path}.cache_control"), MARKER);
+            blocks.set_cc(&path, MARKER);
+            out
         }
         gjson::Kind::String if !system.str().trim().is_empty() => {
-            rawjson::set_raw(body, "system", &format!("[{}]", text_block(system.str(), EPHEMERAL)))
+            // The rewrite turns a string system into a one-element array: a new block.
+            let out = rawjson::set_raw(body, "system", &format!("[{}]", text_block(system.str(), EPHEMERAL)));
+            blocks.insert("system.0".to_owned(), MARKER);
+            out
         }
         _ => body.to_owned(),
     }
@@ -702,7 +726,7 @@ fn eligible_for_rolling_cache(message: &gjson::Value) -> bool {
     )
 }
 
-fn inject_messages_cache(body: &str) -> String {
+fn inject_messages_cache(body: &str, blocks: &mut signals::Blocks) -> String {
     let messages = rawjson::get(body, "messages");
     if messages.kind() != gjson::Kind::Array {
         return body.to_owned();
@@ -720,24 +744,30 @@ fn inject_messages_cache(body: &str) -> String {
             && content.kind() == gjson::Kind::String
             && !content.str().trim().is_empty()
         {
-            return rawjson::set_raw(
-                body,
-                &format!("messages.{}.content", msgs.len() - 1),
-                &format!("[{}]", text_block(content.str(), EPHEMERAL)),
-            );
+            let path = format!("messages.{}.content", msgs.len() - 1);
+            let out = rawjson::set_raw(body, &path, &format!("[{}]", text_block(content.str(), EPHEMERAL)));
+            blocks.insert(format!("{path}.0"), MARKER);
+            return out;
         }
     }
     let path = format!("messages.{idx}.content");
     let content = rawjson::get(body, &path);
     match content.kind() {
         gjson::Kind::Array => {
-            let blocks = content.array();
-            if blocks.iter().any(|b| b.get("cache_control").exists()) || blocks.is_empty() {
+            let arr = content.array();
+            if arr.iter().any(|b| b.get("cache_control").exists()) || arr.is_empty() {
                 return body.to_owned();
             }
-            rawjson::set_raw(body, &format!("{path}.{}.cache_control", blocks.len() - 1), MARKER)
+            let block_path = format!("{path}.{}", arr.len() - 1);
+            let out = rawjson::set_raw(body, &format!("{block_path}.cache_control"), MARKER);
+            blocks.set_cc(&block_path, MARKER);
+            out
         }
-        gjson::Kind::String => rawjson::set_raw(body, &path, &format!("[{}]", text_block(content.str(), EPHEMERAL))),
+        gjson::Kind::String => {
+            let out = rawjson::set_raw(body, &path, &format!("[{}]", text_block(content.str(), EPHEMERAL)));
+            blocks.insert(format!("{path}.0"), MARKER);
+            out
+        }
         _ => body.to_owned(),
     }
 }
@@ -956,27 +986,78 @@ mod tests {
         // first and stays, the system marker is 5m, so the later 1h message marker loses
         // its ttl. Text that mentions cache_control and a string content are not blocks.
         let body = r#"{"messages":[{"role":"user","content":"cache_control"},{"role":"user","content":[{"type":"text","text":"\"cache_control\":{}"},{"type":"text","text":"b","cache_control":{"type":"ephemeral","ttl":"1h"}}]}],"system":[{"type":"text","text":"s","cache_control":{"type":"ephemeral"}}],"tools":[{"name":"t","cache_control":{"type":"ephemeral","ttl":"1h"}}]}"#;
-        assert_eq!(count_cache_controls(body), 3);
+        assert_eq!(count_cache_controls(&signals::Blocks::build(body)), 3);
         assert!(signals::has_1h_ttl(body));
         assert_eq!(
-            normalize_ttl(body),
+            normalize_ttl(body, true, &mut signals::Blocks::build(body)),
             body.replace(
                 r#""text":"b","cache_control":{"type":"ephemeral","ttl":"1h"}"#,
                 r#""text":"b","cache_control":{"type":"ephemeral"}"#
             )
         );
-        assert_eq!(strip_ttl(body).matches(r#""ttl""#).count(), 0);
-        let upgraded = upgrade_ttl(body, "1h");
+        assert_eq!(
+            strip_ttl(body, true, &mut signals::Blocks::build(body))
+                .matches(r#""ttl""#)
+                .count(),
+            0
+        );
+        let upgraded = upgrade_ttl(body, "1h", true, &mut signals::Blocks::build(body));
         assert!(
             upgraded
                 .contains(r#""system":[{"type":"text","text":"s","cache_control":{"type":"ephemeral","ttl":"1h"}}]"#)
         );
         assert_eq!(upgraded.matches(r#""ttl":"1h""#).count(), 3);
-        let paths: Vec<String> = signals::blocks(body).into_iter().map(|(p, _)| p).collect();
+        let paths: Vec<String> = signals::Blocks::build(body)
+            .items()
+            .iter()
+            .map(|b| b.path.clone())
+            .collect();
         assert_eq!(
             paths,
             ["tools.0", "system.0", "messages.1.content.0", "messages.1.content.1"]
         );
+    }
+
+    #[test]
+    fn cache_control_region_builds_the_block_index_once() {
+        // The cache-control region collects the block list once and each helper updates
+        // it in place, even though every helper edits the body (Go re-collects per call).
+        signals::block_builds::reset();
+        let body = r#"{"messages":[{"role":"user","content":[{"type":"text","text":"a","cache_control":{"type":"ephemeral"}},{"type":"text","text":"b","cache_control":{"type":"ephemeral"}},{"type":"text","text":"c","cache_control":{"type":"ephemeral"}},{"type":"text","text":"d","cache_control":{"type":"ephemeral"}},{"type":"text","text":"e","cache_control":{"type":"ephemeral"}}]}]}"#;
+        let mut blocks = signals::Blocks::build(body);
+        let body = ensure_cache_control(body, &mut blocks);
+        let body = enforce_cache_limit(&body, 4, true, &mut blocks);
+        let body = upgrade_ttl(&body, "1h", true, &mut blocks);
+        let body = strip_ttl(&body, true, &mut blocks);
+        let _ = normalize_ttl(&body, true, &mut blocks);
+        assert_eq!(signals::block_builds::count(), 1, "the region builds the index once");
+    }
+
+    #[test]
+    fn incremental_index_matches_a_fresh_build_after_edits() {
+        // Adversarial check for stale state: after every helper edits the body through the
+        // incrementally-updated index, a fresh build of the final body must agree with it.
+        let bodies = [
+            r#"{"messages":[{"role":"user","content":[{"type":"text","text":"a","cache_control":{"type":"ephemeral"}},{"type":"text","text":"b","cache_control":{"type":"ephemeral"}},{"type":"text","text":"c","cache_control":{"type":"ephemeral"}},{"type":"text","text":"d","cache_control":{"type":"ephemeral"}},{"type":"text","text":"e","cache_control":{"type":"ephemeral"}}]}]}"#,
+            r#"{"messages":[{"role":"user","content":"hi"}],"system":"sys","tools":[{"name":"t"},{"name":"u","defer_loading":true}]}"#,
+            r#"{"messages":[{"role":"assistant","content":[{"type":"text","text":"x","cache_control":{"type":"ephemeral","ttl":"1h"}},{"type":"text","text":"y","cache_control":{"type":"ephemeral"}}]}]}"#,
+        ];
+        for body in bodies {
+            let mut blocks = signals::Blocks::build(body);
+            let body = ensure_cache_control(body, &mut blocks);
+            let body = enforce_cache_limit(&body, 4, true, &mut blocks);
+            let body = upgrade_ttl(&body, "1h", true, &mut blocks);
+            let body = strip_ttl(&body, true, &mut blocks);
+            let body = normalize_ttl(&body, true, &mut blocks);
+            let fresh = signals::Blocks::build(&body);
+            assert_eq!(blocks.count_marked(), fresh.count_marked(), "marked count: {body}");
+            assert_eq!(blocks.has_1h(), fresh.has_1h(), "has_1h: {body}");
+            assert_eq!(
+                blocks.items().iter().map(|b| b.path.clone()).collect::<Vec<_>>(),
+                fresh.items().iter().map(|b| b.path.clone()).collect::<Vec<_>>(),
+                "block paths: {body}"
+            );
+        }
     }
 
     #[test]

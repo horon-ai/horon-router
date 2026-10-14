@@ -2,8 +2,6 @@
 //! (helps/claude_diagnostics.go): quota probes, title helpers, subagents, 1h cache
 //! pools, prompt turns and billing continuity tags.
 
-use std::borrow::Cow;
-
 use http::HeaderMap;
 
 use super::detect::{header, header_values};
@@ -119,61 +117,227 @@ pub(crate) fn subagent(headers: &HeaderMap, body: &str) -> bool {
     }
 }
 
-/// Every cache_control-capable block in tools → system → messages order
-/// (`forEachClaudeCacheControlBlock`): its path and its raw JSON. One pass over `body`,
-/// like Go's ForEach; looking each path up again would rescan the body per block.
-pub(crate) fn blocks(body: &str) -> Vec<(String, Cow<'_, str>)> {
-    // The items borrow from `body`; `rawjson::offset` recovers that borrow.
-    let raw = |item: &gjson::Value<'_>| match rawjson::offset(body, item) {
-        Some(start) => Cow::Borrowed(&body[start..start + item.json().len()]),
-        None => Cow::Owned(item.json().to_owned()),
-    };
-    let mut out = Vec::new();
-    for section in ["tools", "system"] {
-        let v = rawjson::get(body, section);
-        if v.kind() == gjson::Kind::Array {
-            out.extend(
-                v.array()
-                    .iter()
-                    .enumerate()
-                    .map(|(i, item)| (format!("{section}.{i}"), raw(item))),
-            );
+/// Whether the request body is valid JSON. Go re-checks this at every cache-control
+/// helper; the body only ever changes through JSON edits, which keep a valid body valid,
+/// so a request computes it once and threads the flag down.
+pub(crate) fn body_valid(body: &str) -> bool {
+    #[cfg(test)]
+    valid_calls::bump();
+    gjson::valid(body)
+}
+
+/// `body_valid` calls on this thread (tests only): a request must call it exactly once.
+#[cfg(test)]
+pub(crate) mod valid_calls {
+    use std::cell::Cell;
+    thread_local! {
+        static COUNT: Cell<u64> = const { Cell::new(0) };
+    }
+    pub(crate) fn bump() {
+        COUNT.with(|c| c.set(c.get() + 1));
+    }
+    pub(crate) fn reset() {
+        COUNT.with(|c| c.set(0));
+    }
+    pub(crate) fn count() -> u64 {
+        COUNT.with(|c| c.get())
+    }
+}
+
+/// [`Blocks::build`] calls on this thread (tests only): the cache-control region must
+/// build the block index once per request and update it in place after each edit.
+#[cfg(test)]
+pub(crate) mod block_builds {
+    use std::cell::Cell;
+    thread_local! {
+        static COUNT: Cell<u64> = const { Cell::new(0) };
+    }
+    pub(crate) fn bump() {
+        COUNT.with(|c| c.set(c.get() + 1));
+    }
+    pub(crate) fn reset() {
+        COUNT.with(|c| c.set(0));
+    }
+    pub(crate) fn count() -> u64 {
+        COUNT.with(|c| c.get())
+    }
+}
+
+/// The `cache_control` a block carries, parsed once when the index is built. Every
+/// consumer reads these fields instead of re-parsing the block.
+#[derive(Debug, Clone)]
+pub(crate) struct CacheControl {
+    /// `cache_control` is a JSON object.
+    pub is_object: bool,
+    /// The `ttl` member exists, whatever its type (Go's `get("ttl").exists()`).
+    pub ttl_present: bool,
+    /// The `ttl` value when it is a string.
+    pub ttl_str: Option<String>,
+    /// The `type` value when it is a string (`upgrade_ttl` re-emits it).
+    pub cc_type: Option<String>,
+    /// The raw JSON of `scope` when it exists (`upgrade_ttl` copies it verbatim).
+    pub scope: Option<String>,
+}
+
+impl CacheControl {
+    fn parse(cc: &gjson::Value<'_>) -> Self {
+        let ttl = cc.get("ttl");
+        let ty = cc.get("type");
+        let scope = cc.get("scope");
+        Self {
+            is_object: cc.kind() == gjson::Kind::Object,
+            ttl_present: ttl.exists(),
+            ttl_str: (ttl.kind() == gjson::Kind::String).then(|| ttl.str().to_owned()),
+            cc_type: (ty.kind() == gjson::Kind::String).then(|| ty.str().to_owned()),
+            scope: scope.exists().then(|| scope.json().to_owned()),
         }
     }
-    let messages = rawjson::get(body, "messages");
-    if messages.kind() == gjson::Kind::Array {
-        for (m, message) in messages.array().iter().enumerate() {
-            let content = message.get("content");
-            if content.kind() == gjson::Kind::Array {
-                out.extend(
-                    content
-                        .array()
-                        .iter()
-                        .enumerate()
-                        .map(|(i, item)| (format!("messages.{m}.content.{i}"), raw(item))),
-                );
+
+    fn from_raw(raw: &str) -> Self {
+        Self::parse(&gjson::parse(raw))
+    }
+}
+
+/// One cache-control-capable block: its path and its `cache_control`.
+#[derive(Debug)]
+pub(crate) struct Block {
+    pub path: String,
+    pub cc: Option<CacheControl>,
+}
+
+/// Every cache-control-capable block in tools → system → messages order, built once per
+/// request. The cloak helpers read it instead of re-walking the body; each edit updates
+/// only the entries it changed (Go re-collects the whole list per helper).
+#[derive(Debug, Default)]
+pub(crate) struct Blocks {
+    items: Vec<Block>,
+}
+
+impl Blocks {
+    pub(crate) fn build(body: &str) -> Self {
+        #[cfg(test)]
+        block_builds::bump();
+        let mut items = Vec::new();
+        for section in ["tools", "system"] {
+            let v = rawjson::get(body, section);
+            if v.kind() == gjson::Kind::Array {
+                for (i, item) in v.array().iter().enumerate() {
+                    items.push(Block {
+                        path: format!("{section}.{i}"),
+                        cc: cc_of(item),
+                    });
+                }
             }
         }
+        let messages = rawjson::get(body, "messages");
+        if messages.kind() == gjson::Kind::Array {
+            for (m, message) in messages.array().iter().enumerate() {
+                let content = message.get("content");
+                if content.kind() == gjson::Kind::Array {
+                    for (i, item) in content.array().iter().enumerate() {
+                        items.push(Block {
+                            path: format!("messages.{m}.content.{i}"),
+                            cc: cc_of(item),
+                        });
+                    }
+                }
+            }
+        }
+        Self { items }
     }
-    out
+
+    #[cfg(test)]
+    pub(crate) fn items(&self) -> &[Block] {
+        &self.items
+    }
+
+    pub(crate) fn items_mut(&mut self) -> &mut [Block] {
+        &mut self.items
+    }
+
+    pub(crate) fn count_marked(&self) -> usize {
+        self.items.iter().filter(|b| b.cc.is_some()).count()
+    }
+
+    /// `ClaudePayloadHas1hTTL`'s per-block test, answered from the index.
+    pub(crate) fn has_1h(&self) -> bool {
+        self.items.iter().any(|b| {
+            b.cc
+                .as_ref()
+                .is_some_and(|c| c.is_object && c.ttl_str.as_deref() == Some("1h"))
+        })
+    }
+
+    /// Record that `path` now carries the raw `cache_control` JSON `raw`.
+    pub(crate) fn set_cc(&mut self, path: &str, raw: &str) {
+        if let Some(b) = self.items.iter_mut().find(|b| b.path == path) {
+            b.cc = Some(CacheControl::from_raw(raw));
+        }
+    }
+
+    /// Record that `path` lost its `cache_control`.
+    pub(crate) fn clear_cc(&mut self, path: &str) {
+        if let Some(b) = self.items.iter_mut().find(|b| b.path == path) {
+            b.cc = None;
+        }
+    }
+
+    /// Insert a block a string→array rewrite just created, keeping the
+    /// tools → system → messages order.
+    pub(crate) fn insert(&mut self, path: String, raw_cc: &str) {
+        let key = path_key(&path);
+        let pos = self
+            .items
+            .iter()
+            .position(|b| path_key(&b.path) > key)
+            .unwrap_or(self.items.len());
+        self.items.insert(
+            pos,
+            Block {
+                path,
+                cc: Some(CacheControl::from_raw(raw_cc)),
+            },
+        );
+    }
+}
+
+fn cc_of(item: &gjson::Value<'_>) -> Option<CacheControl> {
+    let cc = item.get("cache_control");
+    cc.exists().then(|| CacheControl::parse(&cc))
+}
+
+/// Sort key preserving tools → system → messages and index order.
+fn path_key(path: &str) -> (u8, usize, usize) {
+    if let Some(rest) = path.strip_prefix("tools.") {
+        (0, rest.parse().unwrap_or(0), 0)
+    } else if let Some(rest) = path.strip_prefix("system.") {
+        (1, rest.parse().unwrap_or(0), 0)
+    } else if let Some(rest) = path.strip_prefix("messages.") {
+        let mut parts = rest.split('.');
+        let m = parts.next().and_then(|s| s.parse().ok()).unwrap_or(0);
+        let _ = parts.next();
+        let i = parts.next().and_then(|s| s.parse().ok()).unwrap_or(0);
+        (2, m, i)
+    } else {
+        (3, 0, 0)
+    }
 }
 
 /// `ClaudePayloadHas1hTTL`.
 pub(crate) fn has_1h_ttl(body: &str) -> bool {
-    !body.is_empty()
-        && gjson::valid(body)
-        && blocks(body).iter().any(|(_, block)| {
-            let cc = gjson::get(block, "cache_control");
-            cc.kind() == gjson::Kind::Object && cc.get("ttl").str() == "1h"
-        })
+    !body.is_empty() && gjson::valid(body) && Blocks::build(body).has_1h()
+}
+
+/// `extended-cache-ttl-2025-04-11` on the request's `anthropic-beta` header.
+pub(crate) fn requests_extended_cache_ttl(headers: &HeaderMap) -> bool {
+    header_values(headers, "anthropic-beta")
+        .join(",")
+        .contains("extended-cache-ttl-2025-04-11")
 }
 
 /// `ClaudeSubagentRequests1h`.
 pub(crate) fn subagent_requests_1h(headers: &HeaderMap, body: &str) -> bool {
-    has_1h_ttl(body)
-        || header_values(headers, "anthropic-beta")
-            .join(",")
-            .contains("extended-cache-ttl-2025-04-11")
+    has_1h_ttl(body) || requests_extended_cache_ttl(headers)
 }
 
 /// `IsClaudeNewPromptTurn`.

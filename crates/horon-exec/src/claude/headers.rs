@@ -203,6 +203,12 @@ pub(crate) fn build(p: &Plan<'_>) -> GoHeader {
     let incoming_betas = header_values(p.incoming, "anthropic-beta").join(",").trim().to_owned();
     let requested: Requested = betas::requested(&incoming_betas, p.extra_betas);
     let advisor = requested.contains(betas::ADVISOR_TOOL) || betas::has_advisor_tool(p.body);
+    // `p.body` is fixed for the whole build, so classify it once and reuse the answers
+    // in both the OAuth-credential branch and `finalize_betas` (each used to re-scan).
+    let probe = signals::probe_or_helper(p.body);
+    let subagent = signals::subagent(p.incoming, p.body);
+    let subagent_1h = subagent && signals::subagent_requests_1h(p.incoming, p.body);
+    let has_1h = signals::has_1h_ttl(p.body);
 
     let mut base = incoming_betas.clone();
     if !preserve_caller {
@@ -223,10 +229,7 @@ pub(crate) fn build(p: &Plan<'_>) -> GoHeader {
             if p.count_tokens {
                 base = betas::with_count_oauth(&base);
             } else {
-                let sub = signals::subagent(p.incoming, p.body);
-                let probe = signals::probe_or_helper(p.body);
-                let sub1h = sub && signals::subagent_requests_1h(p.incoming, p.body);
-                base = betas::with_oauth_credential(&base, (!sub || sub1h) && !probe);
+                base = betas::with_oauth_credential(&base, (!subagent || subagent_1h) && !probe);
             }
         }
     } else if preserve_caller && p.use_oauth_betas {
@@ -289,7 +292,6 @@ pub(crate) fn build(p: &Plan<'_>) -> GoHeader {
         if !betas::supports_effort(p.body) {
             b = betas::without(&b, betas::EFFORT);
         }
-        let probe = signals::probe_or_helper(p.body);
         if probe && !p.helper {
             for x in [
                 betas::SERVER_SIDE_FALLBACK,
@@ -302,10 +304,10 @@ pub(crate) fn build(p: &Plan<'_>) -> GoHeader {
         if rawjson::string(p.body, "thinking.type") == "disabled" {
             b = betas::without(&b, betas::THINKING_DISPLAY_UPDATES);
         }
-        if signals::subagent(p.incoming, p.body) && !signals::subagent_requests_1h(p.incoming, p.body) {
+        if subagent && !subagent_1h {
             b = betas::without(&b, betas::EXTENDED_CACHE_TTL);
         }
-        if !probe && !p.count_tokens && signals::has_1h_ttl(p.body) {
+        if !probe && !p.count_tokens && has_1h {
             b = betas::with_extended_ttl(&b);
         }
         let model = rawjson::string(p.body, "model").trim().to_lowercase();

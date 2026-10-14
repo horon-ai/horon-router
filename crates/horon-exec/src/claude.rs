@@ -1145,6 +1145,9 @@ impl<'a> Ctx<'a> {
         }
         let (cloak, strict, words, cache_user_id) = self.wire_policy(confirmed);
         let cch = signing::enabled(&self.api_key, self.cli_profile, self.first_party);
+        // The body is valid JSON here and every later step edits JSON, so its validity is
+        // computed once and threaded to the helpers that used to re-check it.
+        let body_valid = signals::body_valid(&body);
         let probe_before = signals::probe_or_helper(&body);
         let mut continuity = session::Continuity::default();
         let mut cloaked = false;
@@ -1196,7 +1199,7 @@ impl<'a> Ctx<'a> {
                 body = cloak_thinking_display(&body);
             }
             if probe_before || (subagent && !signals::subagent_requests_1h(&req.headers, &body)) {
-                body = cloak::strip_ttl(&body);
+                body = cloak::strip_ttl(&body, body_valid, &mut signals::Blocks::build(&body));
             }
             if !self.cli_profile && needs_fake_user_id(&body) {
                 // Go `injectFakeUserID`: Home KV in Home mode, and its errors fail the
@@ -1295,7 +1298,7 @@ impl<'a> Ctx<'a> {
             cloaked,
             probe,
         );
-        body = self.ensure_max_tokens(&body);
+        body = self.ensure_max_tokens(&body, body_valid);
         body = disable_thinking_if_tool_choice_forced(&body);
         body = cloak::reconcile_context_management(
             &body,
@@ -1305,19 +1308,24 @@ impl<'a> Ctx<'a> {
             touched("context_management"),
         );
         body = normalize_sampling(&body, confirmed);
-        let cpa_owns_cache = !confirmed && (cloaked || cloak::count_cache_controls(&body) == 0);
+        // One block index for the whole cache-control region; each helper updates only
+        // the entries its own edit changed, instead of re-collecting every block.
+        let mut blocks = signals::Blocks::build(&body);
+        let cpa_owns_cache = !confirmed && (cloaked || cloak::count_cache_controls(&blocks) == 0);
         if cpa_owns_cache {
-            body = cloak::ensure_cache_control(&body);
+            body = cloak::ensure_cache_control(&body, &mut blocks);
         }
-        body = cloak::enforce_cache_limit(&body, 4);
+        body = cloak::enforce_cache_limit(&body, 4, body_valid, &mut blocks);
         let subagent = signals::subagent(&req.headers, &body);
-        let subagent_1h = subagent && signals::subagent_requests_1h(&req.headers, &body);
+        let subagent_1h = subagent
+            && ((body_valid && blocks.has_1h())
+                || signals::requests_extended_cache_ttl(&req.headers));
         if cpa_owns_cache && self.cli_profile && (!subagent || subagent_1h) && !probe {
-            body = cloak::upgrade_ttl(&body, "1h");
+            body = cloak::upgrade_ttl(&body, "1h", body_valid, &mut blocks);
         } else if probe || (subagent && !subagent_1h) {
-            body = cloak::strip_ttl(&body);
+            body = cloak::strip_ttl(&body, body_valid, &mut blocks);
         }
-        body = cloak::normalize_ttl(&body);
+        body = cloak::normalize_ttl(&body, body_valid, &mut blocks);
         // Execute only: ExecuteStream forwards the body's own `stream` field.
         let stream_field = rawjson::get(&body, "stream");
         if !req.stream && (!detection.helper_profile || stream_field.exists() || upstream_stream) {
@@ -1424,8 +1432,10 @@ impl<'a> Ctx<'a> {
                 body = m.obfuscate(&body);
             }
         }
-        body = cloak::enforce_cache_limit(&body, 4);
-        body = cloak::normalize_ttl(&body);
+        let body_valid = signals::body_valid(&body);
+        let mut blocks = signals::Blocks::build(&body);
+        body = cloak::enforce_cache_limit(&body, 4, body_valid, &mut blocks);
+        body = cloak::normalize_ttl(&body, body_valid, &mut blocks);
         let (mut extra_betas, stripped) = extract_betas(&body);
         body = stripped;
         extra_betas.push(betas::TOKEN_COUNTING.into());
@@ -1684,9 +1694,9 @@ impl<'a> Ctx<'a> {
 
     /// `ensureModelMaxTokens`: only a model some Claude credential registered gets a
     /// default `max_tokens`, its registered completion limit or 1024.
-    fn ensure_max_tokens(&self, body: &str) -> String {
+    fn ensure_max_tokens(&self, body: &str, valid: bool) -> String {
         let model = self.base_model.trim();
-        if !gjson::valid(body)
+        if !valid
             || rawjson::get(body, "max_tokens").exists()
             || !horon_core::registry::model_providers(model)
                 .iter()
