@@ -6,7 +6,7 @@
 //! these definitions (internal/registry/model_registry.go); that overlay belongs to the
 //! server runtime.
 
-use std::sync::LazyLock;
+use std::sync::{Arc, LazyLock};
 
 pub mod command_code;
 pub mod devin;
@@ -141,21 +141,23 @@ impl Catalog {
 }
 
 /// The static catalog in effect (Go `getModels()`): the embedded models.json until a
-/// remote refresh ([`refresh_catalog`]) replaces it.
-pub fn pinned() -> &'static Catalog {
-    static EMBEDDED: LazyLock<Catalog> =
-        LazyLock::new(|| Catalog::parse(MODELS_JSON).expect("embedded models.json is valid"));
+/// remote refresh ([`refresh_catalog`]) replaces it. The returned `Arc` is a cloneable
+/// handle that keeps the snapshot alive; dropping it frees the catalog once no reader
+/// holds it.
+pub fn pinned() -> Arc<Catalog> {
+    static EMBEDDED: LazyLock<Arc<Catalog>> =
+        LazyLock::new(|| Arc::new(Catalog::parse(MODELS_JSON).expect("embedded models.json is valid")));
     CURRENT
         .read()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
-        .unwrap_or(&EMBEDDED)
+        .clone()
+        .unwrap_or_else(|| EMBEDDED.clone())
 }
 
-/// The refreshed catalog, once one replaced the embedded copy.
-// ponytail: `pinned()` hands out `'static` borrows, so a replaced catalog is kept alive
-// (leaked) rather than freed: about half a megabyte per upstream catalog change, which
-// happens a few times a month. Switch callers to an `Arc` snapshot to reclaim it.
-static CURRENT: std::sync::RwLock<Option<&'static Catalog>> = std::sync::RwLock::new(None);
+/// The refreshed catalog, once one replaced the embedded copy. An `Arc` snapshot (rather
+/// than a leaked `&'static` reference) lets a replaced catalog be freed once its readers
+/// drop their handles.
+static CURRENT: std::sync::RwLock<Option<Arc<Catalog>>> = std::sync::RwLock::new(None);
 static GENERATION: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
 /// Bumped whenever [`refresh_catalog`] swaps in a different catalog; caches derived from
@@ -255,17 +257,29 @@ pub fn refresh_catalog(json: &str) -> Result<Vec<String>, String> {
         root.insert("meta".into(), Value::Array(meta));
     }
     let new = Catalog::from_root(root).map_err(|e| e.to_string())?;
-    let changed = changed_providers(old, &new);
-    let same =
-        old.channels.len() == new.channels.len()
-            && old.channels.iter().zip(&new.channels).all(|((a, am), (b, bm))| {
-                a == b && am.len() == bm.len() && am.iter().zip(bm).all(|(x, y)| x.raw == y.raw)
-            });
-    if !same {
-        *CURRENT.write().unwrap_or_else(std::sync::PoisonError::into_inner) = Some(Box::leak(Box::new(new)));
+    let changed = changed_providers(&old, &new);
+    if swap_into(&CURRENT, &old, new) {
         GENERATION.fetch_add(1, std::sync::atomic::Ordering::AcqRel);
     }
     Ok(changed)
+}
+
+/// Whether two catalogs publish identical channels and model objects.
+fn catalogs_equal(a: &Catalog, b: &Catalog) -> bool {
+    a.channels.len() == b.channels.len()
+        && a.channels.iter().zip(&b.channels).all(|((an, am), (bn, bm))| {
+            an == bn && am.len() == bm.len() && am.iter().zip(bm).all(|(x, y)| x.raw == y.raw)
+        })
+}
+
+/// Installs `new` into `slot` unless it matches `old` (the snapshot the caller compared
+/// against), returning whether it swapped. The replaced snapshot is dropped, not leaked.
+fn swap_into(slot: &std::sync::RwLock<Option<Arc<Catalog>>>, old: &Catalog, new: Catalog) -> bool {
+    if catalogs_equal(old, &new) {
+        return false;
+    }
+    *slot.write().unwrap_or_else(std::sync::PoisonError::into_inner) = Some(Arc::new(new));
+    true
 }
 
 /// The server's dynamic registry, consulted before the pinned catalog.
@@ -438,9 +452,82 @@ mod tests {
 
     #[test]
     fn raw_definition_keeps_published_key_order() {
-        let haiku = &pinned().channel("claude")[0];
+        let catalog = pinned();
+        let haiku = &catalog.channel("claude")[0];
         let keys: Vec<&str> = haiku.raw.keys().map(String::as_str).collect();
         assert_eq!(&keys[..4], ["id", "object", "created", "owned_by"]);
         assert_eq!(haiku.thinking.as_ref().unwrap().min, 1024);
+    }
+
+    /// A refresh drops the snapshot it replaces. The old `Box::leak` kept every superseded
+    /// catalog alive forever; the `Arc` snapshot must be freed once its last handle drops,
+    /// which a `Weak` upgrade proves. Exercised on a private slot so no other test that
+    /// reads the process-global `pinned()` can hold a handle and mask the free.
+    #[test]
+    fn replacing_the_catalog_frees_the_previous_snapshot() {
+        let slot: std::sync::RwLock<Option<Arc<Catalog>>> = std::sync::RwLock::new(None);
+        let unrelated = catalog(r#"{"claude":[{"id":"other"}]}"#);
+        assert!(swap_into(&slot, &unrelated, catalog(r#"{"claude":[{"id":"first"}]}"#)));
+        let first = catalog(r#"{"claude":[{"id":"first"}]}"#);
+
+        let held = slot.read().unwrap().clone().unwrap();
+        let weak = Arc::downgrade(&held);
+
+        assert!(swap_into(&slot, &first, catalog(r#"{"claude":[{"id":"second"}]}"#)));
+        // An equal catalog is a no-op and keeps the current snapshot.
+        let equal = catalog(r#"{"claude":[{"id":"second"}]}"#);
+        assert!(!swap_into(&slot, &equal, catalog(r#"{"claude":[{"id":"second"}]}"#)));
+
+        drop(held);
+        assert!(
+            weak.upgrade().is_none(),
+            "a replaced catalog snapshot must be freed once its last handle drops"
+        );
+        assert!(slot.read().unwrap().as_ref().unwrap().lookup("second").is_some());
+    }
+
+    /// The live refresh path swaps the global snapshot, bumps the generation on a real
+    /// change, and keeps concurrent `pinned()` readers on a valid catalog throughout. The
+    /// swapped catalogs differ from the embedded one only by an inert `_probe` field on
+    /// `xai[0]`, so any other test reading `pinned()` sees unchanged shapes and lookups.
+    #[test]
+    fn refresh_catalog_swaps_snapshots_for_concurrent_readers() {
+        let variant = |tag: &str| {
+            let mut root: serde_json::Map<String, serde_json::Value> = serde_json::from_str(MODELS_JSON).unwrap();
+            root.get_mut("xai")
+                .unwrap()
+                .as_array_mut()
+                .unwrap()
+                .first_mut()
+                .unwrap()
+                .as_object_mut()
+                .unwrap()
+                .insert("_probe".into(), serde_json::Value::String(tag.into()));
+            serde_json::to_string(&root).unwrap()
+        };
+        let a = variant("a");
+        let b = variant("b");
+
+        let generation = catalog_generation();
+        let stop = std::sync::atomic::AtomicBool::new(false);
+        std::thread::scope(|scope| {
+            for _ in 0..4 {
+                scope.spawn(|| {
+                    while !stop.load(std::sync::atomic::Ordering::Relaxed) {
+                        let catalog = pinned();
+                        assert!(!catalog.channels.is_empty());
+                        assert!(catalog.lookup("gemini-3-flash").is_some());
+                    }
+                });
+            }
+            for i in 0..200 {
+                refresh_catalog(if i % 2 == 0 { &a } else { &b }).unwrap();
+            }
+            stop.store(true, std::sync::atomic::Ordering::Relaxed);
+        });
+        assert!(
+            catalog_generation() > generation,
+            "a differing refresh must bump the generation"
+        );
     }
 }

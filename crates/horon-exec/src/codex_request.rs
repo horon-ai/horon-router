@@ -1078,7 +1078,8 @@ pub(crate) fn custom_headers(view: &View<'_>, client: &HeaderMap) -> Vec<(String
 
 /// `applyModelHeaderOverrides`: models.json `config.override_header` for the model.
 fn model_overrides(model: &str) -> Vec<(String, String)> {
-    let Some(info) = horon_core::registry::pinned().lookup(model) else {
+    let catalog = horon_core::registry::pinned();
+    let Some(info) = catalog.lookup(model) else {
         return Vec::new();
     };
     info.raw
