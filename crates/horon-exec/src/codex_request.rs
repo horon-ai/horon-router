@@ -6,6 +6,7 @@
 use std::time::Duration;
 
 use gjson::Kind;
+use horon_common::splice::Edit;
 use horon_core::config::Config;
 use horon_core::credential::Credential;
 use horon_core::exec::{ExecError, ExecRequest, FailureScope};
@@ -13,7 +14,7 @@ use horon_core::format::Format;
 use http::{HeaderMap, HeaderName, HeaderValue};
 use sha2::{Digest, Sha256};
 
-use crate::codex_json::{delete, set_bool_if_different, set_raw, set_str, set_str_if_different};
+use crate::codex_json::{delete, set_raw, set_str, set_str_if_different};
 
 pub const DEFAULT_BASE_URL: &str = "https://chatgpt.com/backend-api/codex";
 pub(crate) const USER_AGENT: &str = "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)";
@@ -453,27 +454,58 @@ pub(crate) struct Shaped {
     pub conflict: bool,
 }
 
+/// Adds `sjson.SetString(path, value)` unless the member already holds that string
+/// (`helps.SetStringIfDifferent`).
+fn push_set_str_if_different(edits: &mut Vec<Edit>, body: &str, path: &str, value: &str) {
+    let current = gjson::get(body, path);
+    if current.kind() == Kind::String && current.str() == value {
+        return;
+    }
+    edits.push(Edit::set_str(path, value.as_bytes().to_vec()));
+}
+
+/// Adds `sjson.SetRawBytes(path, true/false)` unless the member already holds that bool
+/// (`helps.SetBoolIfDifferent`).
+fn push_set_bool_if_different(edits: &mut Vec<Edit>, body: &str, path: &str, value: bool) {
+    let kind = gjson::get(body, path).kind();
+    if (value && kind == Kind::True) || (!value && kind == Kind::False) {
+        return;
+    }
+    edits.push(Edit::set_raw(
+        path,
+        if value { b"true".to_vec() } else { b"false".to_vec() },
+    ));
+}
+
+/// Adds `sjson.DeleteBytes(path)` only when the member exists: deleting an absent member is
+/// a no-op, and an edit whose path does not resolve would force the whole batch sequential.
+fn push_delete_if_present(edits: &mut Vec<Edit>, body: &str, path: &str) {
+    if gjson::get(body, path).exists() {
+        edits.push(Edit::delete(path));
+    }
+}
+
 /// Applies the Codex body rules for `call`.
 // ponytail: the Claude-source reasoning replay cache is not applied here yet.
-// ponytail: each rule that edits the body returns a new copy while the previous one is
-// still alive, so a streamed 1.9 MB /v1/responses request peaks at 16.8 MB of live heap
-// (8.8x the body; alloc.codex.* in bench/budgets.txt). At that peak, heaptrack counted
-// about four body-sized buffers from `sanitize_reasoning`'s edits, one each from
-// `translate_request`, `ensure_image_tool` and the route's
-// `rewrite_orphan_delegation_input`, and about three more in string formatting and JSON
-// serialization whose callers it did not resolve. Walking the body once and splicing the
-// edits into one output buffer (as crates/horon-exec/src/claude/signals.rs does) is the
-// way toward the 3x target.
+// The rules after the payload apply are collected into one edit batch and spliced into a
+// single output buffer (`horon_common::splice`), instead of one whole-body copy per rule
+// (a streamed 1.9 MB /v1/responses request used to peak near 8.8x the body; alloc.codex.*
+// in bench/budgets.txt). Each edit is computed against the body it would see, so edits on
+// distinct members splice in one pass; where two edits could interact (a shared member, an
+// append) the helper applies them in order, so the bytes stay identical to the sequential
+// rules. `translate_request`, `apply_payload` and `optimize_for_auth` remain their own
+// passes.
 pub(crate) fn shape(req: &ExecRequest, view: &View<'_>, settings: &Settings, call: Call) -> Result<Shaped, ExecError> {
     let model = base_model(&req.model);
     let model = model.as_str();
     let is_compat = settings.is_compat(req);
     let (body, original) = translate_request(req, call, is_compat)?;
-    let mut body = apply_payload(req, settings, call, model, body, &original);
+    let body = apply_payload(req, settings, call, model, body, &original);
+    let mut edits: Vec<Edit> = Vec::new();
     match call {
         Call::NonStream => {
-            body = set_str_if_different(body, "model", model);
-            body = set_bool_if_different(body, "stream", true);
+            push_set_str_if_different(&mut edits, &body, "model", model);
+            push_set_bool_if_different(&mut edits, &body, "stream", true);
             for key in [
                 "previous_response_id",
                 "generate",
@@ -481,7 +513,7 @@ pub(crate) fn shape(req: &ExecRequest, view: &View<'_>, settings: &Settings, cal
                 "safety_identifier",
                 "stream_options",
             ] {
-                body = delete(&body, key);
+                push_delete_if_present(&mut edits, &body, key);
             }
         }
         Call::Stream => {
@@ -491,54 +523,60 @@ pub(crate) fn shape(req: &ExecRequest, view: &View<'_>, settings: &Settings, cal
                 "prompt_cache_retention",
                 "safety_identifier",
             ] {
-                body = delete(&body, key);
+                push_delete_if_present(&mut edits, &body, key);
             }
             let delivery = gjson::get(&body, "stream_options.reasoning_summary_delivery");
             let delivery = delivery
                 .exists()
                 .then(|| (delivery.kind(), delivery.str().to_owned(), delivery.json().to_owned()));
-            body = delete(&body, "stream_options");
+            push_delete_if_present(&mut edits, &body, "stream_options");
             if let Some((kind, text, raw)) = delivery {
                 // sjson.SetBytes with the decoded value: strings re-quote, scalars stay raw.
-                body = if kind == Kind::String {
-                    set_str(&body, "stream_options.reasoning_summary_delivery", &text)
+                edits.push(if kind == Kind::String {
+                    Edit::set_str("stream_options.reasoning_summary_delivery", text.into_bytes())
                 } else {
-                    set_raw(&body, "stream_options.reasoning_summary_delivery", &raw)
-                };
+                    Edit::set_raw("stream_options.reasoning_summary_delivery", raw.into_bytes())
+                });
             }
-            body = set_str_if_different(body, "model", model);
+            push_set_str_if_different(&mut edits, &body, "model", model);
         }
         Call::Websocket => {
-            body = set_str_if_different(body, "model", model);
-            body = set_bool_if_different(body, "stream", true);
-            body = delete(&body, "prompt_cache_retention");
-            body = delete(&body, "safety_identifier");
+            push_set_str_if_different(&mut edits, &body, "model", model);
+            push_set_bool_if_different(&mut edits, &body, "stream", true);
+            push_delete_if_present(&mut edits, &body, "prompt_cache_retention");
+            push_delete_if_present(&mut edits, &body, "safety_identifier");
         }
         Call::Compact => {
-            body = set_str_if_different(body, "model", model);
-            body = delete(&body, "stream");
+            push_set_str_if_different(&mut edits, &body, "model", model);
+            push_delete_if_present(&mut edits, &body, "stream");
         }
     }
     if !is_native(req) {
         let instructions = gjson::get(&body, "instructions");
         if !instructions.exists() || instructions.kind() == Kind::Null {
-            body = set_str(&body, "instructions", "");
+            edits.push(Edit::set_str("instructions", b"".to_vec()));
         }
     }
-    if call != Call::Compact && settings.image_generation {
-        body = ensure_image_tool(body, model, view, &req.headers);
+    // `tools` is rewritten by `ensure_image_tool` then `normalize_tool_schemas`; both target
+    // the same member, so compose them into one edit computed from this body.
+    let original_tools = gjson::get(&body, "tools");
+    let original_raw = original_tools.json();
+    let image_tools = (call != Call::Compact && settings.image_generation)
+        .then(|| image_tool_tools(&body, model, view, &req.headers))
+        .flatten();
+    let tools_after_image = image_tools.unwrap_or_else(|| original_raw.as_bytes().to_vec());
+    let tools_final = normalize_tools_raw(&tools_after_image).unwrap_or_else(|| tools_after_image.clone());
+    if tools_final.as_slice() != original_raw.as_bytes() {
+        edits.push(Edit::set_raw("tools", tools_final));
     }
-    body = sanitize_reasoning(body, is_compat);
-    body = if call == Call::Websocket {
-        if is_lite(&body, &req.headers) {
-            set_bool_if_different(body, "parallel_tool_calls", false)
-        } else {
-            body
-        }
-    } else {
-        normalize_parallel_tool_calls(body, &req.headers)
-    };
-    let body = normalize_tool_schemas(body);
+    if let Some(edit) = sanitize_reasoning_edit(&body, is_compat) {
+        edits.push(edit);
+    }
+    if let Some(edit) = parallel_tool_calls_edit(&body, &req.headers, call, &tools_after_image) {
+        edits.push(edit);
+    }
+    let body = String::from_utf8(horon_common::splice::splice(body.as_bytes(), &edits))
+        .unwrap_or_else(|e| String::from_utf8_lossy(e.as_bytes()).into_owned());
     let conflict = horon_common::codex_client::has_namespace_conflict(body.as_bytes());
     let (body, optimized) = crate::codex_client::optimize_for_auth(
         &req.headers,
@@ -555,17 +593,20 @@ pub(crate) fn shape(req: &ExecRequest, view: &View<'_>, settings: &Settings, cal
     })
 }
 
-fn ensure_image_tool(body: String, model: &str, view: &View<'_>, headers: &HeaderMap) -> String {
+/// `ensure_image_tool`: the `tools` member after the image-generation tool is ensured
+/// (`None` when the rule leaves it unchanged). Computed from `body`'s `tools` so it can be
+/// composed with `normalize_tool_schemas` into one edit.
+fn image_tool_tools(body: &str, model: &str, view: &View<'_>, headers: &HeaderMap) -> Option<Vec<u8>> {
     const TOOL: &str = r#"{"type":"image_generation","output_format":"png"}"#;
-    if is_lite(&body, headers)
+    if is_lite(body, headers)
         || model.ends_with("spark")
         || (view.credential.provider.eq_ignore_ascii_case("codex") && view.plan_type().eq_ignore_ascii_case("free"))
     {
-        return body;
+        return None;
     }
-    let tools = gjson::get(&body, "tools");
+    let tools = gjson::get(body, "tools");
     if !tools.exists() || tools.kind() != Kind::Array {
-        return set_raw(&body, "tools", &format!("[{TOOL}]"));
+        return Some(format!("[{TOOL}]").into_bytes());
     }
     let present = tools.array().iter().any(|t| {
         let kind = t.get("type");
@@ -584,35 +625,46 @@ fn ensure_image_tool(body: String, model: &str, view: &View<'_>, headers: &Heade
         }
     });
     if present {
-        body
-    } else {
-        set_raw(&body, "tools.-1", TOOL)
+        return None;
     }
+    // Append through the sjson path so the array bytes match `set_raw(body, "tools.-1", TOOL)`.
+    let synthetic = format!("{{\"tools\":{}}}", tools.json());
+    let appended = set_raw(&synthetic, "tools.-1", TOOL);
+    Some(gjson::get(&appended, "tools").json().as_bytes().to_vec())
 }
 
-fn normalize_parallel_tool_calls(body: String, headers: &HeaderMap) -> String {
-    if is_lite(&body, headers) {
-        return set_bool_if_different(body, "parallel_tool_calls", false);
+/// `helps.NormalizeCodexParallelToolCalls` (the non-WebSocket calls) and the WebSocket
+/// `parallel_tool_calls` rule: the edit that sets or drops the member, or `None`.
+/// `tools_after_image` is `tools` as `ensure_image_tool` leaves it.
+fn parallel_tool_calls_edit(body: &str, headers: &HeaderMap, call: Call, tools_after_image: &[u8]) -> Option<Edit> {
+    if is_lite(body, headers) {
+        if gjson::get(body, "parallel_tool_calls").kind() == Kind::False {
+            return None;
+        }
+        return Some(Edit::set_raw("parallel_tool_calls", b"false".to_vec()));
     }
-    if !gjson::get(&body, "parallel_tool_calls").exists() {
-        return body;
+    if call == Call::Websocket {
+        return None;
     }
-    let tools = gjson::get(&body, "tools");
-    if tools.kind() == Kind::Array && !tools.array().is_empty() {
-        return body;
+    if !gjson::get(body, "parallel_tool_calls").exists() {
+        return None;
     }
-    delete(&body, "parallel_tool_calls")
+    let tools = std::str::from_utf8(tools_after_image).ok().map(gjson::parse);
+    if tools.is_some_and(|t| t.kind() == Kind::Array && !t.array().is_empty()) {
+        return None;
+    }
+    Some(Edit::delete("parallel_tool_calls"))
 }
 
 /// `sanitizeOpenAIResponsesReasoningEncryptedContentWithCompat`. Compat models
 /// (third-party Responses upstreams) keep reasoning `content` and orphan ids; invalid
 /// `encrypted_content` is dropped either way.
-fn sanitize_reasoning(body: String, is_compat: bool) -> String {
-    let input = gjson::get(&body, "input");
+fn sanitize_reasoning_edit(body: &str, is_compat: bool) -> Option<Edit> {
+    let input = gjson::get(body, "input");
     if input.kind() != Kind::Array {
-        return body;
+        return None;
     }
-    let strip_orphan_ids = !gjson::get(&body, "store").bool();
+    let strip_orphan_ids = !gjson::get(body, "store").bool();
     let items = input.array();
     let mut rebuilt: Option<Vec<String>> = None;
     for (index, item) in items.iter().enumerate() {
@@ -666,10 +718,7 @@ fn sanitize_reasoning(body: String, is_compat: bool) -> String {
             rebuilt.push(if changed { next } else { item.json().to_owned() });
         }
     }
-    match rebuilt {
-        Some(items) => set_raw(&body, "input", &format!("[{}]", items.join(","))),
-        None => body,
-    }
+    rebuilt.map(|items| Edit::set_raw("input", format!("[{}]", items.join(",")).into_bytes()))
 }
 
 /// `helps.NormalizeCodexToolSchemas`: collapse large pure-`const` unions into `enum`.
@@ -677,12 +726,11 @@ fn sanitize_reasoning(body: String, is_compat: bool) -> String {
 /// call it, so it lives here rather than in `horon_common::payload`.
 // ponytail: the companion stripIncompatiblePatterns pass (drops `\p{..}` regex patterns by
 // re-encoding the schema) is not ported; such schemas pass through unchanged.
-fn normalize_tool_schemas(body: String) -> String {
-    let tools = gjson::get(&body, "tools");
-    match normalize_tool_list(&tools) {
-        Some(updated) => set_raw(&body, "tools", &updated),
-        None => body,
-    }
+fn normalize_tools_raw(tools_raw: &[u8]) -> Option<Vec<u8>> {
+    let tools_raw = std::str::from_utf8(tools_raw).ok()?;
+    let synthetic = format!("{{\"tools\":{tools_raw}}}");
+    let tools = gjson::get(&synthetic, "tools");
+    normalize_tool_list(&tools).map(String::into_bytes)
 }
 
 fn normalize_tool_list(tools: &gjson::Value<'_>) -> Option<String> {
