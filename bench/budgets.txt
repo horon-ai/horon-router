@@ -147,3 +147,14 @@ alloc.compat.1000k.peak_bytes       3_830_314  2
 alloc.compat.1000k.allocations          2_529  2
 alloc.compat.1900k.peak_bytes       7_068_394  2
 alloc.compat.1900k.allocations          3_571  2
+
+# Kimi route (plan T18): one streamed /v1/messages request through the Kimi executor's
+# Claude-delegated path (a static token, base-url = the fake upstream, model kimi-k2).
+# 2026-10-14: first measurement (plan T18) on Apple M1 Max (macOS 26.4, rustc 1.97.1);
+# ceilings are the measurement plus 2%.
+alloc.kimi.306k.peak_bytes    1_298_745  2
+alloc.kimi.306k.allocations       2_174  2
+alloc.kimi.1000k.peak_bytes   4_048_441  2
+alloc.kimi.1000k.allocations      3_640  2
+alloc.kimi.1900k.peak_bytes   7_487_230  2
+alloc.kimi.1900k.allocations      5_453  2
