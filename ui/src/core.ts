@@ -194,6 +194,9 @@ export type Event = {
   id: string;
   input: number;
   output: number;
+  reasoning: number;
+  cacheRead: number;
+  cacheCreation: number;
 };
 export function cleanEvent(raw: Data): Event {
   const t = Date.parse(String(raw.timestamp));
@@ -209,6 +212,9 @@ export function cleanEvent(raw: Data): Event {
     id: String(raw.request_id || ""),
     input: Number(raw.tokens?.input_tokens) || 0,
     output: Number(raw.tokens?.output_tokens) || 0,
+    reasoning: Number(raw.tokens?.reasoning_tokens) || 0,
+    cacheRead: Number(raw.tokens?.cache_read_tokens) || 0,
+    cacheCreation: Number(raw.tokens?.cache_creation_tokens) || 0,
   };
 }
 const median = (v: number[]) => {
@@ -234,6 +240,54 @@ export function usageStats(events: Event[]) {
     output: sum(events.map((e) => e.output)),
     models: [...models.values()].sort((a, b) => b.count - a.count),
   };
+}
+
+/**
+ * One row of the cumulative token/cache usage snapshot
+ * (`GET /observability/usage/stats?group_by=…`). Counters come from the server as-is;
+ * a missing or non-numeric field reads as 0.
+ */
+export type StatsRow = {
+  key: string;
+  requests: number;
+  failed: number;
+  input: number;
+  output: number;
+  reasoning: number;
+  cacheRead: number;
+  cacheCreation: number;
+  total: number;
+  unclassified: number;
+  complete: number;
+  unclassifiedQ: number;
+  inconsistent: number;
+  providers: string[];
+  lastSeen: string;
+};
+const counter = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+/** Normalise the `rows` of a usage-stats response. A null, undefined or empty body has no rows. */
+export function statsRows(data: Data | null | undefined): StatsRow[] {
+  const rows = data?.rows;
+  if (!Array.isArray(rows)) return [];
+  return rows
+    .filter((r) => r && typeof r === "object")
+    .map((r) => ({
+      key: String(r.key ?? ""),
+      requests: counter(r.requests),
+      failed: counter(r.failed),
+      input: counter(r.input_tokens),
+      output: counter(r.output_tokens),
+      reasoning: counter(r.reasoning_tokens),
+      cacheRead: counter(r.cache_read_tokens),
+      cacheCreation: counter(r.cache_creation_tokens),
+      total: counter(r.total_tokens),
+      unclassified: counter(r.unclassified_tokens),
+      complete: counter(r.quality?.complete),
+      unclassifiedQ: counter(r.quality?.unclassified),
+      inconsistent: counter(r.quality?.inconsistent),
+      providers: Array.isArray(r.providers) ? r.providers.map((p: unknown) => String(p)) : [],
+      lastSeen: String(r.last_seen ?? ""),
+    }));
 }
 
 /**
