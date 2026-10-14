@@ -405,4 +405,27 @@ mod tests {
         assert_eq!(cache.canonical("pck:k", "", Duration::from_secs(60), now), "s");
         assert_eq!(cache.canonical("pck:k", "", Duration::from_secs(120), now), "pck:k");
     }
+
+    /// Expiry: a group read past its TTL is dropped, so its aliases fall back to
+    /// themselves. Fails if the `now < entry.expires` / `now < group.expires` checks in
+    /// `entry`/`group` are removed (the old canonical would be returned).
+    #[test]
+    fn expired_groups_are_dropped_on_read() {
+        let cache = SessionAliases::default();
+        let now = Instant::now();
+        let ttl = Duration::from_secs(60);
+        assert_eq!(cache.canonical("session:a", "conv:b", ttl, now), "session:a");
+        let expired = now + ttl + Duration::from_secs(1);
+        assert_eq!(
+            cache.canonical("conv:b", "", ttl, expired),
+            "conv:b",
+            "the expired group no longer resolves to the old canonical"
+        );
+        let entries = entries(&cache);
+        assert!(
+            !entries.contains_key("session:a"),
+            "the expired group's aliases are gone"
+        );
+        assert_eq!(entries["conv:b"].canonical, "conv:b");
+    }
 }

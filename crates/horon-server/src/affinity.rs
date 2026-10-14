@@ -304,4 +304,37 @@ mod tests {
         assert_eq!(cache.get(&key("s0"), t0), None);
         assert_eq!(cache.get(&key("s1"), t0).as_deref(), Some("a"));
     }
+
+    /// Expiry: the periodic sweep drops groups whose deadline has passed. Fails if the
+    /// `now >= g.deadline` filter in `sweep` is removed (the group would survive).
+    #[test]
+    fn sweep_drops_expired_groups() {
+        let ttl = Duration::from_secs(10);
+        let t0 = Instant::now();
+        let mut cache = Cache::default();
+        cache.bind("a", &[key("s")], t0, ttl);
+        // The first sweep only schedules the next one.
+        cache.sweep(t0, ttl);
+        assert_eq!(cache.get(&key("s"), t0).as_deref(), Some("a"));
+        cache.sweep(t0 + ttl + Duration::from_secs(1), ttl);
+        assert!(cache.is_empty(), "the expired group is swept");
+    }
+
+    /// Accounting: dropping a group releases its entries, group record and primary index.
+    /// Fails if `remove` stops clearing one of those maps.
+    #[test]
+    fn removal_releases_every_index() {
+        let ttl = Duration::from_secs(10);
+        let t0 = Instant::now();
+        let mut cache = Cache::default();
+        cache.bind("a", &[key("pck:1"), key("conv:1")], t0, ttl);
+        let sizes = |cache: &Cache| (cache.entries.len(), cache.groups.len(), cache.primaries.len());
+        assert_eq!(sizes(&cache), (2, 1, 1));
+        // Dropping one alias keeps the group and its primary for the survivor.
+        cache.compare_and_delete(&key("conv:1"), "a");
+        assert_eq!(sizes(&cache), (1, 1, 1));
+        cache.invalidate("a");
+        assert_eq!(sizes(&cache), (0, 0, 0), "every index is released");
+        assert!(cache.is_empty());
+    }
 }
