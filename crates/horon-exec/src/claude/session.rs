@@ -60,8 +60,9 @@ pub(crate) fn agent_session_uuid(inputs: &Inputs<'_>, confirmed: bool) -> String
         translated = rawjson::delete(&translated, "metadata.user_id");
     }
     let meta = inputs.meta();
-    let mut identity = shared::extract_session_id(&headers, original.as_bytes(), &meta);
-    if identity.is_empty() && !translated.is_empty() {
+    let index = shared::SessionBody::new(original.as_bytes());
+    let mut identity = shared::extract_session_id_with(&index, &headers, &meta);
+    if identity.is_empty() && !translated.is_empty() && translated != original {
         identity = shared::extract_session_id(&headers, translated.as_bytes(), &meta);
     }
     if identity.is_empty() {
