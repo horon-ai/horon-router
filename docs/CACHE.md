@@ -125,7 +125,7 @@ Command Code 계정(`command-code` 제공자)은 위 두 방식 중 어느 것�
 | Codex 추론 복원 | 이전 턴의 추론 항목을 다음 요청에 복원 | 1시간(읽으면 연장) | 10,240항목, 항목당 턴 256개와 16 MiB | `crates/horon-exec/src/codex_replay.rs` |
 | Kimi 사고 복원 | 서명된 사고 블록을 다음 턴에 복원 | 1시간 | 10,240항목, 전체 256 MiB, 항목당 8 MiB | `crates/horon-exec/src/kimi_replay.rs` |
 | Claude API 키 사고 복원 | 서명된 사고 블록을 다음 턴에 복원 | 1시간, 10분마다 정리 | 세션당 64턴, 턴당 8 MiB와 512블록 | `crates/horon-exec/src/claude/replay.rs`, `crates/horon-exec/src/replay.rs` |
-| Antigravity 복원과 서명 | 생각 서명을 다시 붙임 | 1시간(쓰면 연장) | 10,240항목, 넘으면 128개씩 지움 | `crates/horon-translate/src/replay_cache.rs` |
+| Antigravity 복원과 서명 | 생각 서명을 다시 붙임 | 복원 1시간(쓰면 연장), 서명 3시간(쓰면 연장) | 복원 10,240항목, 넘으면 128개씩 지움. 서명 전체 131,072항목, 그룹당 8,192항목. 넘으면 만료분을 먼저, 그다음 가장 오래전에 쓴 항목부터 지움 | `crates/horon-translate/src/replay_cache.rs` |
 | 모델 카탈로그 | 모델 정보 | 원격에서 새 목록이 오면 교체 | 한 벌 | `crates/horon-core/src/registry.rs` |
 | 릴리스 확인 | 새 버전 확인 결과 | 12시간 | 태그 하나 | `crates/horon-server/src/management/observability.rs` |
 | 비디오 결과 계정 연결 | 비디오 조회가 같은 xAI 계정으로 가게 함 | `multimedia.video-result-auth-cache-ttl` | 65,536항목, 총 64 MiB. 넘으면 만료분을 먼저, 그다음 가장 먼저 만든 항목부터 지움 | `crates/horon-server/src/videos.rs` |
