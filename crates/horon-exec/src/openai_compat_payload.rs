@@ -5,6 +5,7 @@ use std::time::{Duration, SystemTime};
 
 use horon_common::gostr::GoStr;
 use horon_common::json::{self as gj, Kind, Res};
+use horon_common::splice::Edit;
 use horon_common::thinking::parse_suffix;
 use horon_core::config::Config;
 use horon_core::credential::{Credential, Source};
@@ -264,23 +265,32 @@ pub(crate) fn uses_max_completion_tokens(compat: Option<&Compat>, upstream: &str
         .is_some_and(|m| m.use_max_completion_tokens)
 }
 
-/// `NormalizeOpenAIMaxTokens`.
-pub(crate) fn normalize_max_tokens(mut payload: Vec<u8>, use_max_completion_tokens: bool) -> Vec<u8> {
+/// The edits `NormalizeOpenAIMaxTokens` applies, as a [`horon_common::splice`] batch: `from`
+/// and `to` are distinct top-level keys, so the batch resolves in one pass. Empty when the
+/// source key is absent.
+pub(crate) fn max_tokens_edits(payload: &[u8], use_max_completion_tokens: bool) -> Vec<Edit> {
     let (from, to) = if use_max_completion_tokens {
         ("max_tokens", "max_completion_tokens")
     } else {
         ("max_completion_tokens", "max_tokens")
     };
-    let source = gj::get(&payload, from);
-    let (has_from, raw) = (source.exists(), source.raw().to_vec());
-    let has_to = gj::get(&payload, to).exists();
-    if has_from && !has_to {
-        gj::set_raw(&mut payload, to, &raw);
+    let source = gj::get(payload, from);
+    if !source.exists() {
+        return Vec::new();
     }
-    if has_from {
-        gj::delete(&mut payload, from);
+    let mut edits = Vec::new();
+    if !gj::get(payload, to).exists() {
+        edits.push(Edit::set_raw(to, source.raw().to_vec()));
     }
-    payload
+    edits.push(Edit::delete(from));
+    edits
+}
+
+/// `NormalizeOpenAIMaxTokens`.
+#[cfg(test)]
+pub(crate) fn normalize_max_tokens(payload: Vec<u8>, use_max_completion_tokens: bool) -> Vec<u8> {
+    let edits = max_tokens_edits(&payload, use_max_completion_tokens);
+    horon_common::splice::splice(&payload, &edits)
 }
 
 const IMAGE_OMITTED: &str = "[image omitted: unsupported by upstream]";
@@ -460,22 +470,29 @@ fn contains(haystack: &[u8], needle: &[u8]) -> bool {
     needle.is_empty() || haystack.windows(needle.len()).any(|w| w == needle)
 }
 
+/// `helps.SetStringIfDifferent` as a predicate: whether a set would change the value.
+pub(crate) fn str_differs(body: &[u8], path: &str, value: &str) -> bool {
+    let current = gj::get(body, path);
+    !(current.kind == Kind::String && *current.bytes() == *value.as_bytes())
+}
+
+/// `helps.SetBoolIfDifferent` as a predicate: whether a set would change the value.
+pub(crate) fn bool_differs(body: &[u8], path: &str, value: bool) -> bool {
+    gj::get(body, path).kind != if value { Kind::True } else { Kind::False }
+}
+
 /// `helps.SetStringIfDifferent`.
 pub(crate) fn set_str_if_different(body: &mut Vec<u8>, path: &str, value: &str) {
-    let current = gj::get(body, path);
-    if current.kind == Kind::String && *current.bytes() == *value.as_bytes() {
-        return;
+    if str_differs(body, path, value) {
+        gj::set_str(body, path, value);
     }
-    gj::set_str(body, path, value);
 }
 
 /// `helps.SetBoolIfDifferent`.
 pub(crate) fn set_bool_if_different(body: &mut Vec<u8>, path: &str, value: bool) {
-    let current = gj::get(body, path).kind;
-    if current == if value { Kind::True } else { Kind::False } {
-        return;
+    if bool_differs(body, path, value) {
+        gj::set_bool(body, path, value);
     }
-    gj::set_bool(body, path, value);
 }
 
 /// `uuid.NewSHA1(uuid.NameSpaceOID, identity)`.

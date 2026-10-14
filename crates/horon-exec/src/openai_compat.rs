@@ -15,6 +15,7 @@ use horon_translate::{RequestCtx, ResponseCtx, StreamTranslator};
 
 use horon_common::gostr::GoStr;
 use horon_common::json as gj;
+use horon_common::splice::{Edit, splice};
 use horon_common::thinking::{self, ModelCaps, RequestThinking, parse_suffix};
 
 use crate::openai_compat_go as go;
@@ -300,18 +301,30 @@ impl OpenAICompatExecutor {
         if payload::excludes_images(compat.as_ref(), &base_model, requested) {
             body = payload::normalize_tool_results_text_only(body);
         }
-        if !compact {
-            let mct = payload::uses_max_completion_tokens(compat.as_ref(), &base_model, requested);
-            body = payload::normalize_max_tokens(body, mct);
-            body = prompt_cache_key(compat.as_ref(), &credential.provider, &req, &base_model, body);
-        }
         if compact && !req.stream {
-            gj::delete(&mut body, "stream");
             body = payload::sanitize_reasoning_encrypted_content(body);
         }
-        if req.stream {
-            payload::set_bool_if_different(&mut body, "stream_options.include_usage", true);
+        // The remaining scalar edits (the limit rename, the prompt cache key, the compact
+        // stream flag and the streaming usage flag) are one set/delete batch in a single
+        // offset splice (Claude/Codex pattern), byte-identical to the sequential sjson
+        // edits and falling back when a range cannot be resolved.
+        let mut edits: Vec<Edit> = Vec::new();
+        if !compact {
+            let mct = payload::uses_max_completion_tokens(compat.as_ref(), &base_model, requested);
+            edits.extend(payload::max_tokens_edits(&body, mct));
+            if let Some(key) = prompt_cache_key(compat.as_ref(), &credential.provider, &req, &base_model, &body)
+                && payload::str_differs(&body, "prompt_cache_key", &key)
+            {
+                edits.push(Edit::set_str("prompt_cache_key", key));
+            }
         }
+        if compact && !req.stream {
+            edits.push(Edit::delete("stream"));
+        }
+        if req.stream && payload::bool_differs(&body, "stream_options.include_usage", true) {
+            edits.push(Edit::set_raw("stream_options.include_usage", "true"));
+        }
+        let body = Bytes::from(splice(&body, &edits));
         if req.usage.enabled() {
             req.usage.request(target, &body);
         }
@@ -335,7 +348,7 @@ impl OpenAICompatExecutor {
             headers.pairs(),
             &body,
         );
-        let upstream = wire::send(&client, &url, headers, Bytes::from(body.clone())).await;
+        let upstream = wire::send(&client, &url, headers, body.clone()).await;
         capture.sent(&upstream);
         let upstream = upstream?;
         if !(200..300).contains(&upstream.status) {
@@ -545,45 +558,40 @@ pub(crate) fn route_model(req: &ExecRequest) -> &str {
     }
 }
 
-/// `applyPromptCacheKey`.
+/// The `prompt_cache_key` this request resolves to, when the compat entry supports it.
+/// The caller applies it as a splice edit only when it differs from the current value.
 fn prompt_cache_key(
     compat: Option<&payload::Compat>,
     provider: &str,
     req: &ExecRequest,
     base_model: &str,
-    mut body: Vec<u8>,
-) -> Vec<u8> {
+    body: &[u8],
+) -> Option<String> {
     if !compat.is_some_and(|c| c.support_prompt_cache_key) {
-        return body;
+        return None;
     }
-    let explicit = [&req.body[..], &req.original_body[..], &body[..]]
+    let explicit = [&req.body[..], &req.original_body[..], body]
         .into_iter()
         .map(|source| gj::get(source, "prompt_cache_key").str().trim().to_owned())
         .find(|key| !key.is_empty());
     if let Some(key) = explicit {
-        payload::set_str_if_different(&mut body, "prompt_cache_key", &key);
-        return body;
+        return Some(key);
     }
-    let model = gj::get(&body, "model").str().trim().to_owned();
+    let model = gj::get(body, "model").str().trim().to_owned();
     let model = if model.is_empty() { base_model.to_owned() } else { model };
     if req.source_format == Format::Claude
         && let Some(key) = payload::claude_code_prompt_cache(&model, &req.body, &req.headers)
     {
-        payload::set_str_if_different(&mut body, "prompt_cache_key", &key);
-        return body;
+        return Some(key);
     }
-    let Some(session) = provider_session_uuid(provider, req) else {
-        return body;
-    };
+    let session = provider_session_uuid(provider, req)?;
     let provider = provider.trim().go_lower();
     let identity = format!(
         "cli-proxy-api:openai-compat:prompt-cache\0{provider}\0{}\0{}\0{session}",
         model.go_lower(),
         req.source_format.as_str().trim().go_lower()
     );
-    let key = uuid::Uuid::new_v5(&uuid::Uuid::NAMESPACE_OID, identity.as_bytes()).to_string();
-    payload::set_str_if_different(&mut body, "prompt_cache_key", &key);
-    body
+    Some(uuid::Uuid::new_v5(&uuid::Uuid::NAMESPACE_OID, identity.as_bytes()).to_string())
 }
 
 /// `helps.ProviderSessionUUID`: the execution session, else the derived session identity,
