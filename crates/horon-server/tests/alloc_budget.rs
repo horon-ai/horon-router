@@ -48,7 +48,10 @@ static COUNTING: AtomicBool = AtomicBool::new(false);
 /// measurement subtracts this to isolate the proxy's own cost.
 static UPSTREAM_CPU_NS: AtomicUsize = AtomicUsize::new(0);
 
-/// `clock_gettime` for one clock, in nanoseconds.
+/// `clock_gettime` for one clock, in nanoseconds. The CPU rows below are informational,
+/// so unix reads the real clock and the other platforms stub it (libc exists only under
+/// `[target.'cfg(unix)'.dependencies]`, for fs_events.rs).
+#[cfg(unix)]
 fn clock_ns(id: libc::clockid_t) -> usize {
     let mut ts = libc::timespec { tv_sec: 0, tv_nsec: 0 };
     // SAFETY: `ts` is a valid, writable `timespec` for the duration of the call.
@@ -57,13 +60,28 @@ fn clock_ns(id: libc::clockid_t) -> usize {
 }
 
 /// CPU time of every thread in this process.
+#[cfg(unix)]
 fn process_cpu_ns() -> usize {
     clock_ns(libc::CLOCK_PROCESS_CPUTIME_ID)
 }
 
 /// CPU time of the calling thread.
+#[cfg(unix)]
 fn thread_cpu_ns() -> usize {
     clock_ns(libc::CLOCK_THREAD_CPUTIME_ID)
+}
+
+/// No process CPU clock off unix: every CPU value stays zero and the memory assertions
+/// stand alone.
+#[cfg(not(unix))]
+fn process_cpu_ns() -> usize {
+    0
+}
+
+/// No thread CPU clock off unix.
+#[cfg(not(unix))]
+fn thread_cpu_ns() -> usize {
+    0
 }
 
 thread_local! {
@@ -417,7 +435,12 @@ api-keys:
     tokio::time::sleep(Duration::from_millis(300)).await;
     let idle_cpu = process_cpu_ns() - idle_cpu;
     let idle_wall = idle_wall.elapsed().as_nanos() as f64;
-    let idle_per_ns = idle_cpu as f64 / idle_wall;
+    // A zero clock (non-unix) keeps every CPU value at zero instead of dividing by zero.
+    let idle_per_ns = if idle_wall > 0.0 {
+        idle_cpu as f64 / idle_wall
+    } else {
+        0.0
+    };
 
     let mut over = Vec::new();
     let mut cpu_rows = Vec::new();
