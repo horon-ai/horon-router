@@ -128,7 +128,7 @@ Command Code 계정(`command-code` 제공자)은 위 두 방식 중 어느 것�
 | Antigravity 복원과 서명 | 생각 서명을 다시 붙임 | 1시간(쓰면 연장) | 10,240항목, 넘으면 128개씩 지움 | `crates/horon-translate/src/replay_cache.rs` |
 | 모델 카탈로그 | 모델 정보 | 원격에서 새 목록이 오면 교체 | 한 벌 | `crates/horon-core/src/registry.rs` |
 | 릴리스 확인 | 새 버전 확인 결과 | 12시간 | 태그 하나 | `crates/horon-server/src/management/observability.rs` |
-| 비디오 결과 계정 연결 | 비디오 조회가 같은 xAI 계정으로 가게 함 | `multimedia.video-result-auth-cache-ttl` | 해당 없음 | `crates/horon-server/src/videos.rs` |
+| 비디오 결과 계정 연결 | 비디오 조회가 같은 xAI 계정으로 가게 함 | `multimedia.video-result-auth-cache-ttl` | 65,536항목, 총 64 MiB. 넘으면 만료분을 먼저, 그다음 가장 먼저 만든 항목부터 지움 | `crates/horon-server/src/videos.rs` |
 
 <a id="why-thinking-replay-records-exist"></a>
 ### 사고 블록 복원 기록이 필요한 이유

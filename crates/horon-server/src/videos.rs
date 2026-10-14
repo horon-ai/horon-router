@@ -1105,7 +1105,10 @@ mod cap_tests {
         enforce_caps(&mut map, now, usize::MAX, per * 2);
         let total: usize = map.iter().map(|(video, b)| binding_bytes(video, b)).sum();
         assert!(total <= per * 2, "the map stays within the byte cap");
-        assert!(!map.contains_key("k0"), "the oldest binding is evicted to meet the byte cap");
+        assert!(
+            !map.contains_key("k0"),
+            "the oldest binding is evicted to meet the byte cap"
+        );
         assert_eq!(map.len(), 2);
     }
 
