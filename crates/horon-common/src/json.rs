@@ -2345,6 +2345,15 @@ fn append_stringify(buf: &mut Vec<u8>, s: &[u8]) {
     }
 }
 
+/// The value bytes an `sjson` string edit writes (see [`append_stringify`]): quoted
+/// raw when the value needs no marshaling, otherwise Go's HTML-escaped marshal. Used by
+/// [`crate::splice`] so a spliced string edit produces exactly the sequential bytes.
+pub(crate) fn stringify(raw: &[u8]) -> Vec<u8> {
+    let mut buf = Vec::with_capacity(raw.len() + 2);
+    append_stringify(&mut buf, raw);
+    buf
+}
+
 /// sjson's atoui accumulates into Go's signed int, so huge indexes wrap negative.
 fn atoui(p: &PathPart) -> (isize, bool) {
     if p.force || !p.part.iter().all(u8::is_ascii_digit) {
@@ -2439,6 +2448,28 @@ fn delete_tail_item(buf: &mut Vec<u8>) -> bool {
         i -= 1;
     }
     false
+}
+
+/// The byte range `sjson`'s delete removes for a value at `[start, end)` in `body`: the
+/// value plus the neighbouring comma, exactly as `append_raw_paths` does. The result is
+/// `(remove_start, remove_end)`.
+pub(crate) fn delete_span(body: &[u8], start: usize, end: usize) -> (usize, usize) {
+    let mut prefix = body[..start].to_vec();
+    let consume_after = delete_tail_item(&mut prefix);
+    let remove_start = prefix.len();
+    let mut remove_end = end;
+    if consume_after {
+        for (j, &c) in body[end..].iter().enumerate() {
+            if c <= b' ' {
+                continue;
+            }
+            if c == b',' {
+                remove_end = end + j + 1;
+            }
+            break;
+        }
+    }
+    (remove_start, remove_end)
 }
 
 enum SetError {

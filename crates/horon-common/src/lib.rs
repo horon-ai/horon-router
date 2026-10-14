@@ -13,6 +13,8 @@
 //!   references copied from the client request; owner: server).
 //! - `json`: Go-exact tidwall/gjson, tidwall/sjson and encoding/json behaviour, used by
 //!   every crate that edits JSON on the wire (owner: translators).
+//! - `splice`: single-pass offset-splice editing of a request body, byte-identical to
+//!   applying the same `json` edits one at a time (owner: translators).
 //! - `codex_client`: executor/helps/codex_multi_agent_v2.go (Codex-client request rewrites
 //!   shared by every executor that serves Codex clients; owner: Codex).
 //! - `codex_catalog`: the Codex client model catalog and store (client/codex/models,
@@ -40,6 +42,7 @@ mod json_go_vectors;
 pub mod payload;
 pub mod session;
 pub mod signature;
+pub mod splice;
 pub mod thinking;
 
 /// Calls recorded from Go's own test suites at 6fecc6e, one JSON object per line
