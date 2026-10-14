@@ -48,6 +48,7 @@ mod session;
 pub mod testing;
 pub mod usage;
 mod usage_record;
+pub mod usage_stats;
 mod videos;
 pub mod watching;
 mod websocket;
