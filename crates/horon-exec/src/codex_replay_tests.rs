@@ -198,3 +198,75 @@ async fn home_kv_replay_matches_go() {
     assert!(super::home_get(&client, "gpt-5", "sess-1").await.unwrap().is_none());
     assert_eq!(calls(), steps[7]["calls"], "get_missing");
 }
+
+/// Expiry: a session read after the TTL is a miss and its entry is removed. The entry's
+/// touch time is aged directly, since `get` reads the real clock. Fails if the
+/// `entry.touched.elapsed() > TTL` check in `get` is removed.
+#[test]
+fn expired_entries_are_dropped_on_read() {
+    let cache = super::Cache::default();
+    assert!(cache.append("m", "s", &[br#"{"type":"cpa_codex_replay_turn","id":"t1"}"#.to_vec()]));
+    assert!(cache.get("m", "s").is_some());
+    {
+        let key = super::cache_key("m", "s").unwrap();
+        let mut entries = cache.entries.lock().unwrap();
+        entries.get_mut(&key).unwrap().touched =
+            std::time::Instant::now() - super::TTL - std::time::Duration::from_secs(1);
+    }
+    assert!(cache.get("m", "s").is_none(), "content past the TTL is dropped");
+    assert!(cache.entries.lock().unwrap().is_empty(), "the expired entry is removed");
+}
+
+/// Bound: past `MAX_ENTRIES` sessions the oldest entries are evicted. Fails if the
+/// `entries.len() > MAX_ENTRIES` check in `append` is removed (the map keeps growing).
+#[test]
+fn entry_cap_evicts_the_oldest_sessions() {
+    let cache = super::Cache::default();
+    let marker = |i: usize| format!(r#"{{"type":"cpa_codex_replay_turn","id":"t{i}"}}"#).into_bytes();
+    for i in 0..=super::MAX_ENTRIES {
+        assert!(cache.append("m", &format!("s{i}"), &[marker(i)]));
+    }
+    let entries = cache.entries.lock().unwrap();
+    assert!(
+        entries.len() <= super::MAX_ENTRIES,
+        "{} entries over the cap",
+        entries.len()
+    );
+    assert!(
+        !entries.contains_key(&super::cache_key("m", "s0").unwrap()),
+        "the oldest session is evicted"
+    );
+}
+
+/// Bound: a session whose turns exceed `MAX_BYTES_PER_ENTRY` drops its oldest turns until
+/// it fits. Fails if `trim`'s byte check (`total <= MAX_BYTES_PER_ENTRY`) is removed.
+#[test]
+fn entry_byte_cap_drops_the_oldest_turns() {
+    let cache = super::Cache::default();
+    let big = "x".repeat(6 << 20); // ~6 MiB per turn; 4 turns exceed the 16 MiB entry cap
+    for i in 0..4 {
+        let marker = format!(r#"{{"type":"cpa_codex_replay_turn","id":"t{i}"}}"#).into_bytes();
+        let call =
+            format!(r#"{{"type":"function_call","call_id":"c{i}","name":"f","arguments":"{big}"}}"#).into_bytes();
+        assert!(cache.append("m", "s", &[marker, call]));
+    }
+    let items = cache.get("m", "s").unwrap();
+    let turns = items.iter().filter(|i| super::item_type(i) == super::TURN_TYPE).count();
+    assert!(turns < 4, "the entry still holds all 4 turns");
+    assert!(
+        items.iter().map(Vec::len).sum::<usize>() <= super::MAX_BYTES_PER_ENTRY,
+        "the entry is over the byte cap"
+    );
+}
+
+/// Accounting: deleting a session removes its entry, so a later read is a miss and the
+/// map is empty. Fails if `delete` stops removing the key.
+#[test]
+fn deleting_a_session_releases_its_entry() {
+    let cache = super::Cache::default();
+    assert!(cache.append("m", "s", &[br#"{"type":"cpa_codex_replay_turn","id":"t1"}"#.to_vec()]));
+    assert!(cache.get("m", "s").is_some());
+    cache.delete("m", "s");
+    assert!(cache.get("m", "s").is_none(), "the deleted entry is gone");
+    assert!(cache.entries.lock().unwrap().is_empty(), "no entry remains");
+}

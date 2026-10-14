@@ -652,6 +652,81 @@ mod tests {
         );
     }
 
+    /// A valid array of exactly `MAX_BYTES_PER_SESSION` bytes (the largest one session may
+    /// hold), used to reach the total-byte cap without overshooting the per-session one.
+    fn big_content() -> Vec<u8> {
+        let mut content = Vec::with_capacity(MAX_BYTES_PER_SESSION);
+        content.push(b'[');
+        content.push(b'"');
+        content.resize(MAX_BYTES_PER_SESSION - 2, b'x');
+        content.push(b'"');
+        content.push(b']');
+        assert_eq!(content.len(), MAX_BYTES_PER_SESSION);
+        content
+    }
+
+    /// Bound: past `MAX_ENTRIES` sessions the oldest entries are evicted. Fails if the
+    /// `entries.len() > MAX_ENTRIES` arm of `enforce` is removed.
+    #[test]
+    fn entry_cap_evicts_the_oldest_sessions() {
+        let cache = Arc::new(ReplayCache::default());
+        let now = Instant::now();
+        // Each read reserves a deleted entry, filling the map with no content.
+        for i in 0..=MAX_ENTRIES {
+            cache.get(&format!("k{i}"), now + Duration::from_nanos(i as u64));
+        }
+        let inner = cache.lock();
+        assert!(
+            inner.entries.len() <= MAX_ENTRIES,
+            "{} entries over the cap",
+            inner.entries.len()
+        );
+        assert!(!inner.entries.contains_key("k0"), "the oldest key is evicted");
+        assert!(
+            inner.entries.contains_key(&format!("k{MAX_ENTRIES}")),
+            "the newest key survives"
+        );
+    }
+
+    /// Bound: crossing `MAX_TOTAL_BYTES` evicts the oldest sessions. Fails if the
+    /// `total > MAX_TOTAL_BYTES` arm of `enforce` is removed (nothing is evicted).
+    #[test]
+    fn total_byte_cap_evicts_the_oldest_sessions() {
+        let cache = Arc::new(ReplayCache::default());
+        let now = Instant::now();
+        // 32 sessions of `MAX_BYTES_PER_SESSION` fill the 256 MiB cap exactly; the 33rd crosses it.
+        let big = big_content();
+        for i in 0..=MAX_TOTAL_BYTES / big.len() {
+            let key = format!("k{i}");
+            let (_, snapshot) = cache.get(&key, now + Duration::from_nanos(i as u64));
+            assert!(cache.append_at(&key, snapshot, &big, now), "append {i}");
+        }
+        let inner = cache.lock();
+        assert!(inner.total <= MAX_TOTAL_BYTES, "{} bytes over the cap", inner.total);
+        assert!(
+            inner.entries.len() <= MAX_TOTAL_BYTES / big.len(),
+            "no eviction: {} entries",
+            inner.entries.len()
+        );
+    }
+
+    /// Accounting: `total` is the live byte sum across append and delete. Fails if `put`
+    /// stops subtracting the previous entry's bytes (or stops adding the new ones).
+    #[test]
+    fn byte_accounting_balances_on_append_and_delete() {
+        let cache = Arc::new(ReplayCache::default());
+        let now = Instant::now();
+        let (_, first) = cache.get("k", now);
+        assert!(cache.append_at("k", first, TURN_A.as_bytes(), now));
+        assert_eq!(cache.lock().total, TURN_A.len(), "stored bytes counted once");
+        let (_, second) = cache.get("k", now);
+        assert!(cache.append_at("k", second, TURN_B.as_bytes(), now));
+        assert_eq!(cache.lock().total, TURN_A.len() + TURN_B.len(), "appended bytes add up");
+        let (_, third) = cache.get("k", now);
+        assert!(cache.delete_if_unchanged("k", third));
+        assert_eq!(cache.lock().total, 0, "a delete releases the bytes");
+    }
+
     #[test]
     fn model_family_hashes_the_credential_identity() {
         let credential = Credential::from_file(

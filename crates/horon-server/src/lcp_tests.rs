@@ -447,3 +447,38 @@ fn under_the_byte_cap_keeps_every_group() {
         assert!(m.lookup(session, now).is_some(), "{t}");
     }
 }
+
+/// Count bounds: exceeding `max_groups` or `max_prefixes` evicts the oldest groups. Fails
+/// if the `group_count`/`prefix_count` arms of `enforce_bounds` are removed.
+#[test]
+fn group_and_prefix_caps_evict_the_oldest_groups() {
+    let now = Instant::now();
+    let ns = "lcp:v1::openai::gpt-4o::caller";
+    // max_groups = 2: the third bind evicts the oldest group.
+    let mut m = Matcher::new(Limits {
+        ttl: Duration::from_secs(600),
+        max_groups: 2,
+        ..Limits::default()
+    });
+    let mut sessions = Vec::new();
+    for t in ["a", "b", "c"] {
+        sessions.push(m.bind(ns, &texts(&[t]), "auth-a", now).unwrap().session);
+    }
+    assert!(m.group_count <= 2, "group_count {} over the cap", m.group_count);
+    assert_eq!(m.lookup(&sessions[0], now), None, "the oldest group is evicted");
+    assert!(m.lookup(sessions.last().unwrap(), now).is_some());
+
+    // max_prefixes is clamped to at least max_turns, so both are set to 2: each distinct
+    // first turn adds a prefix key, and the third group's prefix pushes the oldest out.
+    let mut m = Matcher::new(Limits {
+        ttl: Duration::from_secs(600),
+        max_turns: 2,
+        max_prefixes: 2,
+        ..Limits::default()
+    });
+    for t in ["x", "y", "z"] {
+        m.bind(ns, &texts(&[t]), "auth-a", now).unwrap();
+    }
+    assert!(m.prefix_count <= 2, "prefix_count {} over the cap", m.prefix_count);
+    assert!(m.group_count < 3, "a prefix-overflowing group is evicted");
+}

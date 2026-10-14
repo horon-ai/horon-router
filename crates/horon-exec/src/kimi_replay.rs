@@ -474,6 +474,114 @@ pub(crate) mod tests {
         let late = now + TTL + PURGE_INTERVAL + Duration::from_secs(1);
         assert!(!cache.replace_at("k", stale, CACHED.as_bytes(), late));
     }
+
+    /// A valid array of exactly `MAX_BYTES_PER_ENTRY` bytes (the largest a single entry
+    /// may hold), used to reach the total-byte cap without overshooting the per-entry one.
+    fn big_content() -> Vec<u8> {
+        let mut content = Vec::with_capacity(MAX_BYTES_PER_ENTRY);
+        content.push(b'[');
+        content.push(b'"');
+        content.resize(MAX_BYTES_PER_ENTRY - 2, b'x');
+        content.push(b'"');
+        content.push(b']');
+        assert_eq!(content.len(), MAX_BYTES_PER_ENTRY);
+        content
+    }
+
+    /// Expiry: a read past the TTL is a miss and releases the entry's bytes. Fails if the
+    /// TTL check in `get`/`purge` is removed (the content would survive).
+    #[test]
+    fn reads_drop_expired_content_and_release_bytes() {
+        let cache = ReplayCache::default();
+        let start = Instant::now();
+        let (_, snapshot) = cache.get("k", start);
+        assert!(cache.replace_if_unchanged("k", snapshot, CACHED.as_bytes()));
+        assert_eq!(cache.lock().total, CACHED.len(), "the stored bytes are counted");
+        let (content, _) = cache.get("k", start + TTL + Duration::from_secs(1));
+        assert!(content.is_none(), "content past the TTL is dropped");
+        assert_eq!(cache.lock().total, 0, "the expired bytes are released");
+    }
+
+    /// Bound: past `MAX_ENTRIES` keys the oldest are evicted. Fails if the
+    /// `entries.len() > MAX_ENTRIES` arm of `enforce_limits` is removed.
+    #[test]
+    fn entry_cap_evicts_the_oldest_keys() {
+        let cache = ReplayCache::default();
+        let now = Instant::now();
+        // Every read reserves a tombstone, so distinct keys fill the map with no content.
+        for i in 0..=MAX_ENTRIES {
+            let (content, _) = cache.get(&format!("k{i}"), now + Duration::from_nanos(i as u64));
+            assert!(content.is_none());
+        }
+        let inner = cache.lock();
+        assert!(
+            inner.entries.len() <= MAX_ENTRIES,
+            "{} entries over the cap",
+            inner.entries.len()
+        );
+        assert!(!inner.entries.contains_key("k0"), "the oldest key is evicted");
+        assert!(
+            inner.entries.contains_key(&format!("k{MAX_ENTRIES}")),
+            "the newest key survives"
+        );
+    }
+
+    /// Bound: crossing `MAX_TOTAL_BYTES` evicts the oldest keys. Fails if the
+    /// `total > MAX_TOTAL_BYTES` arm of `enforce_limits` is removed (nothing is evicted).
+    #[test]
+    fn total_byte_cap_evicts_the_oldest_keys() {
+        let cache = ReplayCache::default();
+        let now = Instant::now();
+        // 32 entries of `MAX_BYTES_PER_ENTRY` fill the 256 MiB cap exactly; the 33rd crosses it.
+        let big = big_content();
+        for i in 0..=MAX_TOTAL_BYTES / big.len() {
+            let key = format!("k{i}");
+            let (_, snapshot) = cache.get(&key, now + Duration::from_nanos(i as u64));
+            assert!(cache.replace_at(&key, snapshot, &big, now), "store {i}");
+        }
+        let inner = cache.lock();
+        assert!(inner.total <= MAX_TOTAL_BYTES, "{} bytes over the cap", inner.total);
+        assert!(
+            inner.entries.len() <= MAX_TOTAL_BYTES / big.len(),
+            "no eviction: {} entries",
+            inner.entries.len()
+        );
+    }
+
+    /// Bound: content larger than `MAX_BYTES_PER_ENTRY` is rejected outright. Fails if the
+    /// per-entry length check in `valid_content` is removed.
+    #[test]
+    fn oversized_content_is_rejected() {
+        let cache = ReplayCache::default();
+        let now = Instant::now();
+        let (_, snapshot) = cache.get("k", now);
+        let mut oversized = big_content();
+        oversized.push(b' '); // one byte past `MAX_BYTES_PER_ENTRY`
+        assert!(!cache.replace_if_unchanged("k", snapshot, &oversized));
+        assert!(cache.get("k", now).0.is_none(), "nothing was stored");
+        assert_eq!(cache.lock().total, 0);
+    }
+
+    /// Accounting: `total` is the live byte sum across replace and delete. Fails if
+    /// `replace_at`/`delete_if_unchanged` stop subtracting the previous content.
+    #[test]
+    fn byte_accounting_balances_on_replace_and_delete() {
+        let cache = ReplayCache::default();
+        let now = Instant::now();
+        let (_, first) = cache.get("k", now);
+        assert!(cache.replace_if_unchanged("k", first, CACHED.as_bytes()));
+        assert_eq!(cache.lock().total, CACHED.len(), "stored bytes counted once");
+        let (content, second) = cache.get("k", now);
+        assert_eq!(content.as_deref(), Some(CACHED.as_bytes()));
+        // A smaller turn replaces the old one: the total is the new size, not the sum.
+        let smaller = br#"[{"type":"tool_use","id":"t2","name":"f","input":{}}]"#;
+        assert!(cache.replace_if_unchanged("k", second, smaller));
+        assert_eq!(cache.lock().total, smaller.len(), "the replaced bytes are released");
+        let (_, third) = cache.get("k", now);
+        assert!(cache.delete_if_unchanged("k", third));
+        assert_eq!(cache.lock().total, 0, "a delete releases the bytes");
+    }
+
     /// Random generations read as `<gen>`, as in the Go golden.
     pub(crate) fn normalize_generations(text: &str) -> String {
         let bytes = text.as_bytes();
