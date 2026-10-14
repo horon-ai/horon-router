@@ -130,6 +130,8 @@ Command Code 계정(`command-code` 제공자)은 위 두 방식 중 어느 것�
 | 릴리스 확인 | 새 버전 확인 결과 | 12시간 | 태그 하나 | `crates/horon-server/src/management/observability.rs` |
 | 비디오 결과 계정 연결 | 비디오 조회가 같은 xAI 계정으로 가게 함 | `multimedia.video-result-auth-cache-ttl` | 해당 없음 | `crates/horon-server/src/videos.rs` |
 
+**인증 디렉터리 리로드:** 설정 파일 감시자가 auth-dir의 `*.json`을 다시 읽을 때, 파일별 메타데이터(길이, inode, 수정 시각, 변경 시각)를 비교해 **네 값이 모두 같고 마지막 수정 후 2초가 지난 파일은 다시 읽지도 파싱하지도 않습니다**(`crates/horon-core/src/config/credentials.rs`). 감시자와 같은 규칙입니다. 네 값이 같은 채 내용만 바뀌는 경우는 감지하지 못하지만, 정상적인 편집은 수정 시각을 갱신하므로 발생하지 않습니다. 전역 제외 모델 목록처럼 설정만 바뀐 경우에는 파일을 다시 읽지 않고 기억해 둔 내용으로 인증 정보만 다시 만듭니다.
+
 <a id="why-thinking-replay-records-exist"></a>
 ### 사고 블록 복원 기록이 필요한 이유
 
