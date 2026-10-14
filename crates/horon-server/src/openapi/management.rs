@@ -818,11 +818,20 @@ fn v8_paths() -> Vec<(String, Value)> {
                 "get",
                 mgmt_op(
                     false,
-                    ("managementObservabilityUsageStats", "Cumulative per-dimension token and cache usage"),
+                    (
+                        "managementObservabilityUsageStats",
+                        "Cumulative per-dimension token and cache usage",
+                    ),
                     management_security(),
-                    vec![query_param("group_by", "Dimension to group by: model (default), provider, or auth_index")],
+                    vec![query_param(
+                        "group_by",
+                        "Dimension to group by: model (default), provider, or auth_index",
+                    )],
                     None,
-                    vec![ok("Cumulative usage rows, totals, and the evicted-row count.", "UsageStats")],
+                    vec![ok(
+                        "Cumulative usage rows, totals, and the evicted-row count.",
+                        "UsageStats",
+                    )],
                     vec![e400("`group_by` is not one of model, provider, auth_index")],
                 ),
             )]),
@@ -1220,11 +1229,20 @@ fn v0_paths() -> Vec<(String, Value)> {
                 "get",
                 mgmt_op(
                     true,
-                    ("managementLegacyUsageStats", "Cumulative per-dimension token and cache usage"),
+                    (
+                        "managementLegacyUsageStats",
+                        "Cumulative per-dimension token and cache usage",
+                    ),
                     management_security(),
-                    vec![query_param("group_by", "Dimension to group by: model (default), provider, or auth_index")],
+                    vec![query_param(
+                        "group_by",
+                        "Dimension to group by: model (default), provider, or auth_index",
+                    )],
                     None,
-                    vec![ok("Cumulative usage rows, totals, and the evicted-row count.", "UsageStats")],
+                    vec![ok(
+                        "Cumulative usage rows, totals, and the evicted-row count.",
+                        "UsageStats",
+                    )],
                     vec![e400("`group_by` is not one of model, provider, auth_index")],
                 ),
             )]),

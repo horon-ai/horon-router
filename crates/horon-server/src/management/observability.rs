@@ -206,7 +206,12 @@ pub(crate) async fn usage_stats(State(state): State<Arc<Management>>, RawQuery(r
     } else {
         match crate::usage_stats::parse(value) {
             Some(dim) => dim,
-            None => return fail(StatusCode::BAD_REQUEST, "group_by must be one of model, provider, auth_index"),
+            None => {
+                return fail(
+                    StatusCode::BAD_REQUEST,
+                    "group_by must be one of model, provider, auth_index",
+                );
+            }
         }
     };
     let body = state.rt.usage_stats().snapshot(dim);

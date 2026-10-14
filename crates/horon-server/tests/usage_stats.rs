@@ -127,12 +127,7 @@ async fn fixture() -> Fixture {
         .await
         .unwrap()
     });
-    Fixture {
-        base,
-        addr,
-        rt,
-        dir,
-    }
+    Fixture { base, addr, rt, dir }
 }
 
 impl Drop for Fixture {
@@ -163,12 +158,7 @@ async fn proxy_request(addr: &str) {
 async fn wait_for_model_row(rt: &horon_server::Runtime, model: &str) -> Value {
     for _ in 0..500 {
         let snap = rt.usage_stats().snapshot(Dim::Model);
-        if let Some(row) = snap["rows"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .find(|r| r["key"] == model)
-        {
+        if let Some(row) = snap["rows"].as_array().unwrap().iter().find(|r| r["key"] == model) {
             return row.clone();
         }
         tokio::time::sleep(Duration::from_millis(10)).await;
@@ -186,7 +176,13 @@ async fn usage_stats_endpoint_reports_rollups_and_never_drains() {
     assert_eq!(row["output_tokens"], 3);
     assert_eq!(row["total_tokens"], 10);
     // The row carries the full management shape.
-    for key in ["cache_read_tokens", "cache_creation_tokens", "quality", "requests", "failed"] {
+    for key in [
+        "cache_read_tokens",
+        "cache_creation_tokens",
+        "quality",
+        "requests",
+        "failed",
+    ] {
         assert!(row.get(key).is_some(), "missing {key}: {row}");
     }
     assert_eq!(row["requests"], 1);
@@ -196,14 +192,7 @@ async fn usage_stats_endpoint_reports_rollups_and_never_drains() {
     let get = |query: &str| {
         let url = format!("{}/v8/management/observability/usage/stats{query}", f.base);
         let client = client.clone();
-        async move {
-            client
-                .get(url)
-                .bearer_auth(MGMT_KEY)
-                .send()
-                .await
-                .unwrap()
-        }
+        async move { client.get(url).bearer_auth(MGMT_KEY).send().await.unwrap() }
     };
 
     // Default: the model dimension.
@@ -227,11 +216,7 @@ async fn usage_stats_endpoint_reports_rollups_and_never_drains() {
     let provider: Value = r.json().await.unwrap();
     assert_eq!(provider["group_by"], "provider");
     assert!(
-        provider["rows"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|r| r["key"] == "xai"),
+        provider["rows"].as_array().unwrap().iter().any(|r| r["key"] == "xai"),
         "{provider}"
     );
 
@@ -254,10 +239,7 @@ async fn usage_stats_endpoint_reports_rollups_and_never_drains() {
 
     // The stats call did not consume the queue.
     let queued: Value = client
-        .get(format!(
-            "{}/v8/management/observability/usage/queue?count=10",
-            f.base
-        ))
+        .get(format!("{}/v8/management/observability/usage/queue?count=10", f.base))
         .bearer_auth(MGMT_KEY)
         .send()
         .await

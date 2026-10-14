@@ -44,9 +44,13 @@ pub struct Breakdown {
 
 impl Breakdown {
     /// Accounting quality of this breakdown.
-    pub fn quality(&self) -> Quality { self.quality }
+    pub fn quality(&self) -> Quality {
+        self.quality
+    }
     /// Tokens the breakdown could not attribute to input or output.
-    pub fn unclassified_tokens(&self) -> i64 { self.unclassified }
+    pub fn unclassified_tokens(&self) -> i64 {
+        self.unclassified
+    }
 }
 
 /// Go `usage.Detail`. `breakdown: None` is Go's zero (invalid) breakdown.

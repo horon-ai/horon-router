@@ -82,15 +82,26 @@ pub struct UsageStats {
 impl UsageStats {
     /// Fold one usage record into the model, provider and auth-index maps.
     pub fn record(&self, record: &Record) {
-        let detail = crate::usage_record::ensure_breakdown(
-            record.detail.clone(),
-            &record.provider,
-            &record.executor_type,
-        );
+        let detail =
+            crate::usage_record::ensure_breakdown(record.detail.clone(), &record.provider, &record.executor_type);
         let breakdown = detail.breakdown;
         Self::fold(&self.model, &self.dropped, &record.model, record, &detail, breakdown);
-        Self::fold(&self.provider, &self.dropped, &record.provider, record, &detail, breakdown);
-        Self::fold(&self.auth_index, &self.dropped, &record.auth_index, record, &detail, breakdown);
+        Self::fold(
+            &self.provider,
+            &self.dropped,
+            &record.provider,
+            record,
+            &detail,
+            breakdown,
+        );
+        Self::fold(
+            &self.auth_index,
+            &self.dropped,
+            &record.auth_index,
+            record,
+            &detail,
+            breakdown,
+        );
     }
 
     /// A `{group_by, rows, totals, dropped}` object for one dimension. `rows` is sorted
@@ -449,7 +460,14 @@ mod tests {
     #[test]
     fn empty_key_is_skipped() {
         let stats = UsageStats::default();
-        stats.record(&record("", "claude", "", "2026-01-01T00:00:00Z", false, detail(5, 5, 0, 0, 0, 10)));
+        stats.record(&record(
+            "",
+            "claude",
+            "",
+            "2026-01-01T00:00:00Z",
+            false,
+            detail(5, 5, 0, 0, 0, 10),
+        ));
         assert_eq!(stats.snapshot(Dim::Model)["rows"].as_array().unwrap().len(), 0);
         assert_eq!(stats.snapshot(Dim::AuthIndex)["rows"].as_array().unwrap().len(), 0);
         // The provider key is non-empty, so only that dimension keeps the row.
@@ -476,7 +494,10 @@ mod tests {
         assert_eq!(snap["totals"]["total_tokens"].as_i64().unwrap(), sum("total_tokens"));
         assert_eq!(snap["totals"]["input_tokens"].as_i64().unwrap(), sum("input_tokens"));
         assert_eq!(snap["totals"]["output_tokens"].as_i64().unwrap(), sum("output_tokens"));
-        assert_eq!(snap["totals"]["unclassified_tokens"].as_i64().unwrap(), sum("unclassified_tokens"));
+        assert_eq!(
+            snap["totals"]["unclassified_tokens"].as_i64().unwrap(),
+            sum("unclassified_tokens")
+        );
         let requests: i64 = rows.iter().map(|r| r["requests"].as_i64().unwrap()).sum();
         assert_eq!(snap["totals"]["requests"].as_i64().unwrap(), requests);
         let failed: i64 = rows.iter().map(|r| r["failed"].as_i64().unwrap()).sum();
@@ -487,7 +508,14 @@ mod tests {
     fn providers_set_is_bounded() {
         let stats = UsageStats::default();
         for i in 0..100usize {
-            stats.record(&record("m", &format!("p{i}"), "a", &ts(i), false, detail(0, 0, 0, 0, 0, 0)));
+            stats.record(&record(
+                "m",
+                &format!("p{i}"),
+                "a",
+                &ts(i),
+                false,
+                detail(0, 0, 0, 0, 0, 0),
+            ));
         }
         let snap = stats.snapshot(Dim::Model);
         let rows = snap["rows"].as_array().unwrap();
@@ -499,7 +527,14 @@ mod tests {
     #[test]
     fn snapshot_has_no_sensitive_fields() {
         let stats = UsageStats::default();
-        stats.record(&record("m1", "claude", "a1", "2026-01-01T00:00:00Z", false, detail(1, 1, 0, 0, 0, 2)));
+        stats.record(&record(
+            "m1",
+            "claude",
+            "a1",
+            "2026-01-01T00:00:00Z",
+            false,
+            detail(1, 1, 0, 0, 0, 2),
+        ));
         let s = stats.snapshot(Dim::Model).to_string();
         for needle in ["api_key", "client_ip", "user_agent", "x_forwarded_for", "session_id"] {
             assert!(!s.contains(needle), "snapshot leaked {needle}: {s}");
