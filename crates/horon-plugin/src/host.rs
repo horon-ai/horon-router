@@ -394,6 +394,16 @@ impl Host {
                 return;
             }
         };
+        // The startup sequence applies the same config three times (the bootstrap that
+        // registers command-line flags, then the loaded config, then the server's sync).
+        // Once the host already reflects a config, re-applying it would rediscover and
+        // re-register the same plugins, so it stops here. The first apply always runs
+        // (there is nothing to converge on yet), and the command-line flags it registers
+        // are left in place.
+        if self.config_already_converged(&cfg, &rc) {
+            tracing::debug!("pluginhost: config unchanged, skipping plugin re-application");
+            return;
+        }
         self.state().config = Some(cfg.clone());
         if !rc.enabled {
             self.deactivate_all();
@@ -534,6 +544,49 @@ impl Host {
         if cleanup && let Err(e) = platform::cleanup_unselected(&rc.dir, &loaded_files) {
             tracing::warn!("pluginhost: failed to clean old plugin files: {e}");
         }
+    }
+
+    /// Whether the host already reflects `cfg`, so re-applying it would rediscover and
+    /// re-register the same plugins and change nothing. True only when the last applied
+    /// config equals `cfg`, every enabled plugin file the config selects is active at the
+    /// same path and version, and no other plugin is active. A plugin that loaded without
+    /// registering (or was unloaded) is not active, so it keeps the apply from being
+    /// skipped and is retried on the next apply. The files are re-listed, so a plugin
+    /// added, removed or replaced on disk while the config text stays the same still
+    /// re-applies.
+    fn config_already_converged(&self, cfg: &Arc<Config>, rc: &config::RuntimeConfig) -> bool {
+        {
+            let state = self.state();
+            match state.config.as_ref() {
+                Some(prev) if prev.as_ref() == cfg.as_ref() => {}
+                _ => return false,
+            }
+        }
+        if !rc.enabled {
+            // A disabled section keeps libraries loaded but activates nothing, so a
+            // repeat is redundant once the snapshot is already empty.
+            return self.snapshot().records.is_empty();
+        }
+        let desired = config::desired_versions(&rc.items);
+        let files = match platform::discover(&rc.dir, &desired) {
+            Ok(files) => self.with_loaded_fallbacks(files, &rc.items, &desired),
+            Err(_) => return false,
+        };
+        let enabled: Vec<&PluginFile> = files
+            .iter()
+            .filter(|f| rc.items.get(&f.id).is_some_and(|i| i.enabled))
+            .collect();
+        let state = self.state();
+        // Exactly the enabled files must be active (same path and version), no more and
+        // no fewer: an extra active record means something else changed, and a missing
+        // one means a plugin is loaded but unregistered and must be retried.
+        state.active_paths.len() == enabled.len()
+            && enabled.iter().all(|f| {
+                let id = f.id.trim();
+                let path = clean_path(&f.path);
+                state.active_paths.get(id) == Some(&path)
+                    && state.active_versions.get(id).map(String::as_str) == Some(f.version.trim())
+            })
     }
 
     fn deactivate_all(&self) {
@@ -1031,6 +1084,110 @@ mod tests {
             loader.opens.load(Ordering::SeqCst),
             1,
             "the abandoned load was reused, not repeated"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// Counts register/reconfigure calls; `valid` false makes a plugin load without
+    /// registering (no capabilities), so it stays loaded but unregistered.
+    struct CountingClient {
+        registers: Arc<AtomicUsize>,
+        valid: bool,
+    }
+
+    impl PluginClient for CountingClient {
+        fn call(&self, method: &str, _: &[u8]) -> Result<Bytes, String> {
+            if matches!(method, method::PLUGIN_REGISTER | method::PLUGIN_RECONFIGURE) {
+                self.registers.fetch_add(1, Ordering::SeqCst);
+                let caps = if self.valid { r#""usage_plugin":true"# } else { "" };
+                return Ok(Bytes::from(format!(
+                    r#"{{"ok":true,"result":{{"schema_version":6,"metadata":{{"Name":"n","Version":"1","Author":"a","GitHubRepository":"r"}},"capabilities":{{{caps}}}}}}}"#
+                )));
+            }
+            Ok(Bytes::from_static(br#"{"ok":true,"result":{}}"#))
+        }
+        fn shutdown(&self) {}
+    }
+
+    struct CountingLoader {
+        registers: Arc<AtomicUsize>,
+        valid: bool,
+    }
+
+    impl Loader for CountingLoader {
+        fn open(
+            &self,
+            _: &PluginFile,
+            _: Arc<dyn CallbackHandler>,
+            _: Arc<CallbackInstance>,
+        ) -> Result<Arc<dyn PluginClient>, String> {
+            Ok(Arc::new(CountingClient {
+                registers: self.registers.clone(),
+                valid: self.valid,
+            }))
+        }
+    }
+
+    fn plugin_dir(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("horon-plugin-reapply-{name}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join(format!("p{}", platform::extension(platform::goos()))), b"").unwrap();
+        dir
+    }
+
+    fn plugin_yaml(dir: &Path, priority: i64) -> String {
+        format!(
+            "plugins:\n  enabled: true\n  dir: {}\n  configs:\n    p:\n      enabled: true\n      priority: {priority}\n",
+            dir.display()
+        )
+    }
+
+    /// The startup sequence applies the same config three times; only the first
+    /// registers, and a real config change re-registers.
+    #[tokio::test]
+    async fn unchanged_config_is_not_reapplied() {
+        let dir = plugin_dir("unchanged");
+        let registers = Arc::new(AtomicUsize::new(0));
+        let host = Host::with_loader(Arc::new(CountingLoader {
+            registers: registers.clone(),
+            valid: true,
+        }));
+        let cfg = Arc::new(Config::parse(&plugin_yaml(&dir, 0)).unwrap());
+        host.apply_config(cfg.clone()).await;
+        assert_eq!(registers.load(Ordering::SeqCst), 1, "first apply registers once");
+        host.apply_config(cfg.clone()).await;
+        host.apply_config(cfg.clone()).await;
+        assert_eq!(
+            registers.load(Ordering::SeqCst),
+            1,
+            "an unchanged config must not rediscover or re-register"
+        );
+        assert!(host.plugin_registered("p"));
+        host.apply_config(Arc::new(Config::parse(&plugin_yaml(&dir, 3)).unwrap()))
+            .await;
+        assert_eq!(registers.load(Ordering::SeqCst), 2, "a changed config re-registers");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// A plugin that loads but does not register must retry on the next apply, so the
+    /// same config is not skipped while it is unregistered.
+    #[tokio::test]
+    async fn loaded_but_unregistered_plugin_retries() {
+        let dir = plugin_dir("retry");
+        let registers = Arc::new(AtomicUsize::new(0));
+        let host = Host::with_loader(Arc::new(CountingLoader {
+            registers: registers.clone(),
+            valid: false,
+        }));
+        let cfg = Arc::new(Config::parse(&plugin_yaml(&dir, 0)).unwrap());
+        host.apply_config(cfg.clone()).await;
+        host.apply_config(cfg.clone()).await;
+        assert!(!host.plugin_registered("p"));
+        assert_eq!(
+            registers.load(Ordering::SeqCst),
+            2,
+            "an unregistered plugin must be retried, not skipped"
         );
         let _ = std::fs::remove_dir_all(&dir);
     }
