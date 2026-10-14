@@ -13,10 +13,21 @@ use horon_core::format::Format;
 
 /// Go `usage.TokenAccountingQuality`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Quality {
+pub enum Quality {
     Complete,
     Inconsistent,
     Unclassified,
+}
+
+impl Quality {
+    /// Wire label used for the queued `token_breakdown.quality` field.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Quality::Complete => "complete",
+            Quality::Inconsistent => "inconsistent",
+            Quality::Unclassified => "unclassified",
+        }
+    }
 }
 
 /// Go `usage.TokenBreakdown` (schema version 2), always valid when present.
@@ -29,6 +40,13 @@ pub struct Breakdown {
     /// total, non-reasoning, reasoning.
     output: [i64; 3],
     unclassified: i64,
+}
+
+impl Breakdown {
+    /// Accounting quality of this breakdown.
+    pub fn quality(&self) -> Quality { self.quality }
+    /// Tokens the breakdown could not attribute to input or output.
+    pub fn unclassified_tokens(&self) -> i64 { self.unclassified }
 }
 
 /// Go `usage.Detail`. `breakdown: None` is Go's zero (invalid) breakdown.
@@ -1406,14 +1424,7 @@ pub fn queued(record: &Record, client: &Client) -> Vec<u8> {
     w.int("accounting_version", 2);
     w.object("token_breakdown", |t| {
         t.int("schema_version", 2);
-        t.str(
-            "quality",
-            match b.quality {
-                Quality::Complete => "complete",
-                Quality::Inconsistent => "inconsistent",
-                Quality::Unclassified => "unclassified",
-            },
-        );
+        t.str("quality", b.quality().as_str());
         t.int("total_tokens", b.total);
         t.object("input", |i| {
             i.int("total_tokens", b.input[0]);
@@ -1426,7 +1437,7 @@ pub fn queued(record: &Record, client: &Client) -> Vec<u8> {
             o.int("non_reasoning_tokens", b.output[1]);
             o.int("reasoning_tokens", b.output[2]);
         });
-        t.int("unclassified_tokens", b.unclassified);
+        t.int("unclassified_tokens", b.unclassified_tokens());
     });
     w.str("provider", &provider);
     w.str("executor_type", &executor_type);
