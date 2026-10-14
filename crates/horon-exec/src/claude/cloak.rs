@@ -508,11 +508,7 @@ pub(crate) fn upgrade_ttl(body: &str, ttl: &str, valid: bool, blocks: &mut signa
             }
             _ => continue,
         };
-        let mut upgraded = format!(
-            r#"{{"type":{},"ttl":{}"#,
-            js_string(&cc_type),
-            js_string(ttl)
-        );
+        let mut upgraded = format!(r#"{{"type":{},"ttl":{}"#, js_string(&cc_type), js_string(ttl));
         if let Some(scope) = &scope {
             upgraded.push_str(&format!(r#","scope":{scope}"#));
         }
@@ -581,13 +577,7 @@ pub(crate) fn enforce_cache_limit(body: &str, max: usize, valid: bool, blocks: &
     }
     let mut excess = total - max;
     let mut body = body.to_owned();
-    fn remove(
-        body: &mut String,
-        blocks: &mut signals::Blocks,
-        section: &str,
-        keep_last: bool,
-        excess: &mut usize,
-    ) {
+    fn remove(body: &mut String, blocks: &mut signals::Blocks, section: &str, keep_last: bool, excess: &mut usize) {
         let items = gjson::get(body, section).array().len();
         let marked: Vec<usize> = (0..items)
             .filter(|i| has_cache_control(body, &format!("{section}.{i}")))

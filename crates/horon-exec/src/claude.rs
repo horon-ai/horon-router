@@ -1317,9 +1317,8 @@ impl<'a> Ctx<'a> {
         }
         body = cloak::enforce_cache_limit(&body, 4, body_valid, &mut blocks);
         let subagent = signals::subagent(&req.headers, &body);
-        let subagent_1h = subagent
-            && ((body_valid && blocks.has_1h())
-                || signals::requests_extended_cache_ttl(&req.headers));
+        let subagent_1h =
+            subagent && ((body_valid && blocks.has_1h()) || signals::requests_extended_cache_ttl(&req.headers));
         if cpa_owns_cache && self.cli_profile && (!subagent || subagent_1h) && !probe {
             body = cloak::upgrade_ttl(&body, "1h", body_valid, &mut blocks);
         } else if probe || (subagent && !subagent_1h) {
