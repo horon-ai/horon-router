@@ -194,6 +194,16 @@ fn conversation(target: usize) -> Bytes {
     Bytes::from(serde_json::to_vec(&body).unwrap())
 }
 
+/// The Claude conversation with its `model` set to `kimi-k2`, the id only the Kimi
+/// credential registers, so the request routes to the Kimi executor's Claude-delegated
+/// path. Built and re-serialized before counting starts, so it does not affect the
+/// measured allocations.
+fn kimi_conversation(target: usize) -> Bytes {
+    let mut body: serde_json::Value = serde_json::from_slice(&conversation(target)).unwrap();
+    body["model"] = serde_json::json!("kimi-k2");
+    Bytes::from(serde_json::to_vec(&body).unwrap())
+}
+
 /// The same conversation for Codex, in the Responses format: 18 KB of instructions, 24
 /// function tools, then reasoning items with encrypted content, function calls and
 /// their large outputs.
@@ -323,6 +333,16 @@ async fn large_requests_stay_within_their_heap_budget() {
         r#"{"type":"claude","access_token":"tok-A","email":"a@example.com"}"#,
     )
     .unwrap();
+    // Kimi (a device-login provider) on its Claude-delegated path: a static token and a
+    // base-url pointed at the fake upstream, so no device identity or token refresh runs
+    // (an absent refresh token keeps the credential `Ready`). The body's model
+    // `kimi-k2` is one only this credential registers, so the request routes here and
+    // nowhere else.
+    std::fs::write(
+        dir.join("kimi.json"),
+        format!(r#"{{"type":"kimi","access_token":"tok-kimi","base_url":"{upstream_url}"}}"#),
+    )
+    .unwrap();
     let mut config = Config::parse(&format!(
         r#"codex-api-key:
   - api-key: sk-FAKE-codex
@@ -364,13 +384,13 @@ api-keys:
     horon_server::install_registry(&rt);
     let app = horon_server::router(rt);
 
-    // `route` is "claude" (`/v1/messages`), "count" (`/v1/messages/count_tokens`) or
-    // "codex" (`/v1/responses`).
+    // `route` is "claude"/"kimi" (`/v1/messages`), "count" (`/v1/messages/count_tokens`),
+    // "compat" (`/v1/chat/completions`) or "codex"/"xai" (`/v1/responses`).
     let send = |route: &'static str, body: Bytes| {
         let app = app.clone();
         async move {
             let (path, done): (_, &[u8]) = match route {
-                "claude" => ("/v1/messages", b"message_stop"),
+                "claude" | "kimi" => ("/v1/messages", b"message_stop"),
                 "count" => ("/v1/messages/count_tokens", b"\"input_tokens\""),
                 "compat" => ("/v1/chat/completions", b"[DONE]"),
                 _ => ("/v1/responses", b"response.completed"),
@@ -417,11 +437,15 @@ api-keys:
         ("compat", "compat.306k", 306_000),
         ("compat", "compat.1000k", 1_000_000),
         ("compat", "compat.1900k", 1_900_000),
+        ("kimi", "kimi.306k", 306_000),
+        ("kimi", "kimi.1000k", 1_000_000),
+        ("kimi", "kimi.1900k", 1_900_000),
     ] {
         let body = match route {
             "codex" => responses_conversation(target, "gpt-5.5"),
             "xai" => responses_conversation(target, "grok-4.7"),
             "compat" => chat_conversation(target, "fast"),
+            "kimi" => kimi_conversation(target),
             _ => conversation(target),
         };
         // Warm-up: connection pool, registries and lazy statics.
