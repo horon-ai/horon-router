@@ -262,8 +262,7 @@ impl Blocks {
     /// `ClaudePayloadHas1hTTL`'s per-block test, answered from the index.
     pub(crate) fn has_1h(&self) -> bool {
         self.items.iter().any(|b| {
-            b.cc
-                .as_ref()
+            b.cc.as_ref()
                 .is_some_and(|c| c.is_object && c.ttl_str.as_deref() == Some("1h"))
         })
     }
