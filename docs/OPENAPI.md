@@ -44,7 +44,7 @@ horon-router 서버는 자기가 아는 HTTP 경로를 OpenAPI 3.1 명세로 내
 
 명세에 넣지 않는 것도 분명히 합니다.
 
-- 런타임에 플러그인이 등록하는 동적 HTTP 경로는 발명하지 않고 넣지 않습니다.
+- 플러그인 지원은 제거되었습니다. 그래서 런타임에 플러그인이 등록하던 동적 HTTP 경로는 명세에 넣지 않습니다.
 - WebSocket 메시지 본문과 RESP 프로토콜은 OpenAPI가 표현하는 HTTP 계약이 아니라서 넣지 않습니다.
 - 정적 관리 패널 자산(`/ui`, `/management.html`, `/assets/*`, `/fonts/*`, `/favicon.svg`)은 파일이지 API 연산이 아니라서 경로로 넣지 않고 설명에만 적습니다.
 - 문서 화면 자신의 경로(`/docs`, `/openapi.json`, `/docs/assets/scalar.js`)도 명세에 넣지 않습니다. `docs.rs`가 밝히듯, 정적 패널 경로와 같은 방식으로 제외합니다.
