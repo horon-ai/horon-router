@@ -7,18 +7,25 @@
 //! credential's declarative `quota_probe`, the command-code endpoint, and the reset
 //! answers. The last consumer of the plugin host lived in the deleted plugin test, so
 //! this file keeps the general behavior covered with a local mock upstream.
+//!
+//! The deleted plugin quota test also asserted that a successful reset clears the
+//! credential's routing cooldowns and persists the cleared state; that contract belongs
+//! to the ordinary `POST /v0/management/reset-quota` now and is checked against a real
+//! cooldown backend below.
 
 #![cfg(unix)]
 
 use std::collections::BTreeMap;
 use std::net::SocketAddr;
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, SystemTime};
 
 use axum::extract::ConnectInfo;
 use horon_core::config::Config;
 use horon_exec::Executors;
 use horon_exec::claude::ClaudeExecutor;
+use horon_server::cooldown_store::{Backend, Quota, Record};
 use horon_server::management::{self, Management, Options};
 use serde_json::Value;
 
@@ -245,24 +252,113 @@ async fn credential_quota_routes_match_the_recorded_go_answers() {
     );
 }
 
-/// The reset handler answers an empty provider registry: 501 for a credential-level
-/// request (the recorded Go answer) and 404 for one that names a plugin.
+/// One credential's routing cooldown, seeded through the ordinary cooldown backend, with
+/// every save kept (the deleted plugin quota test's `FakeBackend`).
+#[derive(Default)]
+struct FakeBackend {
+    saves: Mutex<Vec<Vec<Record>>>,
+}
+
+impl Backend for FakeBackend {
+    fn load(&self) -> Result<Vec<Record>, String> {
+        Ok(vec![Record {
+            provider: "claude".into(),
+            auth_id: "claude.json".into(),
+            status: "error".into(),
+            next_retry_after: Some(SystemTime::now() + Duration::from_secs(3600)),
+            reason: "quota".into(),
+            quota: Quota {
+                exceeded: true,
+                ..Default::default()
+            },
+            ..Default::default()
+        }])
+    }
+
+    fn save(&self, records: Vec<Record>, _now: SystemTime) -> Result<(), String> {
+        self.saves.lock().unwrap().push(records);
+        Ok(())
+    }
+}
+
+/// The ordinary credential quota reset clears the credential's routing cooldowns and
+/// persists the cleared state to the configured backend, as Go's `Manager.ResetQuota`
+/// does through `persistCooldownStates`. Without that save a restart would restore the
+/// cooldown from the backend. The plugin-specific reset endpoint is gone; it answers 501
+/// and 404 like an empty provider registry in the fixture replay above.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn quota_reset_without_providers_keeps_the_recorded_answers() {
-    let f = fixture();
-    let steps: Vec<&Value> = f["steps"]
-        .as_array()
-        .unwrap()
+async fn ordinary_quota_reset_clears_and_persists_the_cooldown() {
+    let work = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!(
+        "quota-reset-{}-{}",
+        std::process::id(),
+        SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    let _ = std::fs::remove_dir_all(&work);
+    let auths_dir = work.join("auths");
+    std::fs::create_dir_all(&auths_dir).unwrap();
+    use std::os::unix::fs::PermissionsExt as _;
+    let credential_path = auths_dir.join("claude.json");
+    std::fs::write(
+        &credential_path,
+        r#"{"type":"claude","email":"a@example.invalid","access_token":"fake-access"}"#,
+    )
+    .unwrap();
+    std::fs::set_permissions(&credential_path, std::fs::Permissions::from_mode(0o600)).unwrap();
+
+    let hash = bcrypt::hash("fake-secret", 4).unwrap();
+    let config_path = work.join("config.yaml");
+    std::fs::write(
+        &config_path,
+        format!(
+            "config-version: 8\nauth-dir: {}\naccess:\n  api-keys: [client-key]\nrouting:\n  cooldown:\n    save-cooldown-status: true\nmanagement:\n  secret-key: {hash}\n",
+            auths_dir.display()
+        ),
+    )
+    .unwrap();
+    let config = Config::load(&config_path).unwrap();
+    let credentials = horon_core::config::credentials::load(&config);
+    let credential = credentials
         .iter()
-        .filter(|s| s["path"].as_str().unwrap().contains("/quota/reset"))
-        .collect();
-    assert_eq!(steps.len(), 2, "the extraction kept both reset cases");
-    let statuses: Vec<u64> = steps.iter().map(|s| s["result"]["status"].as_u64().unwrap()).collect();
-    assert_eq!(statuses, [501, 404], "credential 501, plugin-named 404");
-    let bodies: Vec<&str> = steps.iter().map(|s| s["result"]["body"].as_str().unwrap()).collect();
-    assert_eq!(
-        bodies[0],
-        r#"{"error":"no quota provider available for credential to reset"}"#
+        .find(|c| c.id == "claude.json")
+        .expect("the fixture credential loaded")
+        .clone();
+    let index = horon_core::config::credentials::auth_index(&credential);
+
+    let rt = Arc::new(horon_server::testing::runtime(config, credentials, executors()));
+    let backend = Arc::new(FakeBackend::default());
+    rt.set_cooldown_backend(backend.clone());
+    assert!(
+        !rt.store().cooldowns("claude.json").is_empty(),
+        "the backend's cooldown was restored"
     );
-    assert_eq!(bodies[1], r#"{"error":"quota provider not found for plugin"}"#);
+    let saves_before = backend.saves.lock().unwrap().len();
+
+    let state = Management::with_options(rt.clone(), config_path, Options::default());
+    let base = serve(rt.clone(), state).await;
+    let res = wreq::Client::new()
+        .post(format!("{base}/v0/management/reset-quota"))
+        .header("Authorization", "Bearer fake-secret")
+        .body(format!(r#"{{"auth_index":"{index}"}}"#))
+        .send()
+        .await
+        .unwrap();
+    let status = res.status().as_u16();
+    let body = res.text().await.unwrap();
+    assert_eq!(status, 200, "{body}");
+    assert!(
+        rt.store().cooldowns("claude.json").is_empty(),
+        "the reset cleared the cooldown"
+    );
+    {
+        let saves = backend.saves.lock().unwrap();
+        assert!(saves.len() > saves_before, "the cleared state was saved to the backend");
+        assert!(
+            saves.last().unwrap().iter().all(|r| r.auth_id != "claude.json"),
+            "the last save no longer holds the credential's cooldown"
+        );
+    }
+    let _ = std::fs::remove_dir_all(&work);
 }
