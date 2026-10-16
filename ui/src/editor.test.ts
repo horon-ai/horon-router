@@ -20,7 +20,7 @@ test("editor rereads and does not PUT a stale draft", async () => {
   connect("test-key", { unauthorized() {}, missing() {}, meta() {} });
   try {
     // When the reviewed draft is applied.
-    await assert.rejects(saveEditor("/config/plugins/configs/example", { server: "old" }, { draft: true }, false, () => true),
+    await assert.rejects(saveEditor("/config/requests/payload/example", { server: "old" }, { draft: true }, false, () => true),
       /server copy changed/i);
     // Then rereading took place and PUT was skipped.
     assert.deepEqual(methods, ["GET"]);

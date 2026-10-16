@@ -59,7 +59,7 @@ try {
 
   await go("#use");
   assert.equal(await page.evaluate(() => location.hash), "#/keys", "legacy #use redirects to client keys");
-  const pages = ["overview", "credentials", "connect", "providers", "keys", "models", "payload", "quotas", "usage", "logs", "config", "plugins", "system"];
+  const pages = ["overview", "credentials", "connect", "providers", "keys", "models", "payload", "quotas", "usage", "logs", "config", "system"];
   for (const theme of ["light", "dark"]) {
     if ((await page.evaluate(() => document.documentElement.dataset.theme)) !== theme)
       await page.locator('[aria-label^="Use "]').first().click();
