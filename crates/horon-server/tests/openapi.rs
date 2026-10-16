@@ -84,7 +84,7 @@ const GENERAL_INVENTORY: &[(&str, &[&str])] = &[
 ];
 
 /// `(path template, registered methods)` for the management API: the fixed v8 tree, the
-/// deprecated v0 tree, the loop-generated credentials/auth-files pairs and plugin routes,
+/// deprecated v0 tree, the loop-generated credentials/auth-files pairs,
 /// and the legacy field/list/auth-url arrays in `src/management/legacy.rs`. The
 /// `/v8/management/config/{*path}` wildcard is written as the document spells it.
 const MANAGEMENT_INVENTORY: &[(&str, &[&str])] = &[
@@ -117,12 +117,6 @@ const MANAGEMENT_INVENTORY: &[(&str, &[&str])] = &[
     ("/v8/management/credentials/fields", &["patch"]),
     ("/v8/management/credentials/refresh", &["post"]),
     ("/v8/management/routing/model-definitions/{channel}", &["get"]),
-    // v8 plugin and plugin-store routes.
-    ("/v8/management/plugins", &["get"]),
-    ("/v8/management/plugins/{id}", &["delete"]),
-    ("/v8/management/plugins/store", &["get", "delete"]),
-    ("/v8/management/plugins/store/{id}/install", &["post"]),
-    ("/v8/management/plugins/{id}/quota", &["get", "post", "delete"]),
     // v0 fixed tree (the deprecated spellings).
     ("/v0/management/config.yaml", &["get", "put"]),
     ("/v0/management/config", &["get"]),
@@ -135,7 +129,6 @@ const MANAGEMENT_INVENTORY: &[(&str, &[&str])] = &[
     ("/v0/management/get-auth-status", &["get"]),
     ("/v0/management/oauth-session", &["delete"]),
     ("/v0/management/oauth-callback", &["get", "post"]),
-    ("/v0/management/quota/providers", &["get"]),
     ("/v0/management/quota/fetch", &["post"]),
     ("/v0/management/quota/reset", &["post"]),
     ("/v0/management/vertex/import", &["post"]),
@@ -150,14 +143,6 @@ const MANAGEMENT_INVENTORY: &[(&str, &[&str])] = &[
     ("/v0/management/auth-files/fields", &["patch"]),
     ("/v0/management/auth-files/refresh", &["post"]),
     ("/v0/management/model-definitions/{channel}", &["get"]),
-    ("/v0/management/plugins", &["get"]),
-    ("/v0/management/plugins/{id}", &["delete"]),
-    ("/v0/management/plugins/{id}/quota", &["get", "post", "delete"]),
-    ("/v0/management/plugins/{id}/quota/reset", &["post"]),
-    ("/v0/management/plugins/{id}/enabled", &["patch"]),
-    ("/v0/management/plugins/{id}/config", &["get", "put", "patch"]),
-    ("/v0/management/plugin-store", &["get"]),
-    ("/v0/management/plugin-store/{id}/install", &["post"]),
     ("/v0/management/api-keys", &["get", "put", "patch", "delete"]),
     // `legacy::FIELD_ROUTES` (15): get/put/patch, plus DELETE for `proxy-url` only.
     ("/v0/management/debug", &["get", "put", "patch"]),
@@ -214,9 +199,8 @@ const MANAGEMENT_INVENTORY: &[(&str, &[&str])] = &[
 ];
 
 /// Routes that are registered but deliberately left out of the document, with the reason.
-/// The documents surface serves the document it would otherwise describe, the control
-/// panel paths are static assets rather than API operations, and dynamic plugin routes
-/// are only known once a plugin registers them.
+/// The documents surface serves the document it would otherwise describe, and the control
+/// panel paths are static assets rather than API operations.
 const EXCLUDED_FROM_SPEC: &[(&str, &str)] = &[
     ("/docs", "the reference page itself (openapi/docs.rs)"),
     ("/openapi.json", "the document itself"),
@@ -790,15 +774,15 @@ fn management_inventory_matches_the_document() {
 
     let spec = spec_inventory(&document, is_management);
     let ops: usize = MANAGEMENT_INVENTORY.iter().map(|(_, m)| m.len()).sum();
-    assert_eq!(spec.len(), 101, "expected 101 management paths");
-    assert_eq!(ops, 193, "expected 193 management operations");
+    assert_eq!(spec.len(), 87, "expected 87 management paths");
+    assert_eq!(ops, 172, "expected 172 management operations");
     let total = spec_inventory(&document, |_| true).len();
-    assert_eq!(total, 147, "the two surfaces together must be exactly 147 paths");
+    assert_eq!(total, 133, "the two surfaces together must be exactly 133 paths");
 }
 
-/// The docs surface, the static control-panel assets and the dynamic plugin routes are
-/// registered but must not be described as API operations. The docs routes are served,
-/// which proves the exclusion is deliberate rather than a missing registration.
+/// The docs surface and the static control-panel assets are registered but must not be
+/// described as API operations. The docs routes are served, which proves the exclusion
+/// is deliberate rather than a missing registration.
 #[tokio::test]
 async fn excluded_surfaces_are_served_but_absent_from_the_document() {
     let document = horon_server::openapi::document();
@@ -815,8 +799,8 @@ async fn excluded_surfaces_are_served_but_absent_from_the_document() {
             "{path} is a static control-panel asset, not an API operation"
         );
         assert!(
-            !path.starts_with("/v0/resource/") && !path.contains("/resource/plugins"),
-            "{path} is a dynamic plugin route, which the document does not describe"
+            !path.starts_with("/v0/resource/"),
+            "{path} is a plugin resource route, which no longer exists"
         );
     }
 

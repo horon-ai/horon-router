@@ -590,7 +590,6 @@ mod routes {
                     "Access-Control-Allow-Methods",
                     "Access-Control-Allow-Headers",
                     "Access-Control-Expose-Headers",
-                    "X-CPA-SUPPORT-PLUGIN",
                     "X-CPA-COMMIT",
                     "X-CPA-BUILD-DATE",
                 ] {
@@ -598,6 +597,10 @@ mod routes {
                         headers.insert(name.into(), v.to_str().unwrap().into());
                     }
                 }
+                assert!(
+                    !res.headers().contains_key("x-cpa-support-plugin"),
+                    "{name}[{i}]: native plugin support is removed"
+                );
                 if res.headers().contains_key("x-cpa-version") {
                     headers.insert("X-CPA-VERSION".into(), "present".into());
                 }
@@ -607,12 +610,10 @@ mod routes {
                 if status != 200 {
                     assert_eq!(body, step["resp_body"].as_str().unwrap(), "{name}[{i}]");
                 }
-                let mut want = step["resp_headers"].as_object().unwrap().clone();
-                // The goldens come from Go's cgo build, which loads native plugins; this
-                // binary does too, except on Windows.
-                if want.contains_key("X-CPA-SUPPORT-PLUGIN") {
-                    want.insert("X-CPA-SUPPORT-PLUGIN".into(), horon_plugin::SUPPORT_PLUGIN.into());
-                }
+                // The recorded Go headers still carry X-CPA-SUPPORT-PLUGIN; the fixture
+                // drops it, because this server removed native plugin support (plan task
+                // 2) and the absence check above pins that.
+                let want = step["resp_headers"].as_object().unwrap().clone();
                 assert_eq!(Value::Object(headers), Value::Object(want), "{name}[{i}] headers");
                 compared += 1;
             }
