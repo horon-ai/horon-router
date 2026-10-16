@@ -1706,6 +1706,27 @@ mod tests {
             .collect()
     }
 
+    /// Waits for a request log's finalization (the spawned write task that drops the
+    /// record and removes its spool files). Uses the sink's own completion signal the
+    /// way `RequestLog::finish` does: subscribe (`notified` + `enable`) before reading
+    /// the flag, so a notification arriving between the two cannot be missed. The
+    /// bounded timeout fails the test instead of hanging; it does not poll.
+    async fn wait_finalized(log: &RequestLog) {
+        tokio::time::timeout(std::time::Duration::from_secs(10), async {
+            loop {
+                let notified = log.1.notify.notified();
+                tokio::pin!(notified);
+                notified.as_mut().enable();
+                if log.1.done.load(Ordering::Acquire) {
+                    break;
+                }
+                notified.await;
+            }
+        })
+        .await
+        .expect("request log never finalized");
+    }
+
     #[tokio::test]
     async fn upstream_contract_matches_real_go() {
         use horon_core::exec::{CaptureEvent::*, UpstreamRequest};
@@ -2610,14 +2631,10 @@ mod tests {
         axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
         // A section's spool file is removed when the record that owns it is dropped,
         // inside the spawned write task, which is ordered after the log file is
-        // complete but not after it appears. Wait for that finalization (the other
-        // tests' `log.1.done`) before reading the directory, so the spool-absence
-        // check below is ordered after the removal instead of racing it.
-        let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
-        while !log.1.done.load(Ordering::Acquire) {
-            assert!(tokio::time::Instant::now() < deadline, "request log never finalized");
-            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
-        }
+        // complete but not after it appears. Await that finalization before reading
+        // the directory, so the spool-absence check below is ordered after the removal
+        // instead of racing it.
+        wait_finalized(&log).await;
         drop(app);
         drop(state);
         let files = logs(&dir);
@@ -2788,8 +2805,8 @@ mod tests {
     /// Both spools belong to this request's record: they exist while the record is
     /// still owned by the response guard, and they are gone once its finalization
     /// (the spawned write task that drops the record) completes. This pins the
-    /// cleanup ordering the `persisted` helper waits on, instead of reading the
-    /// directory the moment the log file appears.
+    /// ownership and the cleanup-at-finalization ordering; the original failure is
+    /// evidenced by the recorded suite run in `raw-before/`, not by this test.
     #[tokio::test]
     async fn large_upstream_spools_are_owned_and_removed_at_finalization() {
         use horon_core::exec::CaptureEvent::*;
@@ -2833,11 +2850,7 @@ mod tests {
         assert!(logs(&dir).is_empty(), "log not written before finalization");
         assert!(!log.1.done.load(Ordering::Acquire));
         axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
-        let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
-        while !log.1.done.load(Ordering::Acquire) {
-            assert!(tokio::time::Instant::now() < deadline, "request log never finalized");
-            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
-        }
+        wait_finalized(&log).await;
         assert!(spools(&dir).is_empty(), "spools removed at finalization");
         assert_eq!(logs(&dir).len(), 1);
         std::fs::remove_dir_all(dir).unwrap();
