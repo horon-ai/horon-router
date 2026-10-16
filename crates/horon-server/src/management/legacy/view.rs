@@ -497,35 +497,6 @@ fn load_normalize(cfg: &mut Value) {
             );
         }
     }
-    if let Some(p) = c.get_mut("plugins").and_then(Value::as_object_mut) {
-        let dir = plugins_dir(p.get("dir").and_then(Value::as_str).unwrap_or_default());
-        p.insert("dir".into(), dir.into());
-        // Go's live runtime `Config` keeps the section it loaded; the v0 view is a
-        // byte-replay of that view, so the normalizer runs here exactly as at 6fecc6e.
-        // PluginInstanceConfig.UnmarshalYAML starts `enabled` as a non-nil false;
-        // NormalizePluginsConfig makes a nil map empty.
-        let configs = p.entry("configs").or_insert(Value::Null);
-        if configs.is_null() {
-            *configs = Value::Object(Map::new());
-        }
-        for entry in configs.as_object_mut().into_iter().flat_map(|m| m.values_mut()) {
-            if !entry.is_object() {
-                *entry = Value::Object(Map::new());
-            }
-            let o = entry.as_object_mut().expect("object");
-            let priority = o.shift_remove("priority");
-            let enabled = match o.shift_remove("enabled") {
-                Some(Value::Bool(b)) => b,
-                Some(Value::String(s)) => horon_core::config::go_bool(&s).unwrap_or(false),
-                _ => false,
-            };
-            o.insert("enabled".into(), enabled.into());
-            if let Some(p) = priority {
-                let typed = p.as_i64().or_else(|| p.as_f64().map(|f| f.trunc() as i64));
-                o.insert("priority".into(), typed.map_or(p, Value::from));
-            }
-        }
-    }
     if let Some(payload) = c.get_mut("payload").and_then(Value::as_object_mut) {
         for section in ["default-raw", "override-raw"] {
             if let Some(rules) = payload.get_mut(section).and_then(Value::as_array_mut) {
@@ -589,65 +560,9 @@ fn payload_raw_rule_valid(rule: &Value) -> bool {
     })
 }
 
-/// Go `ResolvePluginsDir`: trimmed, `plugins` when empty, `~` expanded, cleaned. The v0
-/// legacy view replays Go's runtime `Config`, which still carries the plugin section.
-fn plugins_dir(dir: &str) -> String {
-    let dir = super::go_trim(dir);
-    let dir = if dir.is_empty() { "plugins" } else { dir };
-    match dir.strip_prefix('~') {
-        Some(rest) => {
-            let home = std::env::var("HOME").unwrap_or_default();
-            let rest = rest.trim_start_matches(['/', '\\']).replace('\\', "/");
-            if rest.is_empty() {
-                go_clean(&home)
-            } else {
-                go_clean(&format!("{home}/{rest}"))
-            }
-        }
-        None => go_clean(dir),
-    }
-}
-
-/// Go `filepath.Clean` (Unix separators).
-fn go_clean(p: &str) -> String {
-    let rooted = p.starts_with('/');
-    let mut out: Vec<&str> = Vec::new();
-    for part in p.split('/') {
-        match part {
-            "" | "." => {}
-            ".." if out.last().is_some_and(|l| *l != "..") => {
-                out.pop();
-            }
-            ".." if rooted => {}
-            part => out.push(part),
-        }
-    }
-    let joined = out.join("/");
-    match (rooted, joined.is_empty()) {
-        (true, _) => format!("/{joined}"),
-        (false, true) => ".".into(),
-        (false, false) => joined,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn paths_clean_like_go() {
-        for (p, want) in [
-            ("./p", "p"),
-            ("a//b/../c/", "a/c"),
-            ("/../x", "/x"),
-            ("../../y", "../../y"),
-            ("", "."),
-            ("/", "/"),
-        ] {
-            assert_eq!(go_clean(p), want, "{p}");
-        }
-        assert_eq!(plugins_dir("  "), "plugins");
-    }
 
     #[test]
     fn durations_parse_like_go() {
