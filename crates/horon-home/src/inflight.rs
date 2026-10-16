@@ -433,6 +433,24 @@ impl PublisherSettings {
     }
 }
 
+#[cfg(test)]
+tokio::task_local! {
+    /// Test-only observation seam: the exact deadline the real publisher arms for
+    /// `sleep_until` on each cycle, sent as it arms. Tests scope it to the publisher task
+    /// with `TIMER_DEADLINES.scope(tx, run_publisher(..))`, so it is task-local (never a
+    /// global that could race parallel tests) and compiled out of production. It reports
+    /// the publisher's own scheduling decision directly, instead of inferring it from a
+    /// network arrival that the paused clock can reorder.
+    static TIMER_DEADLINES: std::sync::mpsc::Sender<tokio::time::Instant>;
+}
+
+#[cfg(test)]
+fn record_deadline(deadline: tokio::time::Instant) {
+    let _ = TIMER_DEADLINES.try_with(|tx| {
+        let _ = tx.send(deadline);
+    });
+}
+
 /// Go `StartHomeInFlightPublisher`: one snapshot per interval while the heartbeat holds.
 pub async fn run_publisher(
     client: Client,
@@ -442,6 +460,8 @@ pub async fn run_publisher(
 ) {
     let mut next = tokio::time::Instant::now();
     loop {
+        #[cfg(test)]
+        record_deadline(next);
         tokio::select! {
             _ = shutdown.cancelled() => return,
             _ = tokio::time::sleep_until(next) => {}
@@ -661,13 +681,6 @@ mod tests {
             self.arrivals.lock().unwrap().clone()
         }
 
-        /// Runs the runtime to quiescence while the paused clock stays put: a
-        /// `spawn_blocking` wait inhibits the clock's auto-advance, so this can only drain
-        /// work already ready at the current instant and never advances time.
-        async fn drain_frozen_clock(&mut self) {
-            let _ = tokio::task::spawn_blocking(|| std::thread::sleep(Duration::from_millis(50))).await;
-        }
-
         /// Waits for the next snapshot without parking the runtime. A `spawn_blocking`
         /// wait inhibits the paused clock's auto-advance, so the snapshot's recorded
         /// instant is the publisher's exact logical tick. The 5s receive is a safety net.
@@ -698,22 +711,19 @@ mod tests {
         }
     }
 
-    /// Arms a timer for `deadline` and reports when the task registered it (before the
-    /// deadline) and when it actually fired. Awaiting the second receiver proves the timer
-    /// driver processed the timers due at that instant: the task is parked on its timer, so
-    /// it re-runs only when the driver wakes it, never on an idle poll.
-    fn arm_boundary_probe(
-        deadline: tokio::time::Instant,
-    ) -> (tokio::sync::oneshot::Receiver<()>, tokio::sync::oneshot::Receiver<()>) {
-        let (registered_tx, registered_rx) = tokio::sync::oneshot::channel();
-        let (fired_tx, fired_rx) = tokio::sync::oneshot::channel();
-        tokio::spawn(async move {
-            let sleep = tokio::time::sleep_until(deadline);
-            let _ = registered_tx.send(());
-            sleep.await;
-            let _ = fired_tx.send(());
-        });
-        (registered_rx, fired_rx)
+    /// Receives the next deadline the publisher armed for its `sleep_until`. Runs off a
+    /// blocking thread so the paused clock never auto-advances while waiting; the 5s
+    /// receive is a safety net only, never a readiness guess.
+    async fn next_arm(rx: &mut Option<std::sync::mpsc::Receiver<tokio::time::Instant>>) -> tokio::time::Instant {
+        let recv = rx.take().expect("one wait at a time");
+        let (got, recv) = tokio::task::spawn_blocking(move || {
+            let got = recv.recv_timeout(Duration::from_secs(5));
+            (got, recv)
+        })
+        .await
+        .expect("the wait task joins");
+        *rx = Some(recv);
+        got.expect("an armed deadline within 5s")
     }
 
     /// Go `homeInFlightPublisherTestConfig`.
@@ -803,67 +813,72 @@ mod tests {
 
     /// Go `TestHomeInFlightPublisherAppliesConfigUpdateAtNextTimerCycle`: a new interval
     /// takes effect after the pending timer fires, not before. The paused clock moves only
-    /// by explicit `advance`, and each wait runs off a `spawn_blocking` task, which inhibits
-    /// the clock's auto-advance while the real snapshot I/O completes. `advance` alone does
-    /// not run the timer wheel, so the no-early check first awaits a probe armed for the
-    /// frozen instant: the probe firing proves the driver processed every timer already due
-    /// at clock 59ms, which is what makes the check sensitive to an early second cycle.
+    /// by explicit `advance`, and every wait runs off a `spawn_blocking` task, which
+    /// inhibits the clock's auto-advance so the real snapshot I/O completes without the
+    /// clock moving. The oracle reads the publisher's own scheduling decision — the exact
+    /// deadline it arms for `sleep_until`, captured by the task-scoped [`TIMER_DEADLINES`]
+    /// observer — instead of inferring the tick from a network arrival the paused clock can
+    /// reorder. A publisher that skipped the pending 60ms deadline would arm 10ms early; one
+    /// that never re-read the config would keep arming 60ms.
     #[tokio::test(start_paused = true)]
     async fn a_new_interval_applies_at_the_next_timer_cycle() {
         let settings = test_settings(Duration::from_millis(60));
         let mut published = Published::start(true).await;
         let stop = CancellationToken::new();
-        let publisher = tokio::spawn(run_publisher(
-            published.client.clone(),
-            Registry::new(),
-            settings.clone(),
-            stop.clone(),
+        // The observer is scoped to this publisher task only, so parallel tests never share it.
+        let (arm_tx, arm_rx) = std::sync::mpsc::channel();
+        let mut arms = Some(arm_rx);
+        let publisher = tokio::spawn(TIMER_DEADLINES.scope(
+            arm_tx,
+            run_publisher(
+                published.client.clone(),
+                Registry::new(),
+                settings.clone(),
+                stop.clone(),
+            ),
         ));
 
-        // Cycle 1 fires at once and arms its 60ms timer before reading Home's config, so
-        // the pending deadline is fixed no matter when the update below lands.
+        // Cycle 1 fires at once and, before reading Home's config, arms its pending deadline.
+        let first = next_arm(&mut arms).await;
+        let pending = next_arm(&mut arms).await;
+        assert_eq!(
+            pending.duration_since(first),
+            Duration::from_millis(60),
+            "the first cycle arms the configured interval as its pending deadline"
+        );
+
+        // The first frame lands over real TCP at the frozen instant.
         published.next_arrival().await;
-        let t0 = published.arrivals()[0].0;
+        assert_eq!(published.arrivals()[0].1["revision"], 1);
+
+        // Home lowers the interval to 10ms while the 60ms deadline is pending.
         settings.apply(PublisherConfig {
             snapshot_interval: Duration::from_millis(10),
             ..settings.get().unwrap()
         });
 
-        // Short of the pending 60ms deadline. Force the timer driver to run at this frozen
-        // instant: the probe fires only when the driver processed the timers due at clock
-        // 59ms. Then drain the runtime with the clock still frozen, so a publisher that
-        // armed its second cycle at the updated 10ms interval is already due, runs now, and
-        // its frame is recorded. The correct cycle stays parked on its pending deadline.
-        let (registered, fired) = arm_boundary_probe(t0 + Duration::from_millis(59));
-        registered.await.expect("the probe registers before the boundary");
-        tokio::time::advance(Duration::from_millis(59)).await;
-        fired.await.expect("the driver processed the frozen instant");
-        published.drain_frozen_clock().await;
-        assert_eq!(
-            published.arrivals().len(),
-            1,
-            "the hot interval fired before the pending timer"
-        );
-
         // Crossing the pending deadline fires exactly one cycle, which adopts 10ms.
-        tokio::time::advance(Duration::from_millis(1)).await;
+        tokio::time::advance(Duration::from_millis(60)).await;
         published.next_arrival().await;
-        let second = published.arrivals()[1].0;
+        assert_eq!(published.arrivals()[1].1["revision"], 2);
+        let adopted = next_arm(&mut arms).await;
         assert_eq!(
-            second.duration_since(t0),
-            Duration::from_millis(60),
-            "the new interval waited for the pending timer"
+            adopted.duration_since(first),
+            Duration::from_millis(70),
+            "the pending 60ms deadline fired first, then the adopted 10ms interval armed the next deadline"
         );
 
+        // The adopted interval applies on the following cycle.
         tokio::time::advance(Duration::from_millis(10)).await;
         published.next_arrival().await;
-        let third = published.arrivals()[2].0;
+        assert_eq!(published.arrivals()[2].1["revision"], 3);
+        let next_cycle = next_arm(&mut arms).await;
         assert_eq!(
-            third.duration_since(second),
-            Duration::from_millis(10),
-            "then the new interval applies"
+            next_cycle.duration_since(first),
+            Duration::from_millis(80),
+            "the adopted interval applies on the following cycle"
         );
-        assert_eq!(published.arrivals().len(), 3, "one cycle per interval");
+        assert_eq!(published.arrivals().len(), 3, "one frame per cycle");
 
         // Cancelling stops the publisher: it returns and no frame follows the stop.
         stop.cancel();
