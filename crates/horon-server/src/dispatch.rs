@@ -1855,7 +1855,6 @@ async fn attempt(
         if let Some(on_selected) = call.on_selected() {
             on_selected(&lease.credential);
         }
-        // Go `applyRequestAfterAuthInterceptor` runs the after-auth interceptor here.
         let start = |credential: &horon_core::credential::Credential, req: &mut ExecRequest| {
             usage.map(|facts| {
                 let mut tracker = crate::usage_record::Tracker::start(rt, facts, credential, upstream);
@@ -1872,7 +1871,8 @@ async fn attempt(
             let credential = rt.for_executor(&credential);
             match (session, call.media.as_ref().map(|m| m.kind)) {
                 (Some(session), _) => rt.executors.execute_in_session(&credential, req, cfg, session).await,
-                // An after-auth interceptor may rewrite the path (Go's request_path metadata).
+                // The media executors take the inbound route (`request_path`) separately, so
+                // clone it out before `req` moves into the call.
                 (None, Some(MediaKind::Images)) => {
                     let path = req.request_path.clone();
                     rt.executors.images(&credential, req, &path, cfg).await

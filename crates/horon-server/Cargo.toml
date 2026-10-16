@@ -15,7 +15,6 @@ btls = "0.5.6"
 horon-common.workspace = true
 horon-core.workspace = true
 horon-exec.workspace = true
-horon-plugin.workspace = true
 horon-translate.workspace = true
 futures-util.workspace = true
 gjson = "0.8.1"
@@ -62,7 +61,6 @@ windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Securit
 media-relay = ["dep:webrtc", "dep:rtc", "dep:async-trait"]
 
 [dev-dependencies]
-horon-plugin = { workspace = true, features = ["test-support"] }
 url = "2"
 tokio = { workspace = true, features = ["test-util"] }
 wreq = { workspace = true, features = ["ws"] }

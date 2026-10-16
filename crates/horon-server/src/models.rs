@@ -47,12 +47,12 @@ pub async fn unified(State(rt): State<Arc<Runtime>>, OriginalUri(uri): OriginalU
         let grok_shell = header("user-agent").is_some_and(|ua| ua.to_lowercase().contains("grok-shell"));
         // ponytail: Go builds the Codex client catalog (`client_version`) from Home's
         // model IDs with its template metadata; here such clients get the OpenAI list.
-        let (_, body) = if grok_shell {
-            ("openai", crate::home_models::grok(&entries))
+        let body = if grok_shell {
+            crate::home_models::grok(&entries)
         } else if anthropic && query_value(&uri, "client_version").is_none() {
-            ("claude", crate::home_models::claude(&entries, disable_cloaking()))
+            crate::home_models::claude(&entries, disable_cloaking())
         } else {
-            ("openai", crate::home_models::openai(&entries))
+            crate::home_models::openai(&entries)
         };
         return respond::gin_json(200, body);
     }
@@ -65,16 +65,10 @@ pub async fn unified(State(rt): State<Arc<Runtime>>, OriginalUri(uri): OriginalU
         return crate::codex_models::response(&rt, &version);
     }
     let registry = rt.registry();
-    let (_, body) = if anthropic {
-        (
-            "claude",
-            claude_list(registry.available_with(|c, m| rt.suspension(c, m)), disable_cloaking()),
-        )
+    let body = if anthropic {
+        claude_list(registry.available_with(|c, m| rt.suspension(c, m)), disable_cloaking())
     } else {
-        (
-            "openai",
-            openai_list(registry.available_with(|c, m| rt.suspension(c, m))),
-        )
+        openai_list(registry.available_with(|c, m| rt.suspension(c, m)))
     };
     respond::gin_json(200, body)
 }

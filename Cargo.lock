@@ -1486,33 +1486,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "horon-plugin"
-version = "0.2.2"
-dependencies = [
- "async-compression",
- "base64 0.22.1",
- "bytes",
- "chrono",
- "flate2",
- "futures-util",
- "horon-common",
- "horon-core",
- "horon-exec",
- "horon-plugin",
- "horon-translate",
- "http",
- "libc",
- "serde_json",
- "serde_yaml_ng",
- "sha2 0.10.9",
- "tokio",
- "tokio-util",
- "tracing",
- "url",
- "wreq",
-]
-
-[[package]]
 name = "horon-router"
 version = "0.2.2"
 dependencies = [
@@ -1525,7 +1498,6 @@ dependencies = [
  "horon-core",
  "horon-exec",
  "horon-home",
- "horon-plugin",
  "horon-server",
  "horon-store",
  "http-body",
@@ -1561,7 +1533,6 @@ dependencies = [
  "horon-common",
  "horon-core",
  "horon-exec",
- "horon-plugin",
  "horon-translate",
  "http-body",
  "hyper",
