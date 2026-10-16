@@ -77,7 +77,7 @@ fn scalar_case_yaml(field: &str, spelling: &str) -> String {
 #[test]
 fn yaml_bool_spellings_and_durations_load_like_go() {
     let cases = fixture()["yaml_bools"].as_array().unwrap();
-    assert!(!cases.is_empty());
+    assert_eq!(cases.len(), 90);
     for case in cases {
         let (field, spelling) = (case["field"].as_str().unwrap(), case["spelling"].as_str().unwrap());
         let at = format!("{field}: {spelling}");
