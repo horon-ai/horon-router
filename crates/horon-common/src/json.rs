@@ -400,7 +400,7 @@ fn each_in<'d>(json: &'d [u8], base: usize, indexes: Option<&[usize]>, f: &mut d
 }
 
 fn safe_int(f: f64) -> Option<i64> {
-    if f < -9007199254740991.0 || f > 9007199254740991.0 {
+    if !f.is_nan() && !(-9007199254740991.0..=9007199254740991.0).contains(&f) {
         return None;
     }
     Some(go_f64_to_i64(f))
@@ -408,7 +408,7 @@ fn safe_int(f: f64) -> Option<i64> {
 
 /// Go's `int64(f)` on amd64: truncation, and the minimum value when out of range or NaN.
 fn go_f64_to_i64(f: f64) -> i64 {
-    if f.is_nan() || f >= 9.223_372_036_854_776e18 || f < -9.223_372_036_854_776e18 {
+    if f.is_nan() || !(-9.223_372_036_854_776e18..9.223_372_036_854_776e18).contains(&f) {
         i64::MIN
     } else {
         f as i64
