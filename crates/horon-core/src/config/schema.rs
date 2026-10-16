@@ -44,20 +44,9 @@ pub fn go_int(value: &Value) -> Option<i64> {
     })
 }
 
-/// `plugins.configs`: Go keeps each entry's raw YAML (`PluginInstanceConfig.Raw`) and
-/// decodes only `enabled` and `priority` from it, so its scalars are never rewritten.
-fn is_raw_entries(schema: &Schema) -> bool {
-    static RAW: LazyLock<&'static Schema> = LazyLock::new(|| {
-        SCHEMA
-            .pointer("/fields/plugins/fields/configs")
-            .expect("generated schema has plugins.configs")
-    });
-    std::ptr::eq(schema, *RAW)
-}
-
 /// Rewrites scalars of a canonical v8 document the way yaml.v3 decodes them into the
 /// Go config: YAML 1.1 bool spellings in typed bool fields become booleans, floats in
-/// int fields are truncated. Plugin entries keep their raw scalars ([`is_raw_entries`]).
+/// int fields are truncated.
 pub fn coerce_typed_scalars(value: &mut Value) {
     fn walk(value: &mut Value, schema: &Schema) {
         let schema = schema.get("optional").unwrap_or(schema);
@@ -82,7 +71,7 @@ pub fn coerce_typed_scalars(value: &mut Value) {
         match value {
             Value::Mapping(map) => {
                 for (key, item) in map.iter_mut() {
-                    if let Some(field) = child(schema, key).filter(|f| !is_raw_entries(f)) {
+                    if let Some(field) = child(schema, key) {
                         walk(item, field);
                     }
                 }
@@ -99,13 +88,9 @@ pub fn coerce_typed_scalars(value: &mut Value) {
 }
 
 /// The bool a YAML 1.1 spelling decodes to, for the first such string in a typed bool
-/// field of `written` (the value written at the v8 path `parts`). Plugin entries are
-/// raw YAML in Go, so their strings are not typed-bool writes.
+/// field of `written` (the value written at the v8 path `parts`).
 pub fn written_bool_spelling(parts: &[&str], written: &Value) -> Option<bool> {
     fn find(node: &Value, schema: &Schema) -> Option<bool> {
-        if is_raw_entries(schema) {
-            return None;
-        }
         let schema = schema.get("optional").unwrap_or(schema);
         if schema.as_str() == Some("bool") {
             return node.as_str().and_then(go_bool);
@@ -118,9 +103,6 @@ pub fn written_bool_spelling(parts: &[&str], written: &Value) -> Option<bool> {
     }
     let mut schema = &*SCHEMA;
     for part in parts {
-        if is_raw_entries(schema) {
-            return None;
-        }
         let inner = schema.get("optional").unwrap_or(schema);
         schema = child(inner, &Value::from(*part))?;
     }
@@ -213,11 +195,6 @@ fn walk(value: &Value, schema: &Schema, path: &str, strict: bool) -> anyhow::Res
             bail!("{path}: base-url belongs to the group");
         }
         if let Some(inner) = schema.get("map") {
-            // A null plugin entry is a configured, disabled plugin (Go's custom
-            // unmarshaler starts from the zero config).
-            if value.is_null() && is_raw_entries(schema) {
-                continue;
-            }
             walk(value, inner, &format!("{path}.{key}"), strict)?;
         } else if let Some(inner) = schema.get("fields").and_then(|f| f.get(key)) {
             walk(value, inner, &format!("{path}.{key}"), strict)?;

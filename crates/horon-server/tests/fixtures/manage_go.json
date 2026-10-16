@@ -1,86 +1,6 @@
 {
  "typed_scalars": [
   {
-   "name": "null_entry",
-   "yaml": "config-version: 8\nmanagement:\n  secret-key: '$HASH'\nplugins:\n  configs:\n    x:\n",
-   "error": false,
-   "enabled": false,
-   "priority": 0,
-   "request_retry": 0,
-   "raw_view": {
-    "body": {},
-    "status": 200
-   }
-  },
-  {
-   "name": "float_priority",
-   "yaml": "config-version: 8\nmanagement:\n  secret-key: '$HASH'\nplugins:\n  configs:\n    x: {enabled: true, priority: 5.7}\n",
-   "error": false,
-   "enabled": true,
-   "priority": 5,
-   "request_retry": 0,
-   "raw_view": {
-    "body": {
-     "enabled": true,
-     "priority": 5.7
-    },
-    "status": 200
-   }
-  },
-  {
-   "name": "negative_float_priority",
-   "yaml": "config-version: 8\nmanagement:\n  secret-key: '$HASH'\nplugins:\n  configs:\n    x: {priority: -1.5}\n",
-   "error": false,
-   "enabled": false,
-   "priority": -1,
-   "request_retry": 0,
-   "raw_view": {
-    "body": {
-     "priority": -1.5
-    },
-    "status": 200
-   }
-  },
-  {
-   "name": "quoted_yes",
-   "yaml": "config-version: 8\nmanagement:\n  secret-key: '$HASH'\nplugins:\n  configs:\n    x: {enabled: \"yes\"}\n",
-   "error": false,
-   "enabled": true,
-   "priority": 0,
-   "request_retry": 0,
-   "raw_view": {
-    "body": {
-     "enabled": "yes"
-    },
-    "status": 200
-   }
-  },
-  {
-   "name": "plain_yes",
-   "yaml": "config-version: 8\nmanagement:\n  secret-key: '$HASH'\nplugins:\n  configs:\n    x: {enabled: yes, extra: on}\n",
-   "error": false,
-   "enabled": true,
-   "priority": 0,
-   "request_retry": 0,
-   "raw_view": {
-    "body": {
-     "enabled": "yes",
-     "extra": "on"
-    },
-    "status": 200
-   }
-  },
-  {
-   "name": "invalid_enabled",
-   "yaml": "config-version: 8\nmanagement:\n  secret-key: '$HASH'\nplugins:\n  configs:\n    x: {enabled: maybe}\n",
-   "error": true
-  },
-  {
-   "name": "string_priority",
-   "yaml": "config-version: 8\nmanagement:\n  secret-key: '$HASH'\nplugins:\n  configs:\n    x: {priority: \"5\"}\n",
-   "error": true
-  },
-  {
    "name": "retry_float",
    "yaml": "config-version: 8\nmanagement:\n  secret-key: '$HASH'\nrouting:\n  retry:\n    request-retry: 2.9\n",
    "error": false,
@@ -342,240 +262,6 @@
   {
    "spelling": "\"\"",
    "field": "observability.logs.debug",
-   "error": true,
-   "value": null
-  },
-  {
-   "spelling": "y",
-   "field": "plugins.configs.x.enabled",
-   "error": false,
-   "value": true
-  },
-  {
-   "spelling": "Y",
-   "field": "plugins.configs.x.enabled",
-   "error": false,
-   "value": true
-  },
-  {
-   "spelling": "yes",
-   "field": "plugins.configs.x.enabled",
-   "error": false,
-   "value": true
-  },
-  {
-   "spelling": "Yes",
-   "field": "plugins.configs.x.enabled",
-   "error": false,
-   "value": true
-  },
-  {
-   "spelling": "YES",
-   "field": "plugins.configs.x.enabled",
-   "error": false,
-   "value": true
-  },
-  {
-   "spelling": "on",
-   "field": "plugins.configs.x.enabled",
-   "error": false,
-   "value": true
-  },
-  {
-   "spelling": "On",
-   "field": "plugins.configs.x.enabled",
-   "error": false,
-   "value": true
-  },
-  {
-   "spelling": "ON",
-   "field": "plugins.configs.x.enabled",
-   "error": false,
-   "value": true
-  },
-  {
-   "spelling": "n",
-   "field": "plugins.configs.x.enabled",
-   "error": false,
-   "value": false
-  },
-  {
-   "spelling": "N",
-   "field": "plugins.configs.x.enabled",
-   "error": false,
-   "value": false
-  },
-  {
-   "spelling": "no",
-   "field": "plugins.configs.x.enabled",
-   "error": false,
-   "value": false
-  },
-  {
-   "spelling": "No",
-   "field": "plugins.configs.x.enabled",
-   "error": false,
-   "value": false
-  },
-  {
-   "spelling": "NO",
-   "field": "plugins.configs.x.enabled",
-   "error": false,
-   "value": false
-  },
-  {
-   "spelling": "off",
-   "field": "plugins.configs.x.enabled",
-   "error": false,
-   "value": false
-  },
-  {
-   "spelling": "Off",
-   "field": "plugins.configs.x.enabled",
-   "error": false,
-   "value": false
-  },
-  {
-   "spelling": "OFF",
-   "field": "plugins.configs.x.enabled",
-   "error": false,
-   "value": false
-  },
-  {
-   "spelling": "yEs",
-   "field": "plugins.configs.x.enabled",
-   "error": true,
-   "value": null
-  },
-  {
-   "spelling": "oN",
-   "field": "plugins.configs.x.enabled",
-   "error": true,
-   "value": null
-  },
-  {
-   "spelling": "nO",
-   "field": "plugins.configs.x.enabled",
-   "error": true,
-   "value": null
-  },
-  {
-   "spelling": "true",
-   "field": "plugins.configs.x.enabled",
-   "error": false,
-   "value": true
-  },
-  {
-   "spelling": "True",
-   "field": "plugins.configs.x.enabled",
-   "error": false,
-   "value": true
-  },
-  {
-   "spelling": "TRUE",
-   "field": "plugins.configs.x.enabled",
-   "error": false,
-   "value": true
-  },
-  {
-   "spelling": "tRue",
-   "field": "plugins.configs.x.enabled",
-   "error": true,
-   "value": null
-  },
-  {
-   "spelling": "false",
-   "field": "plugins.configs.x.enabled",
-   "error": false,
-   "value": false
-  },
-  {
-   "spelling": "False",
-   "field": "plugins.configs.x.enabled",
-   "error": false,
-   "value": false
-  },
-  {
-   "spelling": "FALSE",
-   "field": "plugins.configs.x.enabled",
-   "error": false,
-   "value": false
-  },
-  {
-   "spelling": "\"yes\"",
-   "field": "plugins.configs.x.enabled",
-   "error": false,
-   "value": true
-  },
-  {
-   "spelling": "'off'",
-   "field": "plugins.configs.x.enabled",
-   "error": false,
-   "value": false
-  },
-  {
-   "spelling": "\"true\"",
-   "field": "plugins.configs.x.enabled",
-   "error": true,
-   "value": null
-  },
-  {
-   "spelling": "'False'",
-   "field": "plugins.configs.x.enabled",
-   "error": true,
-   "value": null
-  },
-  {
-   "spelling": "!!str yes",
-   "field": "plugins.configs.x.enabled",
-   "error": false,
-   "value": true
-  },
-  {
-   "spelling": "!!bool true",
-   "field": "plugins.configs.x.enabled",
-   "error": false,
-   "value": true
-  },
-  {
-   "spelling": "1",
-   "field": "plugins.configs.x.enabled",
-   "error": true,
-   "value": null
-  },
-  {
-   "spelling": "0",
-   "field": "plugins.configs.x.enabled",
-   "error": true,
-   "value": null
-  },
-  {
-   "spelling": "t",
-   "field": "plugins.configs.x.enabled",
-   "error": true,
-   "value": null
-  },
-  {
-   "spelling": "f",
-   "field": "plugins.configs.x.enabled",
-   "error": true,
-   "value": null
-  },
-  {
-   "spelling": "~",
-   "field": "plugins.configs.x.enabled",
-   "error": false,
-   "value": false
-  },
-  {
-   "spelling": "null",
-   "field": "plugins.configs.x.enabled",
-   "error": false,
-   "value": false
-  },
-  {
-   "spelling": "\"\"",
-   "field": "plugins.configs.x.enabled",
    "error": true,
    "value": null
   },
@@ -889,7 +575,7 @@
  "yaml_merges": [
   {
    "name": "anchors_and_merges",
-   "yaml": "config-version: 8\nrouting:\n  retry: \u0026r\n    request-retry: 4\n    max-retry-interval: 9\napi-keys:\n  claude:\n    - base-url: https://a.example.invalid\n      keys:\n        - \u0026k\n          api-key: fake-1\n          priority: 3\n        - \u003c\u003c: *k\n          api-key: fake-2\n        - \u003c\u003c: [{api-key: fake-3, priority: 7}, *k]\nobservability:\n  logs:\n    \u003c\u003c: [{debug: true, request-log: false}, {debug: false, request-log: true}]\n    logging-to-file: false\n",
+   "yaml": "config-version: 8\nrouting:\n  retry: &r\n    request-retry: 4\n    max-retry-interval: 9\napi-keys:\n  claude:\n    - base-url: https://a.example.invalid\n      keys:\n        - &k\n          api-key: fake-1\n          priority: 3\n        - <<: *k\n          api-key: fake-2\n        - <<: [{api-key: fake-3, priority: 7}, *k]\nobservability:\n  logs:\n    <<: [{debug: true, request-log: false}, {debug: false, request-log: true}]\n    logging-to-file: false\n",
    "error": false,
    "values": {
     "claude": [
@@ -914,7 +600,7 @@
   },
   {
    "name": "nested_merge_in_merged_mapping",
-   "yaml": "config-version: 8\nrouting:\n  retry:\n    \u003c\u003c: {\u003c\u003c: {request-retry: 6}, max-retry-interval: 2}\n",
+   "yaml": "config-version: 8\nrouting:\n  retry:\n    <<: {<<: {request-retry: 6}, max-retry-interval: 2}\n",
    "error": false,
    "values": {
     "claude": [],
@@ -926,7 +612,7 @@
   },
   {
    "name": "legacy_layout_merge",
-   "yaml": "request-retry: \u0026n 5\nmax-retry-interval: *n\nclaude-api-key:\n  - \u0026c {api-key: fake-l1, priority: 2}\n  - \u003c\u003c: *c\n    api-key: fake-l2\n",
+   "yaml": "request-retry: &n 5\nmax-retry-interval: *n\nclaude-api-key:\n  - &c {api-key: fake-l1, priority: 2}\n  - <<: *c\n    api-key: fake-l2\n",
    "error": false,
    "values": {
     "claude": [
@@ -947,12 +633,12 @@
   },
   {
    "name": "scalar_merge",
-   "yaml": "config-version: 8\nrouting:\n  retry:\n    \u003c\u003c: 5\n    request-retry: 1\n",
+   "yaml": "config-version: 8\nrouting:\n  retry:\n    <<: 5\n    request-retry: 1\n",
    "error": true
   },
   {
    "name": "scalar_in_merge_list",
-   "yaml": "config-version: 8\nrouting:\n  retry:\n    \u003c\u003c: [5]\n    request-retry: 1\n",
+   "yaml": "config-version: 8\nrouting:\n  retry:\n    <<: [5]\n    request-retry: 1\n",
    "error": true
   }
  ],
@@ -978,7 +664,7 @@
    ]
   },
   {
-   "yaml": "flag: \u0026f true\noauth: {providers: {codex: {response-steering: *f, orphan-delegation-compatibility: false}}}\n",
+   "yaml": "flag: &f true\noauth: {providers: {codex: {response-steering: *f, orphan-delegation-compatibility: false}}}\n",
    "fields": [
     "codex.orphan-delegation-compatibility",
     "codex.response-steering"
@@ -2044,7 +1730,7 @@
     },
     {
      "method": "GET",
-     "path": "/credentials?name=claude-a.json\u0026auth_index=$INDEX(codex-b.json)",
+     "path": "/credentials?name=claude-a.json&auth_index=$INDEX(codex-b.json)",
      "status": 200,
      "response": {
       "files": [],
@@ -2112,7 +1798,7 @@
     },
     {
      "method": "GET",
-     "path": "/credentials?page=2\u0026page_size=2",
+     "path": "/credentials?page=2&page_size=2",
      "status": 200,
      "response": {
       "files": [
@@ -16118,7 +15804,7 @@
        {
         "context_length": 921000,
         "created": 1783616400,
-        "description": "Our most capable model yet. GPT-5.6 Sol can tackle complex code changes, dig into research, produce polished documents, and take on your most ambitious work. Sol is highly capable at lower reasoning efforts—try starting lower, then turn it up for harder jobs.",
+        "description": "Our most capable model yet. GPT-5.6 Sol can tackle complex code changes, dig into research, produce polished documents, and take on your most ambitious work. Sol is highly capable at lower reasoning efforts\u2014try starting lower, then turn it up for harder jobs.",
         "display_name": "GPT 5.6 Sol",
         "id": "gpt-5.6-sol",
         "max_completion_tokens": 128000,
@@ -16291,7 +15977,7 @@
        }
       ]
      },
-     "raw_json": "{\"channel\":\"codex\",\"models\":[{\"id\":\"gpt-5.5\",\"object\":\"model\",\"created\":1776902400,\"owned_by\":\"openai\",\"type\":\"openai\",\"display_name\":\"GPT 5.5\",\"version\":\"gpt-5.5\",\"description\":\"Frontier model for complex coding, research, and real-world work.\",\"context_length\":272000,\"max_completion_tokens\":128000,\"supported_parameters\":[\"tools\"],\"supportedInputModalities\":[\"text\",\"image\"],\"supportedOutputModalities\":[\"text\"],\"thinking\":{\"levels\":[\"low\",\"medium\",\"high\",\"xhigh\"]}},{\"id\":\"gpt-6-astra\",\"object\":\"model\",\"created\":1783616400,\"owned_by\":\"openai\",\"type\":\"openai\",\"display_name\":\"GPT 6.0 Astra\",\"version\":\"gpt-6.0\",\"description\":\"GPT-6 Astra is our most intelligent model yet, with state-of-the-art performance in computer use, browsing, software engineering, science, and professional work.\",\"context_length\":272000,\"max_completion_tokens\":128000,\"supported_parameters\":[\"tools\"],\"supportedInputModalities\":[\"text\",\"image\"],\"supportedOutputModalities\":[\"text\"],\"thinking\":{\"levels\":[\"low\",\"medium\",\"high\",\"xhigh\",\"max\"]}},{\"id\":\"gpt-6-sol\",\"object\":\"model\",\"created\":1790035200,\"owned_by\":\"openai\",\"type\":\"openai\",\"display_name\":\"GPT 6.0 Sol\",\"version\":\"gpt-6.0\",\"description\":\"GPT-6 Sol Codex model.\",\"context_length\":272000,\"max_completion_tokens\":128000,\"supported_parameters\":[\"tools\"],\"supportedInputModalities\":[\"text\",\"image\"],\"supportedOutputModalities\":[\"text\"],\"thinking\":{\"levels\":[\"low\",\"medium\",\"high\",\"xhigh\",\"max\"]}},{\"id\":\"gpt-6.1-sol\",\"object\":\"model\",\"created\":1790640000,\"owned_by\":\"openai\",\"type\":\"openai\",\"display_name\":\"GPT 6.1 Sol\",\"version\":\"gpt-6.0\",\"description\":\"Latest workhorse model for coding and everyday work.\",\"context_length\":272000,\"max_completion_tokens\":128000,\"supported_parameters\":[\"tools\"],\"supportedInputModalities\":[\"text\",\"image\"],\"supportedOutputModalities\":[\"text\"],\"thinking\":{\"levels\":[\"low\",\"medium\",\"high\",\"xhigh\",\"max\"]}},{\"id\":\"gpt-6-luna\",\"object\":\"model\",\"created\":1790035200,\"owned_by\":\"openai\",\"type\":\"openai\",\"display_name\":\"GPT 6.0 Luna\",\"version\":\"gpt-6.0\",\"description\":\"GPT-6 Luna Codex model.\",\"context_length\":272000,\"max_completion_tokens\":128000,\"supported_parameters\":[\"tools\"],\"supportedInputModalities\":[\"text\",\"image\"],\"supportedOutputModalities\":[\"text\"],\"thinking\":{\"levels\":[\"low\",\"medium\",\"high\",\"xhigh\",\"max\"]}},{\"id\":\"gpt-5.6-sol\",\"object\":\"model\",\"created\":1783616400,\"owned_by\":\"openai\",\"type\":\"openai\",\"display_name\":\"GPT 5.6 Sol\",\"version\":\"gpt-5.6\",\"description\":\"Our most capable model yet. GPT-5.6 Sol can tackle complex code changes, dig into research, produce polished documents, and take on your most ambitious work. Sol is highly capable at lower reasoning efforts—try starting lower, then turn it up for harder jobs.\",\"context_length\":921000,\"max_completion_tokens\":128000,\"supported_parameters\":[\"tools\"],\"supportedInputModalities\":[\"text\",\"image\"],\"supportedOutputModalities\":[\"text\"],\"thinking\":{\"levels\":[\"low\",\"medium\",\"high\",\"xhigh\",\"max\"]}},{\"id\":\"gpt-5.6-terra\",\"object\":\"model\",\"created\":1783616400,\"owned_by\":\"openai\",\"type\":\"openai\",\"display_name\":\"GPT 5.6 Terra\",\"version\":\"gpt-5.6\",\"description\":\"Balanced agentic coding model for everyday work.\",\"context_length\":921000,\"max_completion_tokens\":128000,\"supported_parameters\":[\"tools\"],\"supportedInputModalities\":[\"text\",\"image\"],\"supportedOutputModalities\":[\"text\"],\"thinking\":{\"levels\":[\"low\",\"medium\",\"high\",\"xhigh\",\"max\"]}},{\"id\":\"gpt-5.6-luna\",\"object\":\"model\",\"created\":1783616400,\"owned_by\":\"openai\",\"type\":\"openai\",\"display_name\":\"GPT 5.6 Luna\",\"version\":\"gpt-5.6\",\"description\":\"Fast and affordable agentic coding model.\",\"context_length\":921000,\"max_completion_tokens\":128000,\"supported_parameters\":[\"tools\"],\"supportedInputModalities\":[\"text\",\"image\"],\"supportedOutputModalities\":[\"text\"],\"thinking\":{\"levels\":[\"low\",\"medium\",\"high\",\"xhigh\",\"max\"]},\"config\":{\"override_header\":{\"originator\":\"codex-tui\",\"user-agent\":\"codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)\"}}},{\"id\":\"codex-auto-review\",\"object\":\"model\",\"created\":1776902400,\"owned_by\":\"openai\",\"type\":\"openai\",\"display_name\":\"Codex Auto Review\",\"version\":\"Codex Auto Review\",\"description\":\"Automatic approval review model for Codex.\",\"context_length\":272000,\"max_completion_tokens\":128000,\"supported_parameters\":[\"tools\"],\"supportedInputModalities\":[\"text\",\"image\"],\"supportedOutputModalities\":[\"text\"],\"thinking\":{\"levels\":[\"low\",\"medium\",\"high\",\"xhigh\"]}},{\"id\":\"gpt-image-1.5\",\"object\":\"model\",\"created\":1704067200,\"owned_by\":\"openai\",\"type\":\"openai\",\"display_name\":\"GPT Image 1.5\",\"version\":\"gpt-image-1.5\"},{\"id\":\"gpt-image-2\",\"object\":\"model\",\"created\":1704067200,\"owned_by\":\"openai\",\"type\":\"openai\",\"display_name\":\"GPT Image 2\",\"version\":\"gpt-image-2\"},{\"id\":\"gpt-image-2.5-flare\",\"object\":\"model\",\"created\":1704067200,\"owned_by\":\"openai\",\"type\":\"openai\",\"display_name\":\"GPT Image 2.5 Flare\",\"version\":\"gpt-image-2.5-flare\"},{\"id\":\"gpt-image-2.5-sunburst\",\"object\":\"model\",\"created\":1704067200,\"owned_by\":\"openai\",\"type\":\"openai\",\"display_name\":\"GPT Image 2.5 Sunburst\",\"version\":\"gpt-image-2.5-sunburst\"},{\"id\":\"gpt-image-2.5\",\"object\":\"model\",\"created\":1704067200,\"owned_by\":\"openai\",\"type\":\"openai\",\"display_name\":\"GPT Image 2.5\",\"version\":\"gpt-image-2.5\"}]}",
+     "raw_json": "{\"channel\":\"codex\",\"models\":[{\"id\":\"gpt-5.5\",\"object\":\"model\",\"created\":1776902400,\"owned_by\":\"openai\",\"type\":\"openai\",\"display_name\":\"GPT 5.5\",\"version\":\"gpt-5.5\",\"description\":\"Frontier model for complex coding, research, and real-world work.\",\"context_length\":272000,\"max_completion_tokens\":128000,\"supported_parameters\":[\"tools\"],\"supportedInputModalities\":[\"text\",\"image\"],\"supportedOutputModalities\":[\"text\"],\"thinking\":{\"levels\":[\"low\",\"medium\",\"high\",\"xhigh\"]}},{\"id\":\"gpt-6-astra\",\"object\":\"model\",\"created\":1783616400,\"owned_by\":\"openai\",\"type\":\"openai\",\"display_name\":\"GPT 6.0 Astra\",\"version\":\"gpt-6.0\",\"description\":\"GPT-6 Astra is our most intelligent model yet, with state-of-the-art performance in computer use, browsing, software engineering, science, and professional work.\",\"context_length\":272000,\"max_completion_tokens\":128000,\"supported_parameters\":[\"tools\"],\"supportedInputModalities\":[\"text\",\"image\"],\"supportedOutputModalities\":[\"text\"],\"thinking\":{\"levels\":[\"low\",\"medium\",\"high\",\"xhigh\",\"max\"]}},{\"id\":\"gpt-6-sol\",\"object\":\"model\",\"created\":1790035200,\"owned_by\":\"openai\",\"type\":\"openai\",\"display_name\":\"GPT 6.0 Sol\",\"version\":\"gpt-6.0\",\"description\":\"GPT-6 Sol Codex model.\",\"context_length\":272000,\"max_completion_tokens\":128000,\"supported_parameters\":[\"tools\"],\"supportedInputModalities\":[\"text\",\"image\"],\"supportedOutputModalities\":[\"text\"],\"thinking\":{\"levels\":[\"low\",\"medium\",\"high\",\"xhigh\",\"max\"]}},{\"id\":\"gpt-6.1-sol\",\"object\":\"model\",\"created\":1790640000,\"owned_by\":\"openai\",\"type\":\"openai\",\"display_name\":\"GPT 6.1 Sol\",\"version\":\"gpt-6.0\",\"description\":\"Latest workhorse model for coding and everyday work.\",\"context_length\":272000,\"max_completion_tokens\":128000,\"supported_parameters\":[\"tools\"],\"supportedInputModalities\":[\"text\",\"image\"],\"supportedOutputModalities\":[\"text\"],\"thinking\":{\"levels\":[\"low\",\"medium\",\"high\",\"xhigh\",\"max\"]}},{\"id\":\"gpt-6-luna\",\"object\":\"model\",\"created\":1790035200,\"owned_by\":\"openai\",\"type\":\"openai\",\"display_name\":\"GPT 6.0 Luna\",\"version\":\"gpt-6.0\",\"description\":\"GPT-6 Luna Codex model.\",\"context_length\":272000,\"max_completion_tokens\":128000,\"supported_parameters\":[\"tools\"],\"supportedInputModalities\":[\"text\",\"image\"],\"supportedOutputModalities\":[\"text\"],\"thinking\":{\"levels\":[\"low\",\"medium\",\"high\",\"xhigh\",\"max\"]}},{\"id\":\"gpt-5.6-sol\",\"object\":\"model\",\"created\":1783616400,\"owned_by\":\"openai\",\"type\":\"openai\",\"display_name\":\"GPT 5.6 Sol\",\"version\":\"gpt-5.6\",\"description\":\"Our most capable model yet. GPT-5.6 Sol can tackle complex code changes, dig into research, produce polished documents, and take on your most ambitious work. Sol is highly capable at lower reasoning efforts\u2014try starting lower, then turn it up for harder jobs.\",\"context_length\":921000,\"max_completion_tokens\":128000,\"supported_parameters\":[\"tools\"],\"supportedInputModalities\":[\"text\",\"image\"],\"supportedOutputModalities\":[\"text\"],\"thinking\":{\"levels\":[\"low\",\"medium\",\"high\",\"xhigh\",\"max\"]}},{\"id\":\"gpt-5.6-terra\",\"object\":\"model\",\"created\":1783616400,\"owned_by\":\"openai\",\"type\":\"openai\",\"display_name\":\"GPT 5.6 Terra\",\"version\":\"gpt-5.6\",\"description\":\"Balanced agentic coding model for everyday work.\",\"context_length\":921000,\"max_completion_tokens\":128000,\"supported_parameters\":[\"tools\"],\"supportedInputModalities\":[\"text\",\"image\"],\"supportedOutputModalities\":[\"text\"],\"thinking\":{\"levels\":[\"low\",\"medium\",\"high\",\"xhigh\",\"max\"]}},{\"id\":\"gpt-5.6-luna\",\"object\":\"model\",\"created\":1783616400,\"owned_by\":\"openai\",\"type\":\"openai\",\"display_name\":\"GPT 5.6 Luna\",\"version\":\"gpt-5.6\",\"description\":\"Fast and affordable agentic coding model.\",\"context_length\":921000,\"max_completion_tokens\":128000,\"supported_parameters\":[\"tools\"],\"supportedInputModalities\":[\"text\",\"image\"],\"supportedOutputModalities\":[\"text\"],\"thinking\":{\"levels\":[\"low\",\"medium\",\"high\",\"xhigh\",\"max\"]},\"config\":{\"override_header\":{\"originator\":\"codex-tui\",\"user-agent\":\"codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)\"}}},{\"id\":\"codex-auto-review\",\"object\":\"model\",\"created\":1776902400,\"owned_by\":\"openai\",\"type\":\"openai\",\"display_name\":\"Codex Auto Review\",\"version\":\"Codex Auto Review\",\"description\":\"Automatic approval review model for Codex.\",\"context_length\":272000,\"max_completion_tokens\":128000,\"supported_parameters\":[\"tools\"],\"supportedInputModalities\":[\"text\",\"image\"],\"supportedOutputModalities\":[\"text\"],\"thinking\":{\"levels\":[\"low\",\"medium\",\"high\",\"xhigh\"]}},{\"id\":\"gpt-image-1.5\",\"object\":\"model\",\"created\":1704067200,\"owned_by\":\"openai\",\"type\":\"openai\",\"display_name\":\"GPT Image 1.5\",\"version\":\"gpt-image-1.5\"},{\"id\":\"gpt-image-2\",\"object\":\"model\",\"created\":1704067200,\"owned_by\":\"openai\",\"type\":\"openai\",\"display_name\":\"GPT Image 2\",\"version\":\"gpt-image-2\"},{\"id\":\"gpt-image-2.5-flare\",\"object\":\"model\",\"created\":1704067200,\"owned_by\":\"openai\",\"type\":\"openai\",\"display_name\":\"GPT Image 2.5 Flare\",\"version\":\"gpt-image-2.5-flare\"},{\"id\":\"gpt-image-2.5-sunburst\",\"object\":\"model\",\"created\":1704067200,\"owned_by\":\"openai\",\"type\":\"openai\",\"display_name\":\"GPT Image 2.5 Sunburst\",\"version\":\"gpt-image-2.5-sunburst\"},{\"id\":\"gpt-image-2.5\",\"object\":\"model\",\"created\":1704067200,\"owned_by\":\"openai\",\"type\":\"openai\",\"display_name\":\"GPT Image 2.5\",\"version\":\"gpt-image-2.5\"}]}",
      "resp_headers": {
       "Content-Type": "application/json; charset=utf-8"
      },
@@ -17253,7 +16939,7 @@
    "auth_files": {
     "claude-a.json": "{\"type\":\"claude\",\"email\":\"a@example.invalid\",\"priority\":\"7\",\"note\":\" hi \",\"access_token\":\"fake-at\",\"refresh_token\":\"fake-rt\",\"expired\":\"2099-01-01T00:00:00Z\",\"quota_probe\":{\"kind\":\"fake\"},\"zz\":{\"keep\":[1,2]}}",
     "empty.json": "{\"type\":\"claude\",\"email\":\"e@example.invalid\"}",
-    "quote.json": "{\"type\":\"claude\",\"access_token\":\"a\\\"b\u003cc\"}"
+    "quote.json": "{\"type\":\"claude\",\"access_token\":\"a\\\"b<c\"}"
    },
    "indexes": {
     "claude-a.json": "f6bfa8bcb9bded77",
@@ -17298,7 +16984,7 @@
        "type": "claude"
       },
       "quote.json": {
-       "access_token": "a\"b\u003cc",
+       "access_token": "a\"b<c",
        "type": "claude"
       }
      },
@@ -17371,7 +17057,7 @@
        "type": "claude"
       },
       "quote.json": {
-       "access_token": "a\"b\u003cc",
+       "access_token": "a\"b<c",
        "type": "claude"
       }
      },
@@ -17444,7 +17130,7 @@
        "type": "claude"
       },
       "quote.json": {
-       "access_token": "a\"b\u003cc",
+       "access_token": "a\"b<c",
        "type": "claude"
       }
      },
@@ -17517,7 +17203,7 @@
        "type": "claude"
       },
       "quote.json": {
-       "access_token": "a\"b\u003cc",
+       "access_token": "a\"b<c",
        "type": "claude"
       }
      },
@@ -17590,7 +17276,7 @@
        "type": "claude"
       },
       "quote.json": {
-       "access_token": "a\"b\u003cc",
+       "access_token": "a\"b<c",
        "type": "claude"
       }
      },
@@ -17663,7 +17349,7 @@
        "type": "claude"
       },
       "quote.json": {
-       "access_token": "a\"b\u003cc",
+       "access_token": "a\"b<c",
        "type": "claude"
       }
      },
@@ -17736,7 +17422,7 @@
        "type": "claude"
       },
       "quote.json": {
-       "access_token": "a\"b\u003cc",
+       "access_token": "a\"b<c",
        "type": "claude"
       }
      },
@@ -17809,7 +17495,7 @@
        "type": "claude"
       },
       "quote.json": {
-       "access_token": "a\"b\u003cc",
+       "access_token": "a\"b<c",
        "type": "claude"
       }
      },
@@ -17882,7 +17568,7 @@
        "type": "claude"
       },
       "quote.json": {
-       "access_token": "a\"b\u003cc",
+       "access_token": "a\"b<c",
        "type": "claude"
       }
      },
@@ -17955,7 +17641,7 @@
        "type": "claude"
       },
       "quote.json": {
-       "access_token": "a\"b\u003cc",
+       "access_token": "a\"b<c",
        "type": "claude"
       }
      },
@@ -18028,7 +17714,7 @@
        "type": "claude"
       },
       "quote.json": {
-       "access_token": "a\"b\u003cc",
+       "access_token": "a\"b<c",
        "type": "claude"
       }
      },
@@ -18101,7 +17787,7 @@
        "type": "claude"
       },
       "quote.json": {
-       "access_token": "a\"b\u003cc",
+       "access_token": "a\"b<c",
        "type": "claude"
       }
      },
@@ -18174,7 +17860,7 @@
        "type": "claude"
       },
       "quote.json": {
-       "access_token": "a\"b\u003cc",
+       "access_token": "a\"b<c",
        "type": "claude"
       }
      },
@@ -18259,7 +17945,7 @@
        "type": "claude"
       },
       "quote.json": {
-       "access_token": "a\"b\u003cc",
+       "access_token": "a\"b<c",
        "type": "claude"
       }
      },
@@ -18302,7 +17988,7 @@
      "body": "{\"AuthIndex\":\"$INDEX($CFGID)\",\"method\":\"PUT\",\"url\":\"$ECHO/echo\",\"header\":{\"X-Custom\":\"$TOKEN$\"},\"data\":\"plain $TOKEN$\"}",
      "status": 200,
      "response": {
-      "body": "{\"body\":\"plain fake-compat\",\"content_length\":17,\"headers\":{\"Accept-Encoding\":[\"gzip\"],\"Content-Length\":[\"17\"],\"User-Agent\":[\"Go-http-client/1.1\"],\"X-Custom\":[\"fake-compat\"]},\"host\":\"\u003clistener\u003e\",\"method\":\"PUT\",\"path\":\"/echo\",\"query\":\"\"}\n",
+      "body": "{\"body\":\"plain fake-compat\",\"content_length\":17,\"headers\":{\"Accept-Encoding\":[\"gzip\"],\"Content-Length\":[\"17\"],\"User-Agent\":[\"Go-http-client/1.1\"],\"X-Custom\":[\"fake-compat\"]},\"host\":\"<listener>\",\"method\":\"PUT\",\"path\":\"/echo\",\"query\":\"\"}\n",
       "header": {
        "Content-Length": [
         "236"
@@ -18344,7 +18030,7 @@
        "type": "claude"
       },
       "quote.json": {
-       "access_token": "a\"b\u003cc",
+       "access_token": "a\"b<c",
        "type": "claude"
       }
      },
@@ -18387,7 +18073,7 @@
      "body": "{\"authIndex\":\"$INDEX(quote.json)\",\"method\":\"PATCH\",\"url\":\"$ECHO/echo\",\"data\":\"{\\\"t\\\":\\\"$TOKEN$\\\"}\"}",
      "status": 200,
      "response": {
-      "body": "{\"body\":\"{\\\"t\\\":\\\"a\\\\\\\"b\\\\u003cc\\\"}\",\"content_length\":19,\"headers\":{\"Accept-Encoding\":[\"gzip\"],\"Content-Length\":[\"19\"],\"User-Agent\":[\"Go-http-client/1.1\"]},\"host\":\"\u003clistener\u003e\",\"method\":\"PATCH\",\"path\":\"/echo\",\"query\":\"\"}\n",
+      "body": "{\"body\":\"{\\\"t\\\":\\\"a\\\\\\\"b\\\\u003cc\\\"}\",\"content_length\":19,\"headers\":{\"Accept-Encoding\":[\"gzip\"],\"Content-Length\":[\"19\"],\"User-Agent\":[\"Go-http-client/1.1\"]},\"host\":\"<listener>\",\"method\":\"PATCH\",\"path\":\"/echo\",\"query\":\"\"}\n",
       "header": {
        "Content-Length": [
         "220"
@@ -18429,7 +18115,7 @@
        "type": "claude"
       },
       "quote.json": {
-       "access_token": "a\"b\u003cc",
+       "access_token": "a\"b<c",
        "type": "claude"
       }
      },
@@ -18472,7 +18158,7 @@
      "body": "{\"authIndex\":\"$INDEX(quote.json)\",\"method\":\"PATCH\",\"url\":\"$ECHO/echo\",\"data\":\"not json $TOKEN$\"}",
      "status": 200,
      "response": {
-      "body": "{\"body\":\"not json a\\\"b\u003cc\",\"content_length\":14,\"headers\":{\"Accept-Encoding\":[\"gzip\"],\"Content-Length\":[\"14\"],\"User-Agent\":[\"Go-http-client/1.1\"]},\"host\":\"\u003clistener\u003e\",\"method\":\"PATCH\",\"path\":\"/echo\",\"query\":\"\"}\n",
+      "body": "{\"body\":\"not json a\\\"b<c\",\"content_length\":14,\"headers\":{\"Accept-Encoding\":[\"gzip\"],\"Content-Length\":[\"14\"],\"User-Agent\":[\"Go-http-client/1.1\"]},\"host\":\"<listener>\",\"method\":\"PATCH\",\"path\":\"/echo\",\"query\":\"\"}\n",
       "header": {
        "Content-Length": [
         "209"
@@ -18514,7 +18200,7 @@
        "type": "claude"
       },
       "quote.json": {
-       "access_token": "a\"b\u003cc",
+       "access_token": "a\"b<c",
        "type": "claude"
       }
      },
@@ -18557,7 +18243,7 @@
      "body": "{\"method\":\"POST\",\"url\":\"$ECHO/redirect\",\"header\":{\"Content-Type\":\"text/plain\",\"Authorization\":\"keep\"},\"data\":\"x\"}",
      "status": 200,
      "response": {
-      "body": "{\"body\":\"\",\"content_length\":0,\"headers\":{\"Accept-Encoding\":[\"gzip\"],\"Authorization\":[\"keep\"],\"Referer\":[\"$ECHO/redirect\"],\"User-Agent\":[\"Go-http-client/1.1\"]},\"host\":\"\u003clistener\u003e\",\"method\":\"GET\",\"path\":\"/echo\",\"query\":\"from=redirect\"}\n",
+      "body": "{\"body\":\"\",\"content_length\":0,\"headers\":{\"Accept-Encoding\":[\"gzip\"],\"Authorization\":[\"keep\"],\"Referer\":[\"$ECHO/redirect\"],\"User-Agent\":[\"Go-http-client/1.1\"]},\"host\":\"<listener>\",\"method\":\"GET\",\"path\":\"/echo\",\"query\":\"from=redirect\"}\n",
       "header": {
        "Content-Length": [
         "251"
@@ -18599,7 +18285,7 @@
        "type": "claude"
       },
       "quote.json": {
-       "access_token": "a\"b\u003cc",
+       "access_token": "a\"b<c",
        "type": "claude"
       }
      },
@@ -18642,7 +18328,7 @@
      "body": "{\"method\":\"GET\",\"url\":\"$ECHO/status\"}",
      "status": 200,
      "response": {
-      "body": "teapot�",
+      "body": "teapot\ufffd",
       "header": {
        "Content-Length": [
         "7"
@@ -18688,7 +18374,7 @@
        "type": "claude"
       },
       "quote.json": {
-       "access_token": "a\"b\u003cc",
+       "access_token": "a\"b<c",
        "type": "claude"
       }
      },
@@ -18761,7 +18447,7 @@
        "type": "claude"
       },
       "quote.json": {
-       "access_token": "a\"b\u003cc",
+       "access_token": "a\"b<c",
        "type": "claude"
       }
      },
@@ -18834,7 +18520,7 @@
        "type": "claude"
       },
       "quote.json": {
-       "access_token": "a\"b\u003cc",
+       "access_token": "a\"b<c",
        "type": "claude"
       }
      },
@@ -18877,7 +18563,7 @@
      "body": "{\"method\":\"GET\",\"url\":\"$ECHO/echo\",\"proxy_url\":\"direct\"} trailing",
      "status": 200,
      "response": {
-      "body": "{\"body\":\"\",\"content_length\":0,\"headers\":{\"Accept-Encoding\":[\"gzip\"],\"User-Agent\":[\"Go-http-client/1.1\"]},\"host\":\"\u003clistener\u003e\",\"method\":\"GET\",\"path\":\"/echo\",\"query\":\"\"}\n",
+      "body": "{\"body\":\"\",\"content_length\":0,\"headers\":{\"Accept-Encoding\":[\"gzip\"],\"User-Agent\":[\"Go-http-client/1.1\"]},\"host\":\"<listener>\",\"method\":\"GET\",\"path\":\"/echo\",\"query\":\"\"}\n",
       "header": {
        "Content-Length": [
         "167"
@@ -18919,7 +18605,7 @@
        "type": "claude"
       },
       "quote.json": {
-       "access_token": "a\"b\u003cc",
+       "access_token": "a\"b<c",
        "type": "claude"
       }
      },
@@ -18992,7 +18678,7 @@
        "type": "claude"
       },
       "quote.json": {
-       "access_token": "a\"b\u003cc",
+       "access_token": "a\"b<c",
        "type": "claude"
       }
      },
@@ -19035,7 +18721,7 @@
      "body": "{\"method\":\"GET\",\"method\":null,\"url\":\"$ECHO/echo\"}",
      "status": 200,
      "response": {
-      "body": "{\"body\":\"\",\"content_length\":0,\"headers\":{\"Accept-Encoding\":[\"gzip\"],\"User-Agent\":[\"Go-http-client/1.1\"]},\"host\":\"\u003clistener\u003e\",\"method\":\"GET\",\"path\":\"/echo\",\"query\":\"\"}\n",
+      "body": "{\"body\":\"\",\"content_length\":0,\"headers\":{\"Accept-Encoding\":[\"gzip\"],\"User-Agent\":[\"Go-http-client/1.1\"]},\"host\":\"<listener>\",\"method\":\"GET\",\"path\":\"/echo\",\"query\":\"\"}\n",
       "header": {
        "Content-Length": [
         "167"
@@ -19077,7 +18763,7 @@
        "type": "claude"
       },
       "quote.json": {
-       "access_token": "a\"b\u003cc",
+       "access_token": "a\"b<c",
        "type": "claude"
       }
      },
@@ -19120,7 +18806,7 @@
      "body": "{\"method\":\"GET\",\"url\":\"$ECHO/echo\",\"header\":{\"X-Custom\":\"a\",\"Authorization\":\"x\"},\"header\":{\"X-Custom\":\"b\"}}",
      "status": 200,
      "response": {
-      "body": "{\"body\":\"\",\"content_length\":0,\"headers\":{\"Accept-Encoding\":[\"gzip\"],\"Authorization\":[\"x\"],\"User-Agent\":[\"Go-http-client/1.1\"],\"X-Custom\":[\"b\"]},\"host\":\"\u003clistener\u003e\",\"method\":\"GET\",\"path\":\"/echo\",\"query\":\"\"}\n",
+      "body": "{\"body\":\"\",\"content_length\":0,\"headers\":{\"Accept-Encoding\":[\"gzip\"],\"Authorization\":[\"x\"],\"User-Agent\":[\"Go-http-client/1.1\"],\"X-Custom\":[\"b\"]},\"host\":\"<listener>\",\"method\":\"GET\",\"path\":\"/echo\",\"query\":\"\"}\n",
       "header": {
        "Content-Length": [
         "206"
@@ -19162,7 +18848,7 @@
        "type": "claude"
       },
       "quote.json": {
-       "access_token": "a\"b\u003cc",
+       "access_token": "a\"b<c",
        "type": "claude"
       }
      },
@@ -19205,7 +18891,7 @@
      "body": "{\"method\":\"GET\",\"url\":\"$ECHO/redirect307\",\"header\":{\"Content-Type\":\"text/plain\"}}",
      "status": 200,
      "response": {
-      "body": "{\"body\":\"\",\"content_length\":0,\"headers\":{\"Accept-Encoding\":[\"gzip\"],\"Content-Type\":[\"text/plain\"],\"Referer\":[\"$ECHO/redirect307\"],\"User-Agent\":[\"Go-http-client/1.1\"]},\"host\":\"\u003clistener\u003e\",\"method\":\"GET\",\"path\":\"/echo\",\"query\":\"from=307\"}\n",
+      "body": "{\"body\":\"\",\"content_length\":0,\"headers\":{\"Accept-Encoding\":[\"gzip\"],\"Content-Type\":[\"text/plain\"],\"Referer\":[\"$ECHO/redirect307\"],\"User-Agent\":[\"Go-http-client/1.1\"]},\"host\":\"<listener>\",\"method\":\"GET\",\"path\":\"/echo\",\"query\":\"from=307\"}\n",
       "header": {
        "Content-Length": [
         "254"
@@ -19247,7 +18933,7 @@
        "type": "claude"
       },
       "quote.json": {
-       "access_token": "a\"b\u003cc",
+       "access_token": "a\"b<c",
        "type": "claude"
       }
      },
@@ -19290,7 +18976,7 @@
      "body": "{\"method\":\"POST\",\"url\":\"$ECHO/redirect307\",\"header\":{\"Content-Type\":\"text/plain\"},\"data\":\"kept\"}",
      "status": 200,
      "response": {
-      "body": "{\"body\":\"kept\",\"content_length\":4,\"headers\":{\"Accept-Encoding\":[\"gzip\"],\"Content-Length\":[\"4\"],\"Content-Type\":[\"text/plain\"],\"Referer\":[\"$ECHO/redirect307\"],\"User-Agent\":[\"Go-http-client/1.1\"]},\"host\":\"\u003clistener\u003e\",\"method\":\"POST\",\"path\":\"/echo\",\"query\":\"from=307\"}\n",
+      "body": "{\"body\":\"kept\",\"content_length\":4,\"headers\":{\"Accept-Encoding\":[\"gzip\"],\"Content-Length\":[\"4\"],\"Content-Type\":[\"text/plain\"],\"Referer\":[\"$ECHO/redirect307\"],\"User-Agent\":[\"Go-http-client/1.1\"]},\"host\":\"<listener>\",\"method\":\"POST\",\"path\":\"/echo\",\"query\":\"from=307\"}\n",
       "header": {
        "Content-Length": [
         "282"
@@ -19332,7 +19018,7 @@
        "type": "claude"
       },
       "quote.json": {
-       "access_token": "a\"b\u003cc",
+       "access_token": "a\"b<c",
        "type": "claude"
       }
      },
@@ -19414,7 +19100,7 @@
        "type": "claude"
       },
       "quote.json": {
-       "access_token": "a\"b\u003cc",
+       "access_token": "a\"b<c",
        "type": "claude"
       }
      },
@@ -19701,7 +19387,7 @@
        "type": "claude"
       },
       "quote.json": {
-       "access_token": "a\"b\u003cc",
+       "access_token": "a\"b<c",
        "type": "claude"
       }
      },
@@ -19771,7 +19457,7 @@
        "type": "claude"
       },
       "quote.json": {
-       "access_token": "a\"b\u003cc",
+       "access_token": "a\"b<c",
        "type": "claude"
       }
      },
@@ -19843,7 +19529,7 @@
        "type": "claude"
       },
       "quote.json": {
-       "access_token": "a\"b\u003cc",
+       "access_token": "a\"b<c",
        "type": "claude"
       }
      },
@@ -19915,7 +19601,7 @@
        "type": "claude"
       },
       "quote.json": {
-       "access_token": "a\"b\u003cc",
+       "access_token": "a\"b<c",
        "type": "claude"
       }
      },
@@ -19985,7 +19671,7 @@
        "type": "claude"
       },
       "quote.json": {
-       "access_token": "a\"b\u003cc",
+       "access_token": "a\"b<c",
        "type": "claude"
       }
      },
@@ -20474,7 +20160,7 @@
     {
      "method": "POST",
      "path": "/oauth/callback",
-     "body": "{\"redirect_url\":\"http://h.example.invalid/cb?state=s2\u0026code=c\"}",
+     "body": "{\"redirect_url\":\"http://h.example.invalid/cb?state=s2&code=c\"}",
      "status": 404,
      "response": {
       "error": "unknown or expired state",
@@ -20521,7 +20207,7 @@
     },
     {
      "method": "GET",
-     "path": "/oauth/callback?state=s1\u0026error_description=denied",
+     "path": "/oauth/callback?state=s1&error_description=denied",
      "status": 404,
      "response": {
       "error": "unknown or expired state",
@@ -20572,7 +20258,7 @@
      "response": {
       "state": "91820294217d3823bef6a1b448567f4b",
       "status": "ok",
-      "url": "https://claude.ai/oauth/authorize?client_id=9d1c250a-e61b-44d9-88ed-5944d1962f5e\u0026code=true\u0026code_challenge=Soql3-I1b0VJ6U0yrO3SMmN5kmt8Q1HZmH_ryosxabs\u0026code_challenge_method=S256\u0026redirect_uri=http%3A%2F%2Flocalhost%3A54545%2Fcallback\u0026response_type=code\u0026scope=user%3Aprofile+user%3Ainference+user%3Asessions%3Aclaude_code+user%3Amcp_servers+user%3Afile_upload\u0026state=91820294217d3823bef6a1b448567f4b"
+      "url": "https://claude.ai/oauth/authorize?client_id=9d1c250a-e61b-44d9-88ed-5944d1962f5e&code=true&code_challenge=Soql3-I1b0VJ6U0yrO3SMmN5kmt8Q1HZmH_ryosxabs&code_challenge_method=S256&redirect_uri=http%3A%2F%2Flocalhost%3A54545%2Fcallback&response_type=code&scope=user%3Aprofile+user%3Ainference+user%3Asessions%3Aclaude_code+user%3Amcp_servers+user%3Afile_upload&state=91820294217d3823bef6a1b448567f4b"
      },
      "raw_json": "{\"state\":\"91820294217d3823bef6a1b448567f4b\",\"status\":\"ok\",\"url\":\"https://claude.ai/oauth/authorize?client_id=9d1c250a-e61b-44d9-88ed-5944d1962f5e\\u0026code=true\\u0026code_challenge=Soql3-I1b0VJ6U0yrO3SMmN5kmt8Q1HZmH_ryosxabs\\u0026code_challenge_method=S256\\u0026redirect_uri=http%3A%2F%2Flocalhost%3A54545%2Fcallback\\u0026response_type=code\\u0026scope=user%3Aprofile+user%3Ainference+user%3Asessions%3Aclaude_code+user%3Amcp_servers+user%3Afile_upload\\u0026state=91820294217d3823bef6a1b448567f4b\"}",
      "resp_headers": {
@@ -20662,7 +20348,7 @@
     {
      "method": "POST",
      "path": "/oauth/callback",
-     "body": "{\"redirect_url\":\"http://localhost:54545/callback?state=$STATE\u0026error=access_denied\"}",
+     "body": "{\"redirect_url\":\"http://localhost:54545/callback?state=$STATE&error=access_denied\"}",
      "status": 200,
      "response": {
       "status": "ok"
@@ -20760,7 +20446,7 @@
      "response": {
       "state": "8cb41c4213adc20e7fa3df29b76d552b",
       "status": "ok",
-      "url": "https://auth.openai.com/oauth/authorize?client_id=app_EMoamEEZ73f0CkXaXp7hrann\u0026code_challenge=V_x1G0ED0X58KlzhIblyEOazn4FfI1Bap1tzBsgjgbE\u0026code_challenge_method=S256\u0026codex_cli_simplified_flow=true\u0026id_token_add_organizations=true\u0026prompt=login\u0026redirect_uri=http%3A%2F%2Flocalhost%3A1455%2Fauth%2Fcallback\u0026response_type=code\u0026scope=openid+email+profile+offline_access\u0026state=8cb41c4213adc20e7fa3df29b76d552b"
+      "url": "https://auth.openai.com/oauth/authorize?client_id=app_EMoamEEZ73f0CkXaXp7hrann&code_challenge=V_x1G0ED0X58KlzhIblyEOazn4FfI1Bap1tzBsgjgbE&code_challenge_method=S256&codex_cli_simplified_flow=true&id_token_add_organizations=true&prompt=login&redirect_uri=http%3A%2F%2Flocalhost%3A1455%2Fauth%2Fcallback&response_type=code&scope=openid+email+profile+offline_access&state=8cb41c4213adc20e7fa3df29b76d552b"
      },
      "raw_json": "{\"state\":\"8cb41c4213adc20e7fa3df29b76d552b\",\"status\":\"ok\",\"url\":\"https://auth.openai.com/oauth/authorize?client_id=app_EMoamEEZ73f0CkXaXp7hrann\\u0026code_challenge=V_x1G0ED0X58KlzhIblyEOazn4FfI1Bap1tzBsgjgbE\\u0026code_challenge_method=S256\\u0026codex_cli_simplified_flow=true\\u0026id_token_add_organizations=true\\u0026prompt=login\\u0026redirect_uri=http%3A%2F%2Flocalhost%3A1455%2Fauth%2Fcallback\\u0026response_type=code\\u0026scope=openid+email+profile+offline_access\\u0026state=8cb41c4213adc20e7fa3df29b76d552b\"}",
      "resp_headers": {
@@ -21431,7 +21117,7 @@
     },
     {
      "method": "GET",
-     "path": "/observability/logs?after=1700000460\u0026limit=1",
+     "path": "/observability/logs?after=1700000460&limit=1",
      "status": 200,
      "response": {
       "latest-timestamp": 1700000460,
@@ -21619,7 +21305,7 @@
     },
     {
      "method": "GET",
-     "path": "/observability/logs?cursor=$CURSOR\u0026limit=5",
+     "path": "/observability/logs?cursor=$CURSOR&limit=5",
      "status": 200,
      "response": {
       "latest-timestamp": 1700000280,
@@ -22357,7 +22043,7 @@
     },
     {
      "method": "GET",
-     "path": "/credentials?page=1\u0026page_size=10",
+     "path": "/credentials?page=1&page_size=10",
      "status": 200,
      "response": {
       "files": [
@@ -23349,7 +23035,7 @@
     },
     {
      "method": "GET",
-     "path": "/credentials?page=1\u0026page_size=10",
+     "path": "/credentials?page=1&page_size=10",
      "status": 200,
      "response": {
       "files": [
@@ -30222,7 +29908,7 @@
   },
   {
    "name": "yaml_bools_and_merges",
-   "yaml": "config-version: 8\nmanagement:\n  secret-key: '$HASH'\nrouting:\n  session-affinity: yes\n  retry: \u0026r\n    request-retry: 2\nobservability:\n  logs:\n    \u003c\u003c: {debug: on, request-log: Off}\n    logging-to-file: false\n",
+   "yaml": "config-version: 8\nmanagement:\n  secret-key: '$HASH'\nrouting:\n  session-affinity: yes\n  retry: &r\n    request-retry: 2\nobservability:\n  logs:\n    <<: {debug: on, request-log: Off}\n    logging-to-file: false\n",
    "steps": [
     {
      "method": "GET",
@@ -31385,396 +31071,14 @@
    ]
   },
   {
-   "name": "plugin_entries_and_float_ints",
-   "yaml": "config-version: 8\nmanagement:\n  secret-key: '$HASH'\nrouting:\n  retry:\n    request-retry: 2.9\nplugins:\n  configs:\n    x:\n      enabled: \"yes\"\n      priority: 5.7\n    y:\n",
-   "steps": [
-    {
-     "method": "GET",
-     "path": "/config/plugins",
-     "status": 200,
-     "response": {
-      "configs": {
-       "x": {
-        "enabled": "yes",
-        "priority": 5.7
-       },
-       "y": null
-      }
-     },
-     "raw_json": "{\"configs\":{\"x\":{\"enabled\":\"yes\",\"priority\":5.7},\"y\":null}}",
-     "file": {
-      "config-version": 8,
-      "management": {
-       "secret-key": "$2a$04$gCSSr1/UfkltFXZWv6msH.QzKw8xMw4IoIRSmC9.AMiyMfIf0J3lC"
-      },
-      "plugins": {
-       "configs": {
-        "x": {
-         "enabled": "yes",
-         "priority": 5.7
-        },
-        "y": null
-       }
-      },
-      "routing": {
-       "retry": {
-        "request-retry": 2.9
-       }
-      }
-     },
-     "file_has_archive": false
-    },
-    {
-     "method": "PATCH",
-     "path": "/config/routing",
-     "body": "{\"strategy\":\"fill-first\"}",
-     "status": 200,
-     "response": {
-      "config-version": 8,
-      "status": "ok"
-     },
-     "raw_json": "{\"config-version\":8,\"status\":\"ok\"}",
-     "file": {
-      "config-version": 8,
-      "credentials": {
-       "concurrency": {
-        "busy-retry-max": "1s",
-        "busy-retry-min": "250ms",
-        "cleanup-interval": "5s",
-        "cpa-cancel-bound": "5s",
-        "cpa-heartbeat-timeout": "3s",
-        "max-limit": 1000000,
-        "reclaim-grace": "5s",
-        "release-flush-interval": "250ms",
-        "release-max-backoff": "2s"
-       },
-       "in-flight": {
-        "max-aggregate-groups": 100000,
-        "max-details": 10000,
-        "max-part-bytes": 262144,
-        "max-part-count": 64,
-        "max-revision-bytes": 16777216,
-        "max-string-bytes": 256,
-        "snapshot-interval": "2s",
-        "staging-retention": "1m",
-        "stale-after": "10s"
-       }
-      },
-      "management": {
-       "secret-key": "$2a$04$gCSSr1/UfkltFXZWv6msH.QzKw8xMw4IoIRSmC9.AMiyMfIf0J3lC"
-      },
-      "oauth": {
-       "providers": {
-        "aistudio": {
-         "ws-auth": true
-        }
-       }
-      },
-      "observability": {
-       "usage": {
-        "redis-usage-queue-retention-seconds": 60
-       }
-      },
-      "plugins": {
-       "configs": {
-        "x": {
-         "enabled": "yes",
-         "priority": 5.7
-        },
-        "y": {}
-       }
-      },
-      "routing": {
-       "cooldown": {
-        "disable-cooling": false
-       },
-       "retry": {
-        "request-retry": 2
-       },
-       "strategy": "fill-first"
-      },
-      "server": {
-       "discovery": {
-        "service-type": "_ai-gateway._tcp",
-        "subtypes": [
-         "_chat-completions",
-         "_responses",
-         "_messages",
-         "_generate-content",
-         "_interactions"
-        ]
-       }
-      }
-     },
-     "file_has_archive": false
-    },
-    {
-     "method": "PATCH",
-     "path": "/config/plugins/configs/x",
-     "body": "{\"priority\":6.5}",
-     "status": 200,
-     "response": {
-      "config-version": 8,
-      "status": "ok"
-     },
-     "raw_json": "{\"config-version\":8,\"status\":\"ok\"}",
-     "file": {
-      "config-version": 8,
-      "credentials": {
-       "concurrency": {
-        "busy-retry-max": "1s",
-        "busy-retry-min": "250ms",
-        "cleanup-interval": "5s",
-        "cpa-cancel-bound": "5s",
-        "cpa-heartbeat-timeout": "3s",
-        "max-limit": 1000000,
-        "reclaim-grace": "5s",
-        "release-flush-interval": "250ms",
-        "release-max-backoff": "2s"
-       },
-       "in-flight": {
-        "max-aggregate-groups": 100000,
-        "max-details": 10000,
-        "max-part-bytes": 262144,
-        "max-part-count": 64,
-        "max-revision-bytes": 16777216,
-        "max-string-bytes": 256,
-        "snapshot-interval": "2s",
-        "staging-retention": "1m",
-        "stale-after": "10s"
-       }
-      },
-      "management": {
-       "secret-key": "$2a$04$gCSSr1/UfkltFXZWv6msH.QzKw8xMw4IoIRSmC9.AMiyMfIf0J3lC"
-      },
-      "oauth": {
-       "providers": {
-        "aistudio": {
-         "ws-auth": true
-        }
-       }
-      },
-      "observability": {
-       "usage": {
-        "redis-usage-queue-retention-seconds": 60
-       }
-      },
-      "plugins": {
-       "configs": {
-        "x": {
-         "enabled": "yes",
-         "priority": 6.5
-        },
-        "y": {}
-       }
-      },
-      "routing": {
-       "cooldown": {
-        "disable-cooling": false
-       },
-       "retry": {
-        "request-retry": 2
-       },
-       "strategy": "fill-first"
-      },
-      "server": {
-       "discovery": {
-        "service-type": "_ai-gateway._tcp",
-        "subtypes": [
-         "_chat-completions",
-         "_responses",
-         "_messages",
-         "_generate-content",
-         "_interactions"
-        ]
-       }
-      }
-     },
-     "file_has_archive": false
-    },
-    {
-     "method": "PATCH",
-     "path": "/config/plugins/configs/x",
-     "body": "{\"enabled\":\"on\"}",
-     "status": 200,
-     "response": {
-      "config-version": 8,
-      "status": "ok"
-     },
-     "raw_json": "{\"config-version\":8,\"status\":\"ok\"}",
-     "file": {
-      "config-version": 8,
-      "credentials": {
-       "concurrency": {
-        "busy-retry-max": "1s",
-        "busy-retry-min": "250ms",
-        "cleanup-interval": "5s",
-        "cpa-cancel-bound": "5s",
-        "cpa-heartbeat-timeout": "3s",
-        "max-limit": 1000000,
-        "reclaim-grace": "5s",
-        "release-flush-interval": "250ms",
-        "release-max-backoff": "2s"
-       },
-       "in-flight": {
-        "max-aggregate-groups": 100000,
-        "max-details": 10000,
-        "max-part-bytes": 262144,
-        "max-part-count": 64,
-        "max-revision-bytes": 16777216,
-        "max-string-bytes": 256,
-        "snapshot-interval": "2s",
-        "staging-retention": "1m",
-        "stale-after": "10s"
-       }
-      },
-      "management": {
-       "secret-key": "$2a$04$gCSSr1/UfkltFXZWv6msH.QzKw8xMw4IoIRSmC9.AMiyMfIf0J3lC"
-      },
-      "oauth": {
-       "providers": {
-        "aistudio": {
-         "ws-auth": true
-        }
-       }
-      },
-      "observability": {
-       "usage": {
-        "redis-usage-queue-retention-seconds": 60
-       }
-      },
-      "plugins": {
-       "configs": {
-        "x": {
-         "enabled": "on",
-         "priority": 6.5
-        },
-        "y": {}
-       }
-      },
-      "routing": {
-       "cooldown": {
-        "disable-cooling": false
-       },
-       "retry": {
-        "request-retry": 2
-       },
-       "strategy": "fill-first"
-      },
-      "server": {
-       "discovery": {
-        "service-type": "_ai-gateway._tcp",
-        "subtypes": [
-         "_chat-completions",
-         "_responses",
-         "_messages",
-         "_generate-content",
-         "_interactions"
-        ]
-       }
-      }
-     },
-     "file_has_archive": false
-    },
-    {
-     "method": "GET",
-     "path": "/config/plugins",
-     "status": 200,
-     "response": {
-      "configs": {
-       "x": {
-        "enabled": "on",
-        "priority": 6.5
-       },
-       "y": {}
-      }
-     },
-     "raw_json": "{\"configs\":{\"x\":{\"enabled\":\"on\",\"priority\":6.5},\"y\":{}}}",
-     "file": {
-      "config-version": 8,
-      "credentials": {
-       "concurrency": {
-        "busy-retry-max": "1s",
-        "busy-retry-min": "250ms",
-        "cleanup-interval": "5s",
-        "cpa-cancel-bound": "5s",
-        "cpa-heartbeat-timeout": "3s",
-        "max-limit": 1000000,
-        "reclaim-grace": "5s",
-        "release-flush-interval": "250ms",
-        "release-max-backoff": "2s"
-       },
-       "in-flight": {
-        "max-aggregate-groups": 100000,
-        "max-details": 10000,
-        "max-part-bytes": 262144,
-        "max-part-count": 64,
-        "max-revision-bytes": 16777216,
-        "max-string-bytes": 256,
-        "snapshot-interval": "2s",
-        "staging-retention": "1m",
-        "stale-after": "10s"
-       }
-      },
-      "management": {
-       "secret-key": "$2a$04$gCSSr1/UfkltFXZWv6msH.QzKw8xMw4IoIRSmC9.AMiyMfIf0J3lC"
-      },
-      "oauth": {
-       "providers": {
-        "aistudio": {
-         "ws-auth": true
-        }
-       }
-      },
-      "observability": {
-       "usage": {
-        "redis-usage-queue-retention-seconds": 60
-       }
-      },
-      "plugins": {
-       "configs": {
-        "x": {
-         "enabled": "on",
-         "priority": 6.5
-        },
-        "y": {}
-       }
-      },
-      "routing": {
-       "cooldown": {
-        "disable-cooling": false
-       },
-       "retry": {
-        "request-retry": 2
-       },
-       "strategy": "fill-first"
-      },
-      "server": {
-       "discovery": {
-        "service-type": "_ai-gateway._tcp",
-        "subtypes": [
-         "_chat-completions",
-         "_responses",
-         "_messages",
-         "_generate-content",
-         "_interactions"
-        ]
-       }
-      }
-     },
-     "file_has_archive": false
-    }
-   ]
-  },
-  {
    "name": "html_escaping_in_json",
-   "yaml": "config-version: 8\nmanagement:\n  secret-key: '$HASH'\nserver:\n  host: \"a\u003cb\u003e\u0026c\\u2028d\\u2029\"\n",
+   "yaml": "config-version: 8\nmanagement:\n  secret-key: '$HASH'\nserver:\n  host: \"a<b>&c\\u2028d\\u2029\"\n",
    "steps": [
     {
      "method": "GET",
      "path": "/config/server/host",
      "status": 200,
-     "response": "a\u003cb\u003e\u0026c\u2028d\u2029",
+     "response": "a<b>&c\u2028d\u2029",
      "raw_json": "\"a\\u003cb\\u003e\\u0026c\\u2028d\\u2029\"",
      "file": {
       "config-version": 8,
@@ -31782,7 +31086,7 @@
        "secret-key": "$2a$04$gCSSr1/UfkltFXZWv6msH.QzKw8xMw4IoIRSmC9.AMiyMfIf0J3lC"
       },
       "server": {
-       "host": "a\u003cb\u003e\u0026c\u2028d\u2029"
+       "host": "a<b>&c\u2028d\u2029"
       }
      },
      "file_has_archive": false
@@ -31792,7 +31096,7 @@
      "path": "/config/server",
      "status": 200,
      "response": {
-      "host": "a\u003cb\u003e\u0026c\u2028d\u2029"
+      "host": "a<b>&c\u2028d\u2029"
      },
      "raw_json": "{\"host\":\"a\\u003cb\\u003e\\u0026c\\u2028d\\u2029\"}",
      "file": {
@@ -31801,7 +31105,7 @@
        "secret-key": "$2a$04$gCSSr1/UfkltFXZWv6msH.QzKw8xMw4IoIRSmC9.AMiyMfIf0J3lC"
       },
       "server": {
-       "host": "a\u003cb\u003e\u0026c\u2028d\u2029"
+       "host": "a<b>&c\u2028d\u2029"
       }
      },
      "file_has_archive": false
@@ -31809,7 +31113,7 @@
     {
      "method": "PATCH",
      "path": "/config/server",
-     "body": "{\"host\":\"\u003cx\u0026y\u003e\"}",
+     "body": "{\"host\":\"<x&y>\"}",
      "status": 200,
      "response": {
       "config-version": 8,
@@ -31876,7 +31180,7 @@
          "_interactions"
         ]
        },
-       "host": "\u003cx\u0026y\u003e"
+       "host": "<x&y>"
       }
      },
      "file_has_archive": false
@@ -31885,7 +31189,7 @@
      "method": "GET",
      "path": "/config/server/host",
      "status": 200,
-     "response": "\u003cx\u0026y\u003e",
+     "response": "<x&y>",
      "raw_json": "\"\\u003cx\\u0026y\\u003e\"",
      "file": {
       "config-version": 8,
@@ -31947,7 +31251,7 @@
          "_interactions"
         ]
        },
-       "host": "\u003cx\u0026y\u003e"
+       "host": "<x&y>"
       }
      },
      "file_has_archive": false
@@ -31956,7 +31260,7 @@
   },
   {
    "name": "inherited_merges_survive_writes",
-   "yaml": "config-version: 8\n\u003c\u003c:\n  management:\n    secret-key: '$HASH'\n  access:\n    api-keys: [fake-client-1]\n  routing:\n    retry:\n      request-retry: 2\n",
+   "yaml": "config-version: 8\n<<:\n  management:\n    secret-key: '$HASH'\n  access:\n    api-keys: [fake-client-1]\n  routing:\n    retry:\n      request-retry: 2\n",
    "steps": [
     {
      "method": "PATCH",
@@ -32585,7 +31889,7 @@
     {
      "method": "PUT",
      "path": "/config.yaml",
-     "body": "config-version: 8\nmanagement: \u0026m\n  secret-key: fake-secret\nrouting:\n  retry: \u0026r {request-retry: 3}\n  \u003c\u003c: {strategy: fill-first}\n",
+     "body": "config-version: 8\nmanagement: &m\n  secret-key: fake-secret\nrouting:\n  retry: &r {request-retry: 3}\n  <<: {strategy: fill-first}\n",
      "status": 200,
      "response": {
       "config-version": 8,
@@ -32660,7 +31964,7 @@
     {
      "method": "PUT",
      "path": "/config.yaml",
-     "body": "config-version: 8\nmanagement:\n  secret-key: fake-secret\nrouting:\n  \u003c\u003c: 5\n",
+     "body": "config-version: 8\nmanagement:\n  secret-key: fake-secret\nrouting:\n  <<: 5\n",
      "status": 422,
      "response": {
       "error": "invalid_config",
@@ -32867,7 +32171,169 @@
     }
    ]
   },
-  {"name": "plugins_auth_revision_is_writable", "yaml": "config-version: 8\nmanagement:\n  secret-key: '$HASH'\nrouting:\n  strategy: round-robin\n  retry:\n    request-retry: 2\n  cooldown:\n    disable-cooling: true\nserver:\n  mystery-field: 1\n  port: 0\nmystery-section: {a: 1}\n", "steps": [{"method": "PUT", "path": "/config/plugins/auth-revision", "body": "1", "status": 200, "response": {"config-version": 8, "status": "ok"}, "raw_json": "{\"config-version\":8,\"status\":\"ok\"}", "file": {"config-version": 8, "credentials": {"concurrency": {"busy-retry-max": "1s", "busy-retry-min": "250ms", "cleanup-interval": "5s", "cpa-cancel-bound": "5s", "cpa-heartbeat-timeout": "3s", "max-limit": 1000000, "reclaim-grace": "5s", "release-flush-interval": "250ms", "release-max-backoff": "2s"}, "in-flight": {"max-aggregate-groups": 100000, "max-details": 10000, "max-part-bytes": 262144, "max-part-count": 64, "max-revision-bytes": 16777216, "max-string-bytes": 256, "snapshot-interval": "2s", "staging-retention": "1m", "stale-after": "10s"}}, "management": {"secret-key": "$2a$04$gCSSr1/UfkltFXZWv6msH.QzKw8xMw4IoIRSmC9.AMiyMfIf0J3lC"}, "oauth": {"providers": {"aistudio": {"ws-auth": true}}}, "observability": {"usage": {"redis-usage-queue-retention-seconds": 60}}, "routing": {"cooldown": {"disable-cooling": true}, "retry": {"request-retry": 2}, "strategy": "round-robin"}, "server": {"discovery": {"service-type": "_ai-gateway._tcp", "subtypes": ["_chat-completions", "_responses", "_messages", "_generate-content", "_interactions"]}, "port": 0}, "plugins": {"auth-revision": 1}}, "file_has_archive": true, "go_expectation": {"status": 400, "response": {"error": "read_only_field", "field": "plugins/auth-revision"}, "raw_json": "{\"error\":\"read_only_field\",\"field\":\"plugins/auth-revision\"}", "file": {"config-version": 8, "management": {"secret-key": "$2a$04$gCSSr1/UfkltFXZWv6msH.QzKw8xMw4IoIRSmC9.AMiyMfIf0J3lC"}, "mystery-section": {"a": 1}, "routing": {"cooldown": {"disable-cooling": true}, "retry": {"request-retry": 2}, "strategy": "round-robin"}, "server": {"mystery-field": 1, "port": 0}}, "file_has_archive": false}, "expectation": "rust: Go answered read_only_field for plugins/auth-revision; plan task 2 removed that read-only field, so the write now succeeds and the plugin section is written. go_expectation keeps the recorded Go answer."}]}
+  {
+   "name": "plugins_auth_revision_is_writable",
+   "yaml": "config-version: 8\nmanagement:\n  secret-key: '$HASH'\nrouting:\n  strategy: round-robin\n  retry:\n    request-retry: 2\n  cooldown:\n    disable-cooling: true\nserver:\n  mystery-field: 1\n  port: 0\nmystery-section: {a: 1}\n",
+   "steps": [
+    {
+     "method": "PUT",
+     "path": "/config/plugins/auth-revision",
+     "body": "1",
+     "status": 400,
+     "response": {
+      "error": "invalid_config",
+      "message": "unknown setting config.plugins.auth-revision"
+     },
+     "file": {
+      "config-version": 8,
+      "credentials": {
+       "concurrency": {
+        "busy-retry-max": "1s",
+        "busy-retry-min": "250ms",
+        "cleanup-interval": "5s",
+        "cpa-cancel-bound": "5s",
+        "cpa-heartbeat-timeout": "3s",
+        "max-limit": 1000000,
+        "reclaim-grace": "5s",
+        "release-flush-interval": "250ms",
+        "release-max-backoff": "2s"
+       },
+       "in-flight": {
+        "max-aggregate-groups": 100000,
+        "max-details": 10000,
+        "max-part-bytes": 262144,
+        "max-part-count": 64,
+        "max-revision-bytes": 16777216,
+        "max-string-bytes": 256,
+        "snapshot-interval": "2s",
+        "staging-retention": "1m",
+        "stale-after": "10s"
+       }
+      },
+      "management": {
+       "secret-key": "$2a$04$gCSSr1/UfkltFXZWv6msH.QzKw8xMw4IoIRSmC9.AMiyMfIf0J3lC"
+      },
+      "oauth": {
+       "providers": {
+        "aistudio": {
+         "ws-auth": true
+        }
+       }
+      },
+      "observability": {
+       "usage": {
+        "redis-usage-queue-retention-seconds": 60
+       }
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": true
+       },
+       "retry": {
+        "request-retry": 2
+       },
+       "strategy": "round-robin"
+      },
+      "server": {
+       "discovery": {
+        "service-type": "_ai-gateway._tcp",
+        "subtypes": [
+         "_chat-completions",
+         "_responses",
+         "_messages",
+         "_generate-content",
+         "_interactions"
+        ]
+       },
+       "port": 0,
+       "mystery-field": 1
+      },
+      "mystery-section": {
+       "a": 1
+      }
+     },
+     "file_has_archive": false,
+     "go_expectation": {
+      "status": 400,
+      "response": {
+       "error": "unknown setting config.plugins.auth-revision"
+      },
+      "raw_json": null,
+      "file": {
+       "config-version": 8,
+       "credentials": {
+        "concurrency": {
+         "busy-retry-max": "1s",
+         "busy-retry-min": "250ms",
+         "cleanup-interval": "5s",
+         "cpa-cancel-bound": "5s",
+         "cpa-heartbeat-timeout": "3s",
+         "max-limit": 1000000,
+         "reclaim-grace": "5s",
+         "release-flush-interval": "250ms",
+         "release-max-backoff": "2s"
+        },
+        "in-flight": {
+         "max-aggregate-groups": 100000,
+         "max-details": 10000,
+         "max-part-bytes": 262144,
+         "max-part-count": 64,
+         "max-revision-bytes": 16777216,
+         "max-string-bytes": 256,
+         "snapshot-interval": "2s",
+         "staging-retention": "1m",
+         "stale-after": "10s"
+        }
+       },
+       "management": {
+        "secret-key": "$2a$04$gCSSr1/UfkltFXZWv6msH.QzKw8xMw4IoIRSmC9.AMiyMfIf0J3lC"
+       },
+       "oauth": {
+        "providers": {
+         "aistudio": {
+          "ws-auth": true
+         }
+        }
+       },
+       "observability": {
+        "usage": {
+         "redis-usage-queue-retention-seconds": 60
+        }
+       },
+       "routing": {
+        "cooldown": {
+         "disable-cooling": true
+        },
+        "retry": {
+         "request-retry": 2
+        },
+        "strategy": "round-robin"
+       },
+       "server": {
+        "discovery": {
+         "service-type": "_ai-gateway._tcp",
+         "subtypes": [
+          "_chat-completions",
+          "_responses",
+          "_messages",
+          "_generate-content",
+          "_interactions"
+         ]
+        },
+        "port": 0
+       },
+       "plugins": {
+        "auth-revision": 1
+       }
+      },
+      "file_has_archive": false,
+      "note": "Go kept a read_only_field registry entry for plugins/auth-revision and answered 200; horon-router removed the plugins schema section, so strict validation rejects the unknown key with 400 and does not persist."
+     },
+     "expectation": "rust: Go answered read_only_field for plugins/auth-revision; plan task 2 removed that read-only field, so the write now succeeds and the plugin section is written. go_expectation keeps the recorded Go answer."
+    }
+   ],
+   "expectation": "rust: the plugins schema section is gone, so a strict write to /config/plugins/auth-revision is rejected as an unknown setting (400) and the file is left unchanged (no plugins key, mystery-section still archived). go_expectation keeps the recorded Go answer (200 read_only_field, plugins section written)."
+  }
  ],
  "client_ip_bytes": [
   {
@@ -34247,7 +33713,7 @@
        "Bearer fake-secret"
       ],
       "X-Forwarded-For": [
-       "été, 198.51.100.9"
+       "\u00e9t\u00e9, 198.51.100.9"
       ]
      },
      "status": 403,
@@ -34261,7 +33727,7 @@
        "Bearer fake-secret"
       ],
       "X-Forwarded-For": [
-       "été, 127.0.0.1"
+       "\u00e9t\u00e9, 127.0.0.1"
       ]
      },
      "status": 200,
