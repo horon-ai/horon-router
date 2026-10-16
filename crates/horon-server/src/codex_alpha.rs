@@ -141,8 +141,7 @@ async fn alpha_search(
         exclude,
         ..Selection::default()
     };
-    // ponytail: one selection, no failover or outcome recording, as in Go; plugin model
-    // routing is not ported.
+    // ponytail: one selection, no failover or outcome recording, as in Go.
     if let Some(remote) = rt.remote_dispatch() {
         let lease = match home_lease(&rt, remote.as_ref(), selection, &headers).await {
             Ok(lease) => lease,

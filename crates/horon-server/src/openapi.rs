@@ -1,7 +1,7 @@
 //! OpenAPI 3.1 document for the fixed HTTP API: the general routes registered in
 //! [`crate::router`] and [`crate::app`], plus the management routes merged in from
 //! [`management`]. This module only *describes* routes; it does not register them, touch
-//! handlers, or alter the request path. The dynamic plugin routes are still out of scope.
+//! handlers, or alter the request path.
 //!
 //! The document is a static [`serde_json::Value`] built at call time. Provider payloads
 //! are pass-through, so request and response schemas allow extra properties
@@ -50,7 +50,7 @@ pub fn document() -> Value {
     open. The realtime call and sideband routes additionally accept an ephemeral `ek_...` \
     client secret. The management API under `/v8/management` (and its deprecated \
     `/v0/management` spellings) is included and uses its own management key, separate from \
-    the client keys. Dynamic plugin routes, WebSocket message payloads and the RESP \
+    the client keys. WebSocket message payloads and the RESP \
     protocol are not part of this document.",
         },
         "servers": [ { "url": "/" } ],

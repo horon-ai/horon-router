@@ -47,8 +47,6 @@ pub struct Runtime {
     usage_stats: Arc<crate::usage_stats::UsageStats>,
     /// `--local-model`: embedded model catalogs only, no remote catalog refresh.
     local_model: std::sync::atomic::AtomicBool,
-    /// The native plugin host, synced with each published config (see [`crate::plugins`]).
-    plugins: crate::plugins::PluginRuntime,
     /// The remote dispatcher that replaces local selection (Go Home mode).
     remote: RwLock<Option<Arc<dyn crate::remote::RemoteDispatch>>>,
     /// Set only by [`crate::testing::runtime`]: executor calls get credentials that
@@ -94,7 +92,6 @@ impl Runtime {
             usage: Arc::default(),
             usage_stats: Arc::default(),
             local_model: Default::default(),
-            plugins: Default::default(),
             remote: RwLock::default(),
             deny_external: Default::default(),
             config_changed: tokio::sync::watch::Sender::new(()),
@@ -135,24 +132,6 @@ impl Runtime {
         self.local_model.load(std::sync::atomic::Ordering::Relaxed)
     }
 
-    /// Serves with `host`, a plugin host that already runs (Go hands the host that
-    /// registered plugin command-line flags to the service; additive API). Call before
-    /// [`crate::plugins::start`].
-    pub fn with_plugin_host(mut self, host: horon_plugin::Host) -> Self {
-        self.plugins = crate::plugins::PluginRuntime::with_host(host);
-        self
-    }
-
-    /// The plugin host (additive API). [`crate::plugins::start`] syncs it with the
-    /// config.
-    pub fn plugins(&self) -> &horon_plugin::Host {
-        self.plugins.host()
-    }
-
-    pub(crate) fn plugin_runtime(&self) -> &crate::plugins::PluginRuntime {
-        &self.plugins
-    }
-
     /// The config snapshot to use for one whole request.
     pub fn config(&self) -> Arc<Config> {
         self.config.read().unwrap_or_else(PoisonError::into_inner).clone()
@@ -179,12 +158,8 @@ impl Runtime {
         let ws_auth = crate::relay::ws_auth(&config);
         let config = Arc::new(config);
         let previous = {
-            // The plugin worker is told under the same lock, so concurrent publishes
-            // reach it in the order they replaced the config.
             let mut current = self.config.write().unwrap_or_else(PoisonError::into_inner);
-            let previous = std::mem::replace(&mut *current, config.clone());
-            self.plugins.config_published(config);
-            previous
+            std::mem::replace(&mut *current, config)
         };
         // Go's websocket auth change handler: turning ws-auth on ends the relay sessions
         // that connected without a key.
@@ -1550,8 +1525,8 @@ impl CredentialStore {
         self.persist_cooldowns();
     }
 
-    /// Inserts or replaces one credential (a plugin's `host.auth.save`) under a single
-    /// write lock, so a concurrent `apply_patch` on another credential is never undone
+    /// Inserts or replaces one credential under a single write lock, so a concurrent
+    /// `apply_patch` on another credential is never undone
     /// the way a snapshot followed by [`Self::reconcile`] could undo it. An unchanged
     /// credential keeps its revision, as in `reconcile`.
     pub fn upsert(&self, mut credential: Credential) {
@@ -1670,15 +1645,6 @@ impl CredentialStore {
     }
 
     /// Active cooldowns of one credential.
-    /// Credentials bound to live session-affinity keys that `matches`, without
-    /// refreshing them (the plugin host's `host.affinity.lookup`).
-    pub(crate) fn affinity_bound(&self, matches: impl Fn(&crate::affinity::Key) -> bool) -> Vec<String> {
-        self.scheduler
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .affinity_bound(Instant::now(), matches)
-    }
-
     pub fn cooldowns(&self, id: &str) -> Vec<crate::scheduler::CooldownState> {
         self.scheduler
             .lock()
@@ -2066,7 +2032,7 @@ mod tests {
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
-    /// A plugin save running alongside token refreshes of another credential never
+    /// A credential save running alongside token refreshes of another credential never
     /// reinstalls a stale copy of it: every refresh finds the revision it left.
     #[test]
     fn upsert_never_undoes_a_concurrent_patch() {

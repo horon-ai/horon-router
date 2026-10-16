@@ -29,7 +29,6 @@ pub mod observability;
 mod openai;
 pub mod openapi;
 pub mod persist;
-pub mod plugins;
 mod quota_routing;
 mod realtime;
 mod refresh;
@@ -75,7 +74,7 @@ pub fn router(rt: Arc<Runtime>) -> Router {
 }
 
 /// The served app: the API routes, with `rest` (the management router, which owns gin's
-/// NoRoute and its plugin routes) answering every path the API does not register. axum
+/// NoRoute) answering every path the API does not register. axum
 /// allows one fallback per merged router, so `rest` sits behind the API instead of being
 /// merged into it.
 pub fn app(rt: Arc<Runtime>, rest: Router) -> Router {
@@ -130,7 +129,7 @@ fn api(rt: Arc<Runtime>) -> Router {
         .merge(v1)
         .merge(realtime::routes(&rt))
         .merge(relay::routes(&rt))
-        // Matched API routes only: management answers its own HEADs (plugin routes).
+        // Matched API routes only: management answers its own HEADs.
         .route_layer(middleware::from_fn(head_only_healthz))
         .method_not_allowed_fallback(|| async { StatusCode::NOT_FOUND })
         .layer(DefaultBodyLimit::max(MAX_REQUEST_BYTES))

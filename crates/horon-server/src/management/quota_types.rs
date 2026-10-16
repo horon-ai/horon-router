@@ -15,7 +15,6 @@ pub(crate) use horon_common::gojson::{
 pub(crate) struct QuotaBody {
     auth_index: [Option<String>; 3],
     pub(crate) plugin_id: String,
-    pub(crate) provider: String,
 }
 
 impl QuotaBody {
@@ -50,7 +49,9 @@ impl QuotaBody {
                 (Some(i @ 0..=2), Node::String(s)) => out.auth_index[i] = Some(std::mem::take(s)),
                 (Some(i @ 0..=2), Node::Null) => out.auth_index[i] = None,
                 (Some(3), Node::String(s)) => out.plugin_id = std::mem::take(s),
-                (Some(4), Node::String(s)) => out.provider = std::mem::take(s),
+                // Go's `Provider` selects the quota provider to ask; the value is still
+                // validated and then dropped (no plugin host registers providers).
+                (Some(4), Node::String(_)) | (Some(4), Node::Null) => {}
                 (Some(_), Node::Null) | (None, _) => {}
                 (Some(_), _) => ok = false,
             }
@@ -104,18 +105,4 @@ fn first_value(body: &[u8]) -> &[u8] {
         }
     }
     rest
-}
-
-/// Go `json.Unmarshal` into `map[string]any`: an object (or null) whose numbers all
-/// fit a float64.
-pub(crate) fn go_object(data: &[u8]) -> bool {
-    fn numbers_fit(n: &Node) -> bool {
-        match n {
-            Node::Number(lit) => horon_common::json::parse_decimal_float(lit).is_some(),
-            Node::Array(items) => items.iter().all(numbers_fit),
-            Node::Object(fields) => fields.iter().all(|(_, v)| numbers_fit(v)),
-            _ => true,
-        }
-    }
-    matches!(pjson::parse(data), Ok(n @ (Node::Object(_) | Node::Null)) if numbers_fit(&n))
 }

@@ -175,30 +175,21 @@ async fn authenticate(
             secret: Some(grant),
         }
     } else {
-        let (authenticated, access) = crate::plugins::authenticate(&rt, req).await;
-        req = authenticated;
-        match access {
-            // No provider registered: Go sets nothing.
-            Ok(crate::plugins::Access::Open) => Principal::default(),
-            Ok(crate::plugins::Access::Granted { caller, provider }) => Principal {
+        let cfg = rt.config();
+        match crate::access::authenticate(&cfg.api_keys, req.headers(), req.uri().query().unwrap_or_default()) {
+            // No keys configured: Go sets nothing.
+            Ok(caller) if caller.principal.is_empty() => Principal::default(),
+            Ok(caller) => Principal {
                 key: caller.principal,
-                provider,
+                provider: crate::access::CONFIG_PROVIDER.to_owned(),
                 secret: None,
             },
-            Err(denied) if matches!(mode, Mode::Ordinary) => {
-                let body = crate::gojson::Obj::new().str("error", denied.message).finish();
-                return crate::respond::gin_json(denied.status, body);
+            Err(message) if matches!(mode, Mode::Ordinary) => {
+                let body = crate::gojson::Obj::new().str("error", message).finish();
+                return crate::respond::gin_json(401, body);
             }
-            Err(denied) if denied.status >= 500 => {
-                return realtime_error(
-                    denied.status,
-                    denied.message,
-                    "server_error",
-                    "authentication_service_error",
-                );
-            }
-            Err(denied) => {
-                return realtime_error(denied.status, denied.message, "authentication_error", "invalid_api_key");
+            Err(message) => {
+                return realtime_error(401, message, "authentication_error", "invalid_api_key");
             }
         }
     };
