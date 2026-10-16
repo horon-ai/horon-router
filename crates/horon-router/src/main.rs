@@ -1615,6 +1615,9 @@ mod tests {
             (vec!["-tui"], None, Some("")),
             (vec!["-config"], None, None),
             (vec!["-config="], Some(""), Some("")),
+            // An extra dash is not a spelling of the flag: the scan finds nothing and the
+            // parse rejects the token.
+            (vec!["---config=c"], None, None),
         ] {
             let argv: Vec<String> = args.iter().map(|s| (*s).to_owned()).collect();
             let want = sizing.map_or_else(|| default.clone(), PathBuf::from);

@@ -161,7 +161,7 @@ fn start_server(name: &str) -> (Server, Scratch) {
         "config-version: 8\nhost: 127.0.0.1\nport: 0\nauth-dir: ./auth\napi-keys:\n  - \"k1\"\nremote-management:\n  disable-control-panel: true\n",
     )
     .unwrap();
-    let mut child = Command::new(env!("CARGO_BIN_EXE_horonrouter"))
+    let child = Command::new(env!("CARGO_BIN_EXE_horonrouter"))
         .arg("-config")
         .arg(&config)
         .arg("-local-model")
@@ -174,12 +174,17 @@ fn start_server(name: &str) -> (Server, Scratch) {
         .stderr(Stdio::piped())
         .spawn()
         .unwrap();
+    // The guard exists from here on, before readiness is awaited: a readiness failure
+    // unwinds through `Server::drop` and kills the binary instead of leaking a running
+    // process. It is declared after `scratch`, so it drops first and the scratch
+    // directory goes last. `port` is a placeholder until the log line reports it.
+    let mut server = Server { child, port: 0 };
     // The binary logs where it listens; that line is the readiness event, so the wait is a
     // bounded receive and not a poll.
     let (tx, rx) = mpsc::channel();
     let pipes: Vec<Box<dyn Read + Send>> = vec![
-        Box::new(child.stdout.take().unwrap()),
-        Box::new(child.stderr.take().unwrap()),
+        Box::new(server.child.stdout.take().unwrap()),
+        Box::new(server.child.stderr.take().unwrap()),
     ];
     for pipe in pipes {
         let tx = tx.clone();
@@ -197,8 +202,8 @@ fn start_server(name: &str) -> (Server, Scratch) {
         });
     }
     drop(tx);
-    let port = listening_port(&rx, Duration::from_secs(30));
-    (Server { child, port }, scratch)
+    server.port = listening_port(&rx, Duration::from_secs(30));
+    (server, scratch)
 }
 
 /// `listening addr=127.0.0.1:<port> tls=false`, or a panic carrying the output seen so far.
@@ -281,8 +286,8 @@ fn request(port: u16, case: &Case) -> Reply {
 }
 
 /// The headers every route answers with. `Access-Control-Expose-Headers` is checked for the
-/// general entries rather than pinned whole: it still carries `X-CPA-SUPPORT-PLUGIN` here,
-/// which the server half of this removal drops on purpose.
+/// general entries (case-insensitively) rather than pinned whole: it still carries
+/// `X-CPA-SUPPORT-PLUGIN` here, which the server half of this removal drops on purpose.
 fn general_headers(reply: &Reply, content_type: &str) {
     assert_eq!(reply.header("content-type"), Some(content_type));
     assert_eq!(reply.header("access-control-allow-origin"), Some("*"));
@@ -293,8 +298,10 @@ fn general_headers(reply: &Reply, content_type: &str) {
     );
     let expose = reply
         .header("access-control-expose-headers")
-        .expect("Access-Control-Expose-Headers");
+        .expect("Access-Control-Expose-Headers")
+        .to_ascii_uppercase();
     for entry in [
+        "X-CPA-TRACE-ID",
         "X-CPA-VERSION",
         "X-CPA-COMMIT",
         "X-CPA-BUILD-DATE",
@@ -307,7 +314,10 @@ fn general_headers(reply: &Reply, content_type: &str) {
         "X-Request-Id",
         "OpenAI-Request-Id",
     ] {
-        assert!(expose.contains(entry), "{entry} missing from Expose-Headers: {expose}");
+        assert!(
+            expose.contains(&entry.to_ascii_uppercase()),
+            "{entry} missing from Expose-Headers: {expose}"
+        );
     }
 }
 
