@@ -41,7 +41,7 @@ Rebuild the UI before compiling Rust when UI sources change; `ui/dist` is checke
 
 ## Languages
 
-Every sentence the dashboard shows is a key in `src/locales/en.ts`, with its Korean text under the same key in `src/locales/ko.ts`. `ko.ts` is typed from `en.ts`, so a missing key fails `npm run check`, and `npm test` also checks that both languages use the same `{placeholders}`. A message is a string, or `[one, other]` when English needs a plural picked by `{n}`; `\`backticks\`` render as code. Text that comes from the server (error messages, plugin descriptions, log lines) is shown as the server sent it. To add a language, add a file next to `ko.ts`, register it in `src/i18n.ts`, and write Korean-style plain words for people who are not developers.
+Every sentence the dashboard shows is a key in `src/locales/en.ts`, with its Korean text under the same key in `src/locales/ko.ts`. `ko.ts` is typed from `en.ts`, so a missing key fails `npm run check`, and `npm test` also checks that both languages use the same `{placeholders}`. A message is a string, or `[one, other]` when English needs a plural picked by `{n}`; `\`backticks\`` render as code. Text that comes from the server (error messages, log lines) is shown as the server sent it. To add a language, add a file next to `ko.ts`, register it in `src/i18n.ts`, and write Korean-style plain words for people who are not developers.
 
 ## Honest states
 
@@ -59,16 +59,15 @@ All paths are under `/v8/management`. Every screen also uses `GET /config` and `
 | --- | --- |
 | Overview | `GET /credentials` every 10 s while visible |
 | Credentials | `POST /credentials` (upload), `DELETE /credentials`, `GET /credentials/download`, `GET /credentials/models`, `PATCH /credentials/status`, `PATCH /credentials/fields`, `POST /credentials/refresh`, `POST /routing/cooldown/reset` |
-| Connect | `GET /oauth/auth-url`, `GET /oauth/status` every 2 s while waiting, `POST /oauth/callback`, `DELETE /oauth/session`, `POST /oauth/import?provider=vertex`, `GET /plugins` |
+| Connect | `GET /oauth/auth-url`, `GET /oauth/status` every 2 s while waiting, `POST /oauth/callback`, `DELETE /oauth/session`, `POST /oauth/import?provider=vertex` |
 | Providers | `GET /observability/usage/api-keys`; `PUT /config/api-keys/<family>` |
 | Client keys | `PUT /config/access/api-keys` |
 | Models | `GET /routing/model-definitions/<channel>`; `PUT /config/oauth/model-alias/<channel>`, `PUT /config/oauth/excluded-models/<channel>` |
 | Payload rules | `PUT /config/requests/payload/<kind>` |
-| Quotas | `POST /requests/api-call` (Claude, Codex, Kimi usage), `POST /plugins/<id>/quota`, `POST /routing/cooldown/reset` |
+| Quotas | `POST /requests/api-call` (Claude, Codex, Kimi usage), `POST /routing/cooldown/reset` |
 | Usage | `GET /observability/usage/api-keys`, opt-in `GET /observability/usage/queue?count=500` |
 | Logs | `GET /observability/logs` (cursor, every 3 s), `DELETE /observability/logs`, `GET /observability/logs/errors`, `GET /observability/logs/errors/<name>`, `GET /observability/logs/requests/<id>` |
 | Configuration | `GET, PUT /config/<section>`, `GET, PUT /config.yaml` |
-| Plugins | `GET /plugins`, `GET /plugins/store`, `POST /plugins/store/<id>/install`, `DELETE /plugins/<id>`, `PUT /config/plugins/enabled`, `GET, PUT /config/plugins/configs/<id>` |
 | System | `GET /server/latest-version` on request |
 
 Config list writes reread the target first and refuse to write if it changed since it was shown. The API has no revision precondition, so this narrows the race window rather than closing it.
@@ -87,7 +86,7 @@ Both scripts are for disposable servers with fake credentials only: they edit co
 
 ## Security
 
-The management key lives in `src/api.ts` module memory and is cleared on sign-out; reloading signs out. Only the theme is stored. Plugin store descriptions are decoded as text, never inserted as HTML. Downloaded credential files and configuration previews contain secrets; treat them accordingly. Do not use the dashboard over plain HTTP across a network.
+The management key lives in `src/api.ts` module memory and is cleared on sign-out; reloading signs out. Only the theme is stored. Downloaded credential files and configuration previews contain secrets; treat them accordingly. Do not use the dashboard over plain HTTP across a network.
 
 ## Fonts
 

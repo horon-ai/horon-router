@@ -30,6 +30,47 @@ LINK = re.compile(r"\[`([^`]*)`\]\([^)]*\)")
 ITEM = re.compile(r"^- \[[ x]\] \*\*\[(M\d)\] (M\d-\d{4})\*\* (.*)")
 GO_TEST = re.compile(r"\b(?:Test|Fuzz|Benchmark|Example)[A-Z0-9_][A-Za-z0-9_]*")
 
+# Native plugin support was removed on purpose (plan remove-native-plugins). Go still provides
+# every one of these items, so they must not be judged as covered/implemented, and they are not
+# a gap to close either: they get the `removed` status instead. The list is explicit and
+# auditable; see docs/DIFFERENCES-FROM-GO.md. Mixed items that only mention a plugin in passing
+# keep their ordinary judgement and get a note in manual.tsv.
+REMOVED_NOTE = ("Removed by owner ruling: native plugin support is intentionally removed; "
+                "see docs/DIFFERENCES-FROM-GO.md. Go provides it; this is not a gap to close.")
+REMOVED_IDS = frozenset({
+    "M5-0076", "M5-0077", "M5-0078", "M5-0079", "M5-0080", "M5-0081",
+    "M5-0082", "M5-0089", "M5-0090", "M5-0091", "M5-0092", "M5-0093",
+    "M5-0094", "M5-0095", "M5-0096", "M5-0097", "M5-0098", "M5-0099",
+    "M5-0100", "M5-0128", "M6-0001", "M6-0022", "M6-0023", "M6-0024",
+    "M6-0025", "M6-0026", "M6-0027", "M6-0028", "M6-0029", "M6-0030",
+    "M6-0031", "M6-0032", "M6-0033", "M6-0034", "M6-0035", "M6-0036",
+    "M6-0065", "M6-0066", "M6-0067", "M6-0068", "M6-0069", "M6-0070",
+    "M6-0071", "M6-0072", "M6-0073", "M6-0074", "M6-0075", "M6-0076",
+    "M6-0077", "M6-0078", "M6-0079", "M6-0080", "M6-0081", "M6-0082",
+    "M6-0083", "M6-0084", "M6-0085", "M6-0086", "M6-0087", "M6-0088",
+    "M6-0089", "M6-0090", "M6-0091", "M6-0092", "M6-0093", "M6-0094",
+    "M6-0095", "M6-0096", "M6-0097", "M6-0098", "M6-0099", "M6-0100",
+    "M6-0101", "M6-0102", "M6-0103", "M6-0104", "M6-0105", "M6-0106",
+    "M6-0107", "M6-0108", "M6-0109", "M6-0110", "M6-0111", "M6-0112",
+    "M6-0113", "M6-0114", "M6-0115", "M6-0116", "M6-0117", "M6-0118",
+    "M6-0119", "M6-0120", "M6-0121", "M6-0122", "M6-0123", "M6-0124",
+    "M6-0125", "M6-0126", "M6-0127", "M6-0128", "M6-0129", "M6-0130",
+    "M6-0131", "M6-0132", "M6-0133", "M6-0134", "M6-0135", "M6-0136",
+    "M6-0137", "M6-0138", "M6-0139", "M6-0140", "M6-0141", "M6-0142",
+    "M6-0143", "M6-0144", "M6-0145", "M6-0146", "M6-0147", "M6-0148",
+    "M6-0149", "M6-0150", "M6-0151", "M6-0152", "M6-0153", "M6-0154",
+    "M6-0155", "M6-0156", "M6-0157", "M6-0158", "M6-0159", "M6-0162",
+    "M6-0163", "M6-0169", "M6-0170", "M6-0171", "M6-0174", "M6-0175",
+    "M6-0176", "M6-0177", "M6-0178", "M6-0179", "M6-0180", "M6-0181",
+    "M6-0182", "M6-0183", "M6-0184", "M6-0185", "M6-0186", "M6-0187",
+    "M6-0188", "M6-0189", "M6-0190", "M6-0191", "M6-0192", "M6-0193",
+    "M6-0194", "M6-0195", "M6-0196", "M6-0197", "M6-0198", "M6-0199",
+    "M6-0200", "M6-0201", "M6-0202", "M6-0203", "M6-0204", "M6-0205",
+    "M6-0206", "M6-0207", "M6-0208", "M6-0209", "M6-0211", "M6-0213",
+    "M6-0217", "M6-0220", "M6-0239", "M6-0240", "M6-0241", "M6-0242",
+    "M6-0243", "M6-0244", "M6-0245", "M6-0246", "M6-0247", "M6-0248",
+})
+
 
 def items():
     out, section = [], None
@@ -368,8 +409,19 @@ def main():
             status = man["status"] or status
             evidence = man["evidence"] or evidence
             note = man["note"] or note
+        if item["id"] in REMOVED_IDS:
+            # A policy removal outranks both the automatic judgement and manual.tsv: Go
+            # provides the item and horon-router deliberately does not, so it is neither
+            # implemented nor an open gap.
+            status, evidence, note, auto_owner = "removed", "", REMOVED_NOTE, ""
+        if item["id"] in ROUTE_RECONCILIATION:
+            # Route-reconciliation items have no leading `METHOD /path`, so judge_route
+            # cannot score them. Their status is the remaining supported contract and their
+            # evidence is the live probe summary, so the number never goes stale in manual.tsv.
+            status = ROUTE_RECONCILIATION[item["id"]]
+            evidence = route_summary(routes)
         owner = ""
-        if status != "covered":
+        if status not in ("covered", "removed"):
             owner = (man and man["owner"]) or auto_owner or owner_for(item["text"])
         rows.append({**item, "status": status or "unjudged", "evidence": evidence, "owner": owner, "note": note})
     json.dump(rows, open(os.path.join(HERE, "status.json"), "w"), indent=1)
@@ -385,6 +437,14 @@ def main():
 AUDITED = ["M1", "M2", "M3", "M4", "M5", "M6"]
 # What the audited tree is called in the rendered pages: a release or a date.
 BASE = "2026-10-05"
+
+# Route-reconciliation items (doc/code route tables): their remaining supported contract is
+# scored here, and the routed count comes from routes.json at run time.
+ROUTE_RECONCILIATION = {"M5-0227": "partial", "M5-0228": "partial"}
+
+def route_summary(routes):
+    routed = sum(1 for v in routes.values() if v.get("routed"))
+    return f"probe: {routed} of {len(routes)} listed routes routed"
 
 
 def title(r):
@@ -415,9 +475,11 @@ def render(rows):
     w("")
     w("- **covered**: implemented, and Rust tests or Go-generated fixtures exercise it. A note starting "
       "\"Deliberate difference\" marks an owner-approved divergence from Go; it counts as covered because "
-      "there is no gap to close.")
+      "there is no gap to close. A `removed` row is not covered: it carries a \"Removed by owner ruling\" note.")
     w("- **partial**: implemented in part, or implemented without tests that pin Go's behaviour. For Go test suites: the behaviour exists and is exercised, but not every Go case is ported.")
     w("- **missing**: not implemented.")
+    w("- **removed**: Go provides it and horon-router deliberately does not. This is an owner-approved "
+      "removal of native plugin support, not a gap to close; see [DIFFERENCES-FROM-GO.md](../DIFFERENCES-FROM-GO.md).")
     w("")
     w("Area names the part of the code base that would close a partial or missing item.")
     w("")
@@ -429,14 +491,14 @@ def render(rows):
     w("")
     w("## Summary")
     w("")
-    w("| Milestone | Items | covered | partial | missing |")
-    w("|---|---:|---:|---:|---:|")
+    w("| Milestone | Items | covered | partial | missing | removed |")
+    w("|---|---:|---:|---:|---:|---:|")
     for ms in AUDITED:
         rs = [r for r in rows if r["ms"] == ms]
         c = defaultdict(int)
         for r in rs:
             c[r["status"]] += 1
-        w(f"| {ms} | {len(rs)} | {c['covered']} | {c['partial']} | {c['missing']} |")
+        w(f"| {ms} | {len(rs)} | {c['covered']} | {c['partial']} | {c['missing']} | {c['removed']} |")
     w("")
     w("### Gaps by area")
     w("")
@@ -471,8 +533,8 @@ def render(rows):
 
 
 def summary(rows):
-    """Rewrites the table between the parity-summary markers in docs/PARITY.md."""
-    lines = [f"Audit of {BASE}.", "", "| Milestone | Items | Covered | Partial | Missing |", "|---|---:|---:|---:|---:|"]
+    """Rewrites the Korean summary table between the parity-summary markers in docs/PARITY.md."""
+    lines = [f"점검일: {BASE}.", "", "| 마일스톤 | 항목 수 | 충족 | 일부 충족 | 미구현 | 제거됨 |", "|---|---:|---:|---:|---:|---:|"]
     total = defaultdict(int)
     for ms in AUDITED:
         c = defaultdict(int)
@@ -482,8 +544,8 @@ def summary(rows):
                 c["all"] += 1
         for k, v in c.items():
             total[k] += v
-        lines.append(f"| {ms} | {c['all']} | {c['covered']} | {c['partial']} | {c['missing']} |")
-    lines.append(f"| All | {total['all']} | {total['covered']} | {total['partial']} | {total['missing']} |")
+        lines.append(f"| {ms} | {c['all']} | {c['covered']} | {c['partial']} | {c['missing']} | {c['removed']} |")
+    lines.append(f"| 합계 | {total['all']} | {total['covered']} | {total['partial']} | {total['missing']} | {total['removed']} |")
     path = os.path.join(ROOT, "docs", "PARITY.md")
     page = open(path, encoding="utf-8").read()
     start, end = "<!-- parity-summary:start -->", "<!-- parity-summary:end -->"

@@ -6,7 +6,7 @@ Tested against unmodified CLIProxyAPI at commit `6fecc6e` (v8.0.10), both the re
 
 ## What you get
 
-- Every screen: overview, credentials and account sign-in (OAuth, device codes, callback paste, Vertex import), provider API keys, client keys, models, payload rules, quotas, configuration (JSON and YAML with a reviewed diff), logs, usage, plugins and system.
+- Every screen: overview, credentials and account sign-in (OAuth, device codes, callback paste, Vertex import), provider API keys, client keys, models, payload rules, quotas, configuration (JSON and YAML with a reviewed diff), logs, usage and system.
 - It talks only to the server that serves it: the v8 Management API (`/v8/management/...`), plus `GET /v1/models` with a client key when the Use with tools page tests that key. JavaScript, CSS, the font and the icons are inside the file. It makes no other requests: no CDN, no web fonts, no analytics, no update checks of its own.
 - The management key is kept in the tab's memory only, never in browser storage. Reloading the page signs you out. The theme choice is the only thing stored.
 - It recognises the server from its `X-CPA-VERSION`, `X-CPA-COMMIT` and `X-CPA-BUILD-DATE` headers. On Go it assumes the full v8 API and sends no capability probes; every request it makes is one you triggered or a read for the screen you are on.
@@ -14,9 +14,8 @@ Tested against unmodified CLIProxyAPI at commit `6fecc6e` (v8.0.10), both the re
 ## What it does not do
 
 - It does not use the deprecated `/v0/management` API, so Go servers older than v8 are not supported.
-- It does not render plugin-defined menu pages; plugins are listed, configured, enabled, installed and deleted.
 - It keeps no history beyond what the server reports (twenty 10-minute buckets per credential). The live usage view reads the server's usage queue, which removes those records for other consumers; it asks before starting.
-- "Check quota" asks the provider for usage through the server (`/requests/api-call` or a quota plugin) only when you press it.
+- "Check quota" asks the provider for usage through the server (`/requests/api-call`) only when you press it.
 - It does not update itself. Updates come from replacing the file, by hand or through Go's release updater below.
 
 ## Install by hand
