@@ -629,27 +629,51 @@ mod tests {
         home: crate::fake::FakeHome,
         client: Client,
         arrivals: Arc<std::sync::Mutex<Vec<(tokio::time::Instant, Json)>>>,
+        rx: Option<std::sync::mpsc::Receiver<()>>,
     }
 
     impl Published {
         async fn start(heartbeat: bool) -> Self {
             let arrivals: Arc<std::sync::Mutex<Vec<(tokio::time::Instant, Json)>>> = Arc::default();
             let seen = arrivals.clone();
+            let (tx, rx) = std::sync::mpsc::channel();
+            let notify = Arc::new(std::sync::Mutex::new(tx));
             let home = crate::fake::FakeHome::start(move |args| {
                 if args[0].eq_ignore_ascii_case("lpush") && args[1] == "in-flight-snapshot" {
-                    let frame = serde_json::from_str(&args[2]).unwrap();
+                    let frame: Json = serde_json::from_str(&args[2]).unwrap();
                     seen.lock().unwrap().push((tokio::time::Instant::now(), frame));
+                    let _ = notify.lock().unwrap().send(());
                 }
                 crate::fake::raw(":1\r\n")
             })
             .await;
             let client = Client::new(home.config());
             crate::fake::set_heartbeat(&client, heartbeat);
-            Self { home, client, arrivals }
+            Self {
+                home,
+                client,
+                arrivals,
+                rx: Some(rx),
+            }
         }
 
         fn arrivals(&self) -> Vec<(tokio::time::Instant, Json)> {
             self.arrivals.lock().unwrap().clone()
+        }
+
+        /// Waits for the next snapshot without parking the runtime. A `spawn_blocking`
+        /// wait inhibits the paused clock's auto-advance, so the snapshot's recorded
+        /// instant is the publisher's exact logical tick. The 5s receive is a safety net.
+        async fn next_arrival(&mut self) {
+            let rx = self.rx.take().expect("one wait at a time");
+            let (got, rx) = tokio::task::spawn_blocking(move || {
+                let got = rx.recv_timeout(Duration::from_secs(5));
+                (got, rx)
+            })
+            .await
+            .expect("the wait task joins");
+            self.rx = Some(rx);
+            got.expect("a snapshot within 5s");
         }
 
         async fn wait_for(&self, count: usize) -> Vec<(tokio::time::Instant, Json)> {
@@ -753,12 +777,17 @@ mod tests {
     }
 
     /// Go `TestHomeInFlightPublisherAppliesConfigUpdateAtNextTimerCycle`: a new interval
-    /// takes effect after the pending timer fires, not before. Paused time: the timers
-    /// and arrival stamps share one controlled clock, so scheduler delay cannot skew them.
+    /// takes effect after the pending timer fires, not before. The paused clock moves
+    /// only by explicit `advance`, and each wait runs off a `spawn_blocking` task, which
+    /// inhibits the clock's auto-advance while the real snapshot I/O completes. So the
+    /// recorded instants are the publisher's logical tick instants. Waiting on the
+    /// runtime instead (sleep, or a busy yield loop) lets the paused clock auto-advance
+    /// to a pending timer, which decoupled the arrival stamps from the ticks and made the
+    /// old wall-clock bound flake.
     #[tokio::test(start_paused = true)]
     async fn a_new_interval_applies_at_the_next_timer_cycle() {
         let settings = test_settings(Duration::from_millis(60));
-        let published = Published::start(true).await;
+        let mut published = Published::start(true).await;
         let stop = CancellationToken::new();
         tokio::spawn(run_publisher(
             published.client.clone(),
@@ -766,21 +795,43 @@ mod tests {
             settings.clone(),
             stop.clone(),
         ));
-        published.wait_for(1).await;
-        let updated = tokio::time::Instant::now();
+
+        // Cycle 1 fires at once and arms its 60ms timer before reading Home's config, so
+        // the pending deadline is fixed no matter when the update below lands.
+        published.next_arrival().await;
+        let t0 = published.arrivals()[0].0;
         settings.apply(PublisherConfig {
             snapshot_interval: Duration::from_millis(10),
             ..settings.get().unwrap()
         });
-        let arrivals = published.wait_for(3).await;
-        assert!(
-            arrivals[1].0.duration_since(updated) >= Duration::from_millis(30),
-            "the hot interval waited for the pending timer"
+
+        // Short of the pending 60ms deadline: the hot interval must not fire yet.
+        tokio::time::advance(Duration::from_millis(59)).await;
+        assert_eq!(
+            published.arrivals().len(),
+            1,
+            "the hot interval fired before the pending timer"
         );
-        assert!(
-            arrivals[2].0.duration_since(arrivals[1].0) <= Duration::from_millis(35),
+
+        // Crossing the pending deadline fires exactly one cycle, which adopts 10ms.
+        tokio::time::advance(Duration::from_millis(1)).await;
+        published.next_arrival().await;
+        let second = published.arrivals()[1].0;
+        assert_eq!(
+            second.duration_since(t0),
+            Duration::from_millis(60),
+            "the new interval waited for the pending timer"
+        );
+
+        tokio::time::advance(Duration::from_millis(10)).await;
+        published.next_arrival().await;
+        let third = published.arrivals()[2].0;
+        assert_eq!(
+            third.duration_since(second),
+            Duration::from_millis(10),
             "then the new interval applies"
         );
+        assert_eq!(published.arrivals().len(), 3, "one cycle per interval");
         stop.cancel();
     }
 }
