@@ -1,7 +1,7 @@
 //! The built-in credential quota request body (Go `credentialQuotaRequest`).
 //!
 //! The quota wire schemas (`QuotaFetchResponse`, `QuotaBucket`, ...) live in
-//! [`horon_common::gojson`], shared with the plugin host and the declarative quota probe.
+//! [`horon_common::gojson`], shared with the declarative quota probe.
 
 use horon_common::gojson::{self as pjson, Node};
 

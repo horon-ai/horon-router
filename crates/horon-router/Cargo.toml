@@ -19,7 +19,6 @@ horon-common.workspace = true
 horon-core.workspace = true
 horon-exec.workspace = true
 horon-home.workspace = true
-horon-plugin.workspace = true
 horon-server.workspace = true
 horon-store.workspace = true
 getrandom = "0.3"
@@ -43,5 +42,4 @@ url = "2"
 wreq.workspace = true
 
 [dev-dependencies]
-horon-plugin = { workspace = true, features = ["test-support"] }
 horon-home = { workspace = true, features = ["fake"] }
