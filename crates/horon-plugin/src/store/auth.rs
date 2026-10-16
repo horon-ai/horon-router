@@ -5,8 +5,8 @@
 use super::registry::{INSTALL_TYPE_DIRECT, INSTALL_TYPE_GITHUB_RELEASE, Plugin, Source, github_repository_parts};
 use super::url;
 use super::{REQUEST_KIND_ARTIFACT, REQUEST_KIND_METADATA, REQUEST_KIND_REGISTRY};
-use crate::go_struct;
 use crate::gojson::{self, GoJson, Node};
+use horon_common::go_struct;
 
 pub const AUTH_TYPE_NONE: &str = "none";
 pub const AUTH_TYPE_BEARER: &str = "bearer";

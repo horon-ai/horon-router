@@ -7,6 +7,7 @@ use std::sync::Mutex;
 use std::time::{Duration, SystemTime};
 
 use super::auth::Headers;
+use horon_common::go_struct;
 
 /// A GitHub API cooldown, without response bodies or credentials.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -215,7 +216,7 @@ fn http_date(value: &str) -> Option<SystemTime> {
     None
 }
 
-crate::go_struct! {
+go_struct! {
     /// The body Go's `githubRateLimitMessage` decodes.
     pub struct RateLimitBody("pluginstore.githubRateLimitBody") {
         "message" => message: String,

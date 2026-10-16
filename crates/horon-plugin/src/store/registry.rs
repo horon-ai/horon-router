@@ -5,8 +5,8 @@ use sha2::{Digest, Sha256};
 
 use super::url;
 use super::version::normalize_version;
-use crate::go_struct;
 use crate::gojson;
+use horon_common::go_struct;
 
 pub const DEFAULT_REGISTRY_URL: &str =
     "https://raw.githubusercontent.com/router-for-me/CLIProxyAPI-Plugins-Store/main/registry.json";

@@ -8,8 +8,8 @@ use bytes::Bytes;
 use crate::abi::{self, Envelope, method};
 use crate::api::PluginMetadata;
 use crate::client::{GuardError, GuardedClient};
-use crate::go_struct;
 use crate::gojson::{self, GoJson};
+use horon_common::go_struct;
 
 /// A failed plugin call.
 #[derive(Debug, Clone, PartialEq, Eq)]

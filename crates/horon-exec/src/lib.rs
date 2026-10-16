@@ -53,6 +53,7 @@ mod gemini_payload;
 mod gemini_stream;
 pub mod github_copilot;
 mod home_replay;
+pub mod http;
 pub mod kimi;
 pub mod kimi_auth;
 #[cfg(test)]

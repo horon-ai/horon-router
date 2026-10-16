@@ -14,10 +14,10 @@ use bytes::Bytes;
 
 use crate::abi::{self, method};
 use crate::client::{CallbackError, CallbackHandler, CallbackInstance};
-use crate::go_struct;
 use crate::gojson::{self, Metadata};
 use crate::host::{Host, Inner, lock};
 use crate::streams::{Chunk, StreamBridge};
+use horon_common::go_struct;
 
 /// What a callback context remembers about the request it serves.
 #[derive(Clone, Default)]

@@ -41,6 +41,10 @@ pub mod transform;
 
 pub use host::{Host, Record, RegisteredPluginInfo, Snapshot};
 
+/// The Go `encoding/json` struct macro, shared with the server's built-in helpers.
+#[doc(hidden)]
+pub use horon_common::go_struct;
+
 /// Go `pluginhost.SupportPluginHeaderValue` (`X-CPA-SUPPORT-PLUGIN`): "1" where native
 /// plugins load, as in Go's cgo builds.
 /// ponytail: Windows DLL loading is not ported, so Windows reports "0".

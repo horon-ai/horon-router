@@ -22,9 +22,10 @@ use serde_yaml_ng::Value as Yaml;
 
 use super::Management;
 use super::plugins::{
-    Fail, PluginsView, Res, current_node, discover, error, esc, go_query, map_json, plugin_id, resolved_dir, save,
-    set_key, set_node, struct_json,
+    Fail, PluginsView, Res, current_node, discover, error, esc, map_json, plugin_id, resolved_dir, save, set_key,
+    set_node, struct_json,
 };
+use super::query::go_query;
 
 const RELEASE_TTL: Duration = Duration::from_secs(3600);
 const RELEASE_FAILURE_TTL: Duration = Duration::from_secs(30);

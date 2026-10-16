@@ -15,7 +15,8 @@ use horon_plugin::gojson::Metadata;
 use serde_json::{Value, json};
 
 use super::Management;
-use super::plugins::{go_query, map_json};
+use super::plugins::map_json;
+use super::query::go_query;
 
 /// Go `NormalizePluginOAuthCallbackProvider`: lowercase letters, digits and `-`.
 pub(super) fn normalize_provider(provider: &str) -> Option<String> {

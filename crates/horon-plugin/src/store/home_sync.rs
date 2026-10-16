@@ -6,8 +6,8 @@ use super::auth::{ResolvedAuthConfig, validate_resolved_auth_config};
 use super::manifest::Manifest;
 use super::registry::normalize_install_plan;
 use super::url;
-use crate::go_struct;
 use crate::gojson::GoTime;
+use horon_common::go_struct;
 
 pub const PLUGIN_SYNC_SCHEMA_VERSION: isize = 1;
 

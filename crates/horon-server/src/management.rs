@@ -32,11 +32,13 @@ mod plugin_auth;
 mod plugin_oauth;
 mod plugin_store;
 mod plugins;
+mod query;
 mod quota;
 mod quota_probe;
+mod quota_types;
 pub use access::cors;
 pub(crate) use access::{Cors, cors_headers};
-pub(crate) use plugins::go_query;
+pub(crate) use query::go_query;
 
 pub struct Management {
     pub(crate) rt: Arc<Runtime>,

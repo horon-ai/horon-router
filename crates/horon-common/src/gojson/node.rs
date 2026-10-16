@@ -3,8 +3,6 @@
 //! `encoding/json` does (invalid UTF-8 bytes and lone surrogates become U+FFFD).
 //! Syntax follows Go's scanner; nesting is limited to 10000 levels, as in Go.
 
-use super::DecodeError;
-
 #[derive(Debug, Clone, PartialEq)]
 pub enum Node {
     Null,
@@ -36,7 +34,7 @@ impl Node {
     /// Go's `any` view: numbers as float64, objects with the last duplicate winning.
     /// Walks with an explicit stack, so the 10000 levels `parse` accepts cannot
     /// overflow the thread stack.
-    pub fn to_value(&self) -> Result<serde_json::Value, DecodeError> {
+    pub fn to_value(&self) -> Result<serde_json::Value, crate::gojson::DecodeError> {
         enum Open<'a> {
             Array(std::slice::Iter<'a, Node>, Vec<serde_json::Value>),
             Object(
@@ -132,7 +130,7 @@ impl Node {
                     continue;
                 }
                 Step::Key(k) => {
-                    horon_common::json::marshal_str(&mut out, k.as_bytes(), false);
+                    crate::json::marshal_str(&mut out, k.as_bytes(), false);
                     continue;
                 }
                 Step::Node(node) => node,
@@ -141,7 +139,7 @@ impl Node {
                 Node::Null => out.extend_from_slice(b"null"),
                 Node::Bool(b) => out.extend_from_slice(if *b { b"true" } else { b"false" }),
                 Node::Number(n) => out.extend_from_slice(n.as_bytes()),
-                Node::String(s) => horon_common::json::marshal_str(&mut out, s.as_bytes(), false),
+                Node::String(s) => crate::json::marshal_str(&mut out, s.as_bytes(), false),
                 Node::Array(items) => {
                     out.push(b'[');
                     steps.push(Step::Byte(b']'));
@@ -203,10 +201,10 @@ impl Drop for Node {
 }
 
 /// `strconv.ParseFloat(s, 64)` as `encoding/json` uses it: overflow is an error.
-pub fn parse_f64(lexeme: &str) -> Result<f64, DecodeError> {
+pub fn parse_f64(lexeme: &str) -> Result<f64, crate::gojson::DecodeError> {
     match lexeme.parse::<f64>() {
         Ok(f) if f.is_finite() => Ok(f),
-        _ => Err(DecodeError(format!(
+        _ => Err(crate::gojson::DecodeError(format!(
             "json: cannot unmarshal number {lexeme} into Go value of type float64"
         ))),
     }
@@ -240,15 +238,15 @@ impl Parser<'_> {
         }
     }
 
-    fn err(&self, context: &str) -> DecodeError {
+    fn err(&self, context: &str) -> crate::gojson::DecodeError {
         match self.s.get(self.i) {
-            None => DecodeError("unexpected end of JSON input".into()),
-            Some(&c) => DecodeError(format!("invalid character {} {context}", describe(c))),
+            None => crate::gojson::DecodeError("unexpected end of JSON input".into()),
+            Some(&c) => crate::gojson::DecodeError(format!("invalid character {} {context}", describe(c))),
         }
     }
 
     /// Go's scanner: a wrong byte names the literal and the byte it expected.
-    fn literal(&mut self, word: &[u8], node: Node) -> Result<Node, DecodeError> {
+    fn literal(&mut self, word: &[u8], node: Node) -> Result<Node, crate::gojson::DecodeError> {
         for &expected in word {
             if self.s.get(self.i) != Some(&expected) {
                 return Err(self.err(&format!(
@@ -262,7 +260,7 @@ impl Parser<'_> {
         Ok(node)
     }
 
-    fn number(&mut self) -> Result<Node, DecodeError> {
+    fn number(&mut self) -> Result<Node, crate::gojson::DecodeError> {
         let start = self.i;
         let digits = |p: &mut Self| {
             let from = p.i;
@@ -307,12 +305,12 @@ impl Parser<'_> {
     }
 
     /// Go's scanner rules plus `unquote`.
-    fn string(&mut self) -> Result<String, DecodeError> {
+    fn string(&mut self) -> Result<String, crate::gojson::DecodeError> {
         self.i += 1;
         let mut out = String::new();
         loop {
             let Some(&c) = self.s.get(self.i) else {
-                return Err(DecodeError("unexpected end of JSON input".into()));
+                return Err(crate::gojson::DecodeError("unexpected end of JSON input".into()));
             };
             match c {
                 b'"' => {
@@ -321,7 +319,7 @@ impl Parser<'_> {
                 }
                 b'\\' => {
                     let Some(&e) = self.s.get(self.i + 1) else {
-                        return Err(DecodeError("unexpected end of JSON input".into()));
+                        return Err(crate::gojson::DecodeError("unexpected end of JSON input".into()));
                     };
                     self.i += 2;
                     match e {
@@ -367,7 +365,7 @@ impl Parser<'_> {
                     self.i += 1;
                 }
                 _ => {
-                    let (rune, size) = horon_common::json::decode_rune(&self.s[self.i..]);
+                    let (rune, size) = crate::json::decode_rune(&self.s[self.i..]);
                     out.push(rune.unwrap_or('\u{FFFD}'));
                     self.i += size.max(1);
                 }
@@ -375,7 +373,7 @@ impl Parser<'_> {
         }
     }
 
-    fn scalar_or_open(&mut self, stack: &mut Vec<Frame>) -> Result<Option<Node>, DecodeError> {
+    fn scalar_or_open(&mut self, stack: &mut Vec<Frame>) -> Result<Option<Node>, crate::gojson::DecodeError> {
         self.ws();
         match self.s.get(self.i) {
             Some(b'{') => {
@@ -399,32 +397,32 @@ impl Parser<'_> {
 }
 
 /// `json.Unmarshal`'s syntax pass and value tree.
-pub fn parse(raw: &[u8]) -> Result<Node, DecodeError> {
+pub fn parse(raw: &[u8]) -> Result<Node, crate::gojson::DecodeError> {
     parse_value(raw, true)
 }
 
 /// `json.NewDecoder(r).Decode` over a complete reader: the first value only, with
 /// anything after it left unread; a truncated value is `unexpected EOF` and input
 /// without any value `EOF`.
-pub fn parse_first(raw: &[u8]) -> Result<Node, DecodeError> {
+pub fn parse_first(raw: &[u8]) -> Result<Node, crate::gojson::DecodeError> {
     if raw.iter().all(|c| matches!(c, b' ' | b'\t' | b'\n' | b'\r')) {
-        return Err(DecodeError("EOF".into()));
+        return Err(crate::gojson::DecodeError("EOF".into()));
     }
     parse_value(raw, false).map_err(|e| match e.0.as_str() {
-        "unexpected end of JSON input" => DecodeError("unexpected EOF".into()),
+        "unexpected end of JSON input" => crate::gojson::DecodeError("unexpected EOF".into()),
         _ => e,
     })
 }
 
 /// The value tree; `whole` rejects anything but whitespace after the value.
-fn parse_value(raw: &[u8], whole: bool) -> Result<Node, DecodeError> {
+fn parse_value(raw: &[u8], whole: bool) -> Result<Node, crate::gojson::DecodeError> {
     let mut p = Parser { s: raw, i: 0 };
     let mut stack: Vec<Frame> = Vec::new();
     // Each iteration either opens a container, or produces a value and attaches it.
     let mut value = p.scalar_or_open(&mut stack)?;
     loop {
         if stack.len() > MAX_DEPTH {
-            return Err(DecodeError("exceeded max depth".into()));
+            return Err(crate::gojson::DecodeError("exceeded max depth".into()));
         }
         // Object frames need a key before each value.
         if value.is_none() {

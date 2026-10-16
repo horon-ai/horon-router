@@ -19,8 +19,8 @@ use super::registry::{
 };
 use super::url;
 use super::{REQUEST_KIND_ARTIFACT, REQUEST_KIND_METADATA, REQUEST_KIND_REGISTRY};
-use crate::go_struct;
 use crate::gojson;
+use horon_common::go_struct;
 
 const USER_AGENT: &str = "CLIProxyAPI";
 const MAX_REDIRECTS: usize = 10;

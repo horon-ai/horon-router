@@ -19,9 +19,9 @@ use crate::api::{
     HostAuthGetRuntimeResponse, HostAuthSaveRequest, HostAuthSaveResponse, HostRecentRequestEntry,
 };
 use crate::client::CallbackError;
-use crate::go_struct;
 use crate::gojson::{self, GoTime, Metadata, NonNil, RawJson};
 use crate::host::Host;
+use horon_common::go_struct;
 
 /// A credential as the manager holds it (the Go `coreauth.Auth` fields the plugin
 /// host reads).

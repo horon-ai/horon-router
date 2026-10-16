@@ -14,6 +14,7 @@ use crate::gojson::{GoStruct, Header, ObjWriter};
 use crate::host::{Host, Record, normalize_provider};
 use crate::rpc::{self, CallError};
 use crate::streams::{Chunk, Reader};
+use horon_common::go_struct;
 
 /// Go `normalizeExecutorFormatName`: aliases map to translator formats; anything else
 /// is kept as written (trimmed); empty and `none` mean no format.
@@ -165,7 +166,7 @@ pub struct PluginStream {
     pub chunks: BoxStream<'static, Chunk>,
 }
 
-crate::go_struct! {
+go_struct! {
     /// `rpcExecutorStreamResponse`.
     pub struct StreamResponse("pluginhost.rpcExecutorStreamResponse") {
         "headers" omitempty => headers: Header,

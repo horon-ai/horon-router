@@ -3,6 +3,7 @@
 use bytes::Bytes;
 
 use crate::gojson::{self, DecodeError, GoJson, Node, ObjWriter};
+use horon_common::go_struct;
 
 /// Native C ABI shape (`cliproxy_plugin_init` and the two function tables).
 pub const ABI_VERSION: u32 = 1;
@@ -106,7 +107,7 @@ pub struct EnvelopeError {
     pub http_status: i64,
 }
 
-crate::go_struct! {
+go_struct! {
     /// `pluginabi.Error` on the wire.
     pub struct WireError("pluginabi.Error") {
         "code" => code: String,

@@ -17,6 +17,7 @@ use crate::api::{
 use crate::callbacks::RequestScope;
 use crate::gojson::{Header, NonNilBytes};
 use crate::host::Host;
+use horon_common::go_struct;
 
 pub const MANAGEMENT_BASE: &str = "/v0/management";
 pub const RESOURCE_BASE: &str = "/v0/resource/plugins";
@@ -169,7 +170,7 @@ pub struct Inbound {
     pub scope: RequestScope,
 }
 
-crate::go_struct! {
+go_struct! {
     /// `rpcManagementRequest`.
     pub struct ManagementCall("pluginhost.rpcManagementRequest") {
         "Method" => method: String,

@@ -11,7 +11,7 @@ use super::registry::{
 };
 use super::url;
 use super::version::normalize_version;
-use crate::go_struct;
+use horon_common::go_struct;
 
 go_struct! {
     pub struct Manifest("pluginstore.Manifest") {
