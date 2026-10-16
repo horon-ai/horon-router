@@ -370,6 +370,44 @@ fn prescan_value(args: &[String], wanted: &str) -> Option<String> {
     found
 }
 
+/// Go's `pluginBootstrapConfigPath`, the pre-parse scan that sizes the runtime: the first
+/// `-config`/`--config` spelling wins, the next token is its value even when it starts with
+/// `-`, and every argument is scanned (not only flags) until `--`; no match means
+/// `./config.yaml`. The parse reads the same flag with the opposite repetition rule and
+/// stops at the first operand, so the two differ for a repeated `-config` or one behind an
+/// operand: only this scan runs before the parse.
+fn sizing_config_path(args: &[String]) -> PathBuf {
+    let mut i = 0;
+    while i < args.len() {
+        let arg = args[i].as_str();
+        match arg {
+            "--" => break,
+            "-config" | "--config" => {
+                return match args.get(i + 1) {
+                    Some(path) => PathBuf::from(path),
+                    None => default_config_path(),
+                };
+            }
+            _ => {
+                if let Some(path) = arg.strip_prefix("-config=").or_else(|| arg.strip_prefix("--config=")) {
+                    return PathBuf::from(path);
+                }
+            }
+        }
+        i += 1;
+    }
+    default_config_path()
+}
+
+/// Go's `defaultPluginBootstrapConfigPath`: `./config.yaml` relative to the working
+/// directory.
+fn default_config_path() -> PathBuf {
+    match std::env::current_dir() {
+        Ok(wd) => wd.join("config.yaml"),
+        Err(_) => PathBuf::from("config.yaml"),
+    }
+}
+
 /// Whether the binary itself defines `name`.
 fn builtin_flag(name: &str) -> bool {
     static NAMES: std::sync::LazyLock<Vec<String>> = std::sync::LazyLock::new(|| {
@@ -597,10 +635,10 @@ fn main() -> anyhow::Result<()> {
     if !discover_mode {
         dotenv::load_from_working_dir();
     }
-    // Go sizes the runtime from `-config` (or ./config.yaml) before the parse; a store
-    // or Home may supply the config it then runs on.
-    let sized = prescan_value(&raw[1..], "config").unwrap_or_else(|| "config.yaml".to_owned());
-    let runtime = runtime(Some(Path::new(&sized)))?;
+    // Go sizes the runtime from the config path its pre-parse scan finds (`-config`, or
+    // ./config.yaml); a store or Home may supply the config it then runs on. The parse
+    // keeps its own value, and the loaded config comes from there.
+    let runtime = runtime(Some(&sizing_config_path(&raw[1..])))?;
     let mut cmd = Args::command();
     let flags = go_flags(&cmd, raw).unwrap_or_else(|e| flag_error(&mut cmd, &e));
     let matches = cmd.clone().get_matches_from(flags);
@@ -1535,6 +1573,54 @@ mod tests {
         assert!(sub(&["-timeout"]).is_err());
         assert!(sub(&["-timeout", "1.5"]).is_err());
         assert!(sub(&["---x"]).is_err());
+    }
+
+    /// The pre-parse scan that sizes the runtime is Go's `pluginBootstrapConfigPath`: the
+    /// first spelling wins, operands are scanned, `--` ends the scan, and the next token is
+    /// the value. The parse reads the same flag differently (last value wins, everything
+    /// after the first operand is dropped), so this table asserts both sides instead of
+    /// claiming one semantics.
+    #[test]
+    fn sizing_config_path_scans_the_arguments_like_go() {
+        let default = std::env::current_dir().unwrap().join("config.yaml");
+        let parse = |a: &[&str]| -> Option<String> {
+            let raw: Vec<String> = std::iter::once("horonrouter")
+                .chain(a.iter().copied())
+                .map(str::to_owned)
+                .collect();
+            let args = Args::try_parse_from(go_flags(&Args::command(), raw).ok()?).ok()?;
+            Some(args.config)
+        };
+        for (args, sizing, parsed) in [
+            (vec!["-config", "a.yaml"], Some("a.yaml"), Some("a.yaml")),
+            (vec!["--config", "a.yaml"], Some("a.yaml"), Some("a.yaml")),
+            (vec!["-config=a.yaml"], Some("a.yaml"), Some("a.yaml")),
+            (vec!["--config=a.yaml"], Some("a.yaml"), Some("a.yaml")),
+            // The next token is the value even when it looks like a flag.
+            (vec!["-config", "-tui"], Some("-tui"), Some("-tui")),
+            // The scan keeps the first spelling; the parse keeps the last.
+            (
+                vec!["-config", "a.yaml", "-config", "b.yaml"],
+                Some("a.yaml"),
+                Some("b.yaml"),
+            ),
+            // The scan walks operands; the parse stops at the first one and drops the rest.
+            (vec!["x", "-config", "a.yaml"], Some("a.yaml"), Some("")),
+            (vec!["--", "-config", "a.yaml"], None, Some("")),
+            // The scan knows no flag arity, so a value flag's token can look like the path.
+            (vec!["-password", "-config", "a.yaml"], Some("a.yaml"), Some("")),
+            // An undefined flag is not skipped either; the parse rejects the command.
+            (vec!["-nope", "-config", "a.yaml"], Some("a.yaml"), None),
+            // No path anywhere, or a flag without its value, falls back to ./config.yaml.
+            (vec!["-tui"], None, Some("")),
+            (vec!["-config"], None, None),
+            (vec!["-config="], Some(""), Some("")),
+        ] {
+            let argv: Vec<String> = args.iter().map(|s| (*s).to_owned()).collect();
+            let want = sizing.map_or_else(|| default.clone(), PathBuf::from);
+            assert_eq!(sizing_config_path(&argv), want, "{args:?}");
+            assert_eq!(parse(&args), parsed.map(str::to_owned), "{args:?}");
+        }
     }
 
     #[test]
