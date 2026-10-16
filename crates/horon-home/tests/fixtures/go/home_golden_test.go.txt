@@ -205,10 +205,6 @@ func TestRustGolden(t *testing.T) {
 		{"lpush_inflight", func(c *Client) (any, error) { return nil, c.LPushInFlightSnapshot(ctx, []byte(`{"kind":"part"}`)) }, func([]string) string { return ":1\r\n" }},
 		{"rpush_request_log", func(c *Client) (any, error) { return nil, c.RPushRequestLog(ctx, []byte("r")) }, func([]string) string { return ":1\r\n" }},
 		{"rpush_app_log", func(c *Client) (any, error) { return nil, c.RPushAppLog(ctx, []byte("a")) }, func([]string) string { return ":1\r\n" }},
-		{"rpush_plugin_status", func(c *Client) (any, error) { return nil, c.RPushPluginStatus(ctx, []byte("p")) }, func([]string) string { return ":1\r\n" }},
-		{"get_plugin_tasks", func(c *Client) (any, error) { return c.GetPluginTasks(ctx) }, func([]string) string {
-			return bulk(`[{"id":3,"operation":"install","plugin_id":"p","created_at":"2026-01-02T03:04:05Z","updated_at":"2026-01-02T03:04:05Z"}]`)
-		}},
 		{"get_refresh_auth", func(c *Client) (any, error) { r, e := c.GetRefreshAuth(ctx, " idx ", " sha "); return string(r), e }, func([]string) string { return bulk(`{"id":"a"}`) }},
 		{"get_refresh_auth_missing", func(c *Client) (any, error) { r, e := c.GetRefreshAuth(ctx, "idx", ""); return string(r), e }, func([]string) string { return "$-1\r\n" }},
 		{"get_models", func(c *Client) (any, error) {

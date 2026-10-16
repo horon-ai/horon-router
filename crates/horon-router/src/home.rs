@@ -106,7 +106,6 @@ pub fn overlay(raw: &[u8], base: Option<&Config>) -> anyhow::Result<Config> {
         &["management", "disable-control-panel"],
         Some(Yaml::Bool(true)),
     );
-    set(&mut doc, &["plugins", "store-auth"], None);
     Config::parse(&serde_yaml_ng::to_string(&doc)?)
 }
 
@@ -126,8 +125,6 @@ pub async fn bootstrap(jwt: &str, disable_discovery: bool) -> Result<(HomeConfig
     // Go closes the bootstrap client once startup is done; the service opens its own.
     client.close();
     let raw = raw.map_err(|e| format!("failed to fetch config from home: {e}"))?;
-    // ponytail: Home plugin sync and its status report are not ported; plugins load
-    // from the local configuration only.
     let config = overlay(&raw, None).map_err(|e| format!("failed to parse config payload from home: {e:#}"))?;
     Ok((home, config))
 }
