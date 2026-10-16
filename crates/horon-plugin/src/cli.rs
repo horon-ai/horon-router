@@ -87,48 +87,12 @@ pub fn normalize_flag_value(kind: &str, value: &str) -> Option<String> {
 }
 
 /// Go `strconv.ParseFloat(s, 64)`: out of range is an error rather than ±Inf, NaN takes
-/// no sign, and underscores may separate digits.
+/// no sign, and underscores may separate digits. The definition lives in
+/// [`horon_common::json::parse_decimal_float`], shared with the built-in quota mapping.
 /// ponytail: Go's hexadecimal form (`0x1p-2`) is rejected; plugin flags are decimal in
 /// practice. Upgrade by porting `atofHex` if a plugin needs it.
 pub fn parse_float(s: &str) -> Option<f64> {
-    let unsigned = s.strip_prefix(['+', '-']).unwrap_or(s);
-    if unsigned.len() != s.len() && unsigned.eq_ignore_ascii_case("nan") {
-        return None;
-    }
-    let digits;
-    let text = if s.contains('_') {
-        if !underscore_ok(s) {
-            return None;
-        }
-        digits = s.replace('_', "");
-        digits.as_str()
-    } else {
-        s
-    };
-    let f = text.parse::<f64>().ok()?;
-    let literal_inf = unsigned.to_ascii_lowercase().starts_with("inf");
-    (!f.is_infinite() || literal_inf).then_some(f)
-}
-
-/// Go `strconv.underscoreOK` for a decimal number: each underscore sits between digits.
-fn underscore_ok(s: &str) -> bool {
-    let s = s.strip_prefix(['+', '-']).unwrap_or(s);
-    let mut saw = '^';
-    for c in s.chars() {
-        if c.is_ascii_digit() {
-            saw = '0';
-        } else if c == '_' {
-            if saw != '0' {
-                return false;
-            }
-            saw = '_';
-        } else if saw == '_' {
-            return false;
-        } else {
-            saw = '!';
-        }
-    }
-    saw != '_'
+    horon_common::json::parse_decimal_float(s)
 }
 
 /// Go `strconv.FormatFloat(f, 'g', -1, 64)`.

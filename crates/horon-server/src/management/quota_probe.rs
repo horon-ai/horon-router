@@ -205,9 +205,11 @@ fn server_offset_ms(date: &str) -> Option<i64> {
 }
 
 /// Go `strconv.ParseFloat(s, 64)` as `parseNumericFraction` uses it: a syntax error,
-/// an out-of-range literal and a non-finite value all yield nothing.
+/// an out-of-range literal and a non-finite value all yield nothing. The decimal-only
+/// [`horon_common::json::parse_decimal_float`] keeps the pre-existing fraction behavior, so
+/// `0x1p-2` is not a fraction.
 fn parse_go_float(s: &str) -> Option<f64> {
-    horon_common::json::go_parse_float(s.as_bytes()).ok()
+    horon_common::json::parse_decimal_float(s)
 }
 
 /// A JSON number or numeric string that is finite (Go `parseNumericFraction`).
@@ -497,12 +499,29 @@ mod tests {
 
     #[test]
     fn numeric_fraction_follows_parse_float() {
-        let doc = br#"{"a":0.5,"b":" 0.25 ","c":"x","d":null,"e":"","f":"1e400","g":true}"#;
+        let doc = br#"{"a":0.5,"b":" 0.25 ","c":"x","d":null,"e":"","f":"1e400","g":true,"h":"0x1p-2","i":"0x10","j":"nan","k":"0.75"}"#;
         let f = |k: &str| numeric_fraction(&gjson::get(doc, k));
         assert_eq!(f("a"), Some(0.5));
         assert_eq!(f("b"), Some(0.25));
-        for k in ["c", "d", "e", "f", "g", "missing"] {
+        assert_eq!(f("k"), Some(0.75));
+        for k in ["c", "d", "e", "f", "g", "h", "i", "j", "missing"] {
             assert_eq!(f(k), None, "{k}");
         }
+    }
+
+    #[test]
+    fn mapping_keeps_only_decimal_fractions() {
+        let raw = br#"{"account":{"plan":"p"},"usage":{"items":[{"w":"hex","left":"0x1p-2"},{"w":"hex0","left":"0x10"},{"w":"nan","left":"nan"},{"w":"plain","left":"0.75"}]}}"#;
+        let mapping: Map<String, Value> = serde_json::from_str(
+            r#"{"plan":"account.plan","groups":[{"buckets_path":"usage.items","window_key":"w","remaining_fraction_key":"left"}]}"#,
+        )
+        .unwrap();
+        let out = map_response(raw, &mapping).unwrap();
+        let buckets: Vec<(&str, f64)> = out
+            .groups
+            .iter()
+            .flat_map(|g| g.buckets.iter().map(|b| (b.window.as_str(), b.remaining_fraction)))
+            .collect();
+        assert_eq!(buckets, [("plain", 0.75)]);
     }
 }

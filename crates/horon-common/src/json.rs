@@ -450,6 +450,53 @@ pub fn parse_float(s: &[u8]) -> f64 {
     go_parse_float(s).unwrap_or_else(|value| value)
 }
 
+/// `strconv.ParseFloat(s, 64)` for the decimal forms only: out of range is an error rather
+/// than ±Inf, `NaN` takes no sign, and underscores may separate digits.
+///
+/// ponytail: Go's hexadecimal form (`0x1p-2`) is rejected, exactly as the plugin CLI parser
+/// this moved from did; [`go_parse_float`] accepts it. The plugin flag parser and the
+/// built-in quota mapping keep the decimal-only behavior until a parity pass ports `atofHex`.
+pub fn parse_decimal_float(s: &str) -> Option<f64> {
+    let unsigned = s.strip_prefix(['+', '-']).unwrap_or(s);
+    if unsigned.len() != s.len() && unsigned.eq_ignore_ascii_case("nan") {
+        return None;
+    }
+    let digits;
+    let text = if s.contains('_') {
+        if !decimal_underscore_ok(s) {
+            return None;
+        }
+        digits = s.replace('_', "");
+        digits.as_str()
+    } else {
+        s
+    };
+    let f = text.parse::<f64>().ok()?;
+    let literal_inf = unsigned.to_ascii_lowercase().starts_with("inf");
+    (!f.is_infinite() || literal_inf).then_some(f)
+}
+
+/// `strconv.underscoreOK` over a decimal literal: every underscore sits between digits.
+fn decimal_underscore_ok(s: &str) -> bool {
+    let s = s.strip_prefix(['+', '-']).unwrap_or(s);
+    let mut saw = '^';
+    for c in s.chars() {
+        if c.is_ascii_digit() {
+            saw = '0';
+        } else if c == '_' {
+            if saw != '0' {
+                return false;
+            }
+            saw = '_';
+        } else if saw == '_' {
+            return false;
+        } else {
+            saw = '!';
+        }
+    }
+    saw != '_'
+}
+
 /// `strconv.ParseFloat(s, 64)`: `Err` carries the value Go returns with the error (±Inf
 /// on overflow, 0 on syntax errors). Accepts Go's signs, `inf`/`infinity`/`nan`,
 /// digit-separating underscores and hexadecimal floats (`0x1.8p3`).
@@ -3193,7 +3240,7 @@ mod tests {
 
 #[cfg(test)]
 mod parse_float_tests {
-    use super::go_parse_float;
+    use super::{go_parse_float, parse_decimal_float};
 
     /// Expectations from Go 1.26 strconv.ParseFloat (value, error?).
     #[test]
@@ -3239,5 +3286,33 @@ mod parse_float_tests {
         err("0b101", 0.0);
         err("infx", 0.0);
         err("1e_5", 0.0);
+    }
+
+    /// The decimal-only sibling: `strconv.ParseFloat` minus the hexadecimal form.
+    #[test]
+    fn parse_decimal_float_rejects_hex_forms() {
+        let ok = |s: &str, want: f64| assert_eq!(parse_decimal_float(s), Some(want), "{s}");
+        let none = |s: &str| assert_eq!(parse_decimal_float(s), None, "{s}");
+        ok("0.75", 0.75);
+        ok("0.25", 0.25);
+        ok("1_000.5", 1000.5);
+        ok("1.", 1.0);
+        ok(".5", 0.5);
+        ok("inf", f64::INFINITY);
+        assert_eq!(parse_decimal_float("nan").map(f64::is_nan), Some(true));
+        none("0x1p-2");
+        none("0x10");
+        none("0x1.8p3");
+        none("0x_1p0");
+        none("+nan");
+        none("-nan");
+        none("1e400");
+        none("-1e400");
+        none("1__0");
+        none("_1");
+        none("1e_5");
+        none("0b101");
+        none("  1");
+        none("1e");
     }
 }

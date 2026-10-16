@@ -111,7 +111,7 @@ fn first_value(body: &[u8]) -> &[u8] {
 pub(crate) fn go_object(data: &[u8]) -> bool {
     fn numbers_fit(n: &Node) -> bool {
         match n {
-            Node::Number(lit) => horon_common::json::go_parse_float(lit.as_bytes()).is_ok(),
+            Node::Number(lit) => horon_common::json::parse_decimal_float(lit).is_some(),
             Node::Array(items) => items.iter().all(numbers_fit),
             Node::Object(fields) => fields.iter().all(|(_, v)| numbers_fit(v)),
             _ => true,
