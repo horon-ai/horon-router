@@ -500,6 +500,8 @@ fn load_normalize(cfg: &mut Value) {
     if let Some(p) = c.get_mut("plugins").and_then(Value::as_object_mut) {
         let dir = plugins_dir(p.get("dir").and_then(Value::as_str).unwrap_or_default());
         p.insert("dir".into(), dir.into());
+        // Go's live runtime `Config` keeps the section it loaded; the v0 view is a
+        // byte-replay of that view, so the normalizer runs here exactly as at 6fecc6e.
         // PluginInstanceConfig.UnmarshalYAML starts `enabled` as a non-nil false;
         // NormalizePluginsConfig makes a nil map empty.
         let configs = p.entry("configs").or_insert(Value::Null);
@@ -511,9 +513,6 @@ fn load_normalize(cfg: &mut Value) {
                 *entry = Value::Object(Map::new());
             }
             let o = entry.as_object_mut().expect("object");
-            // Plugin entries stay raw in the live document (Go `PluginInstanceConfig.Raw`);
-            // the typed config decodes `enabled` (YAML 1.1 spellings) and truncates a
-            // float `priority`, as yaml.v3 does.
             let priority = o.shift_remove("priority");
             let enabled = match o.shift_remove("enabled") {
                 Some(Value::Bool(b)) => b,
@@ -590,6 +589,25 @@ fn payload_raw_rule_valid(rule: &Value) -> bool {
     })
 }
 
+/// Go `ResolvePluginsDir`: trimmed, `plugins` when empty, `~` expanded, cleaned. The v0
+/// legacy view replays Go's runtime `Config`, which still carries the plugin section.
+fn plugins_dir(dir: &str) -> String {
+    let dir = super::go_trim(dir);
+    let dir = if dir.is_empty() { "plugins" } else { dir };
+    match dir.strip_prefix('~') {
+        Some(rest) => {
+            let home = std::env::var("HOME").unwrap_or_default();
+            let rest = rest.trim_start_matches(['/', '\\']).replace('\\', "/");
+            if rest.is_empty() {
+                go_clean(&home)
+            } else {
+                go_clean(&format!("{home}/{rest}"))
+            }
+        }
+        None => go_clean(dir),
+    }
+}
+
 /// Go `filepath.Clean` (Unix separators).
 fn go_clean(p: &str) -> String {
     let rooted = p.starts_with('/');
@@ -609,24 +627,6 @@ fn go_clean(p: &str) -> String {
         (true, _) => format!("/{joined}"),
         (false, true) => ".".into(),
         (false, false) => joined,
-    }
-}
-
-/// Go `ResolvePluginsDir`: trimmed, `plugins` when empty, `~` expanded, cleaned.
-fn plugins_dir(dir: &str) -> String {
-    let dir = super::go_trim(dir);
-    let dir = if dir.is_empty() { "plugins" } else { dir };
-    match dir.strip_prefix('~') {
-        Some(rest) => {
-            let home = std::env::var("HOME").unwrap_or_default();
-            let rest = rest.trim_start_matches(['/', '\\']).replace('\\', "/");
-            if rest.is_empty() {
-                go_clean(&home)
-            } else {
-                go_clean(&format!("{home}/{rest}"))
-            }
-        }
-        None => go_clean(dir),
     }
 }
 

@@ -2,6 +2,16 @@
 //! tests/fixtures/legacy_go.json) against the Rust router: same status, same body
 //! byte for byte (Go field order included), and after every write the same
 //! GET /v0/management/config.
+//!
+//! Intentional difference from Go `6fecc6e` (plan remove-native-plugins task 3): the
+//! plugin field is gone from every recorded v0 config body here, from
+//! `src/management/legacy/{shape.json,defaults.json}`, and from the
+//! `ResolvePluginsDir`/`configs` normalizer. The original Go capture answered
+//! `GET /v0/management/config` with `"plugins":{"enabled":false,"dir":"plugins","configs":{}}`
+//! (or the loaded plugin section, its `dir` cleaned), and the fixture still carries
+//! two plugin-bearing YAML inputs (`reads-rich`/`reads-edge`) whose keys are now
+//! ignored as unknown. Keep Go's original answer available as the counterexample if
+//! the capture is regenerated.
 use std::net::SocketAddr;
 use std::sync::Arc;
 

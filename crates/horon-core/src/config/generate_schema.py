@@ -51,6 +51,11 @@ def shape(type_name):
 schema = shape("Config")
 schema["fields"].update(shape("SDKConfig")["fields"])
 
+# Native plugins are removed from horon-router (plan remove-native-plugins). The Go
+# reference still carries `Plugins` (internal/config + internal/pluginstore), so the
+# field is dropped here and never enters the generated shape.
+schema["fields"].pop("plugins", None)
+
 def take(path):
     node = schema
     parts = path.split(".")
