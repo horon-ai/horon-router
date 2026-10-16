@@ -26,7 +26,6 @@ export function Quotas() {
   useSyncExternalStore(subscribeLang, language);
   const state = useSyncExternalStore(session.subscribe, session.getSnapshot);
   const creds = useQuery({ ...queries.creds(), refetchInterval: 15_000 });
-  useQuery(queries.plugins());
   const [checking, setChecking] = useState(false);
   const now = Date.now();
   const list = creds.data || [];

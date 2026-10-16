@@ -20,7 +20,6 @@ export function Overview() {
   const state = useSyncExternalStore(subscribe, getSnapshot);
   const creds = useQuery({ ...queries.creds(), refetchInterval: 10_000 });
   const config = useQuery(queries.config());
-  useQuery(queries.plugins());
   const list = creds.data || [];
   const rows = list.map((a) => ({ a, b: buckets(a), s: credState(a, Date.now(), t) }));
   const traffic = sumBuckets(rows.map((r) => r.b));

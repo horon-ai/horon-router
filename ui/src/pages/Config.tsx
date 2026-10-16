@@ -10,7 +10,7 @@ import type { Key } from "../i18n";
 import { queries } from "../queries";
 import { getSnapshot, session, subscribe } from "../session";
 
-const about = ["server", "management", "access", "routing", "requests", "api-keys", "oauth", "client", "multimedia", "observability", "plugins"];
+const about = ["server", "management", "access", "routing", "requests", "api-keys", "oauth", "client", "multimedia", "observability"];
 type Edit = { path: string; value: unknown; title: string; yaml: boolean };
 const stamp = () => new Date().toLocaleTimeString(undefined, { hourCycle: "h23", hour: "2-digit", minute: "2-digit" });
 
