@@ -70,6 +70,7 @@ pub struct Management {
     auth_dir: Option<PathBuf>,
     /// The zone log line timestamps are parsed in (Go `time.Local` when `None`).
     pub(crate) log_zone: logs::Zone,
+    pub(crate) tailscale: crate::tailscale::Shared,
     access: access::Access,
 }
 
@@ -100,6 +101,8 @@ pub struct Options {
     /// auth-dir, so a config without one never reads the default `~/.horon-router`
     /// (tests only). A configured store still wins.
     pub auth_dir: Option<PathBuf>,
+    /// The startup task's Tailscale HTTPS outcome, as `GET /server/tailscale` reports it.
+    pub tailscale: Option<crate::tailscale::Shared>,
 }
 
 impl Management {
@@ -144,6 +147,7 @@ impl Management {
         let store = options.store.take();
         let auth_dir = options.auth_dir.take();
         let log_zone = options.log_zone;
+        let tailscale = options.tailscale.take().unwrap_or_else(crate::tailscale::shared);
         let access = access::Access::new(&cfg, options);
         rt.usage_queue().configure(access.available(), &cfg);
         let state = Arc::new(Self {
@@ -165,6 +169,7 @@ impl Management {
             store,
             auth_dir,
             log_zone,
+            tailscale,
         });
         oauth::install_callback_sink(&state);
         access::start_purge(&state);
@@ -490,6 +495,7 @@ pub fn router(state: Arc<Management>) -> Router {
             "server/latest-version",
             methods().get(guarded!(s, observability::latest_version)),
         ),
+        ("server/tailscale", methods().get(guarded!(s, observability::tailscale))),
         ("requests/api-call", methods().post(guarded!(s, api_call::api_call))),
         (
             "routing/cooldown/reset",

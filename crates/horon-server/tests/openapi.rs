@@ -94,6 +94,7 @@ const MANAGEMENT_INVENTORY: &[(&str, &[&str])] = &[
     ("/v8/management/config/", &["get", "put", "patch", "delete"]),
     ("/v8/management/config/{path}", &["get", "put", "patch", "delete"]),
     ("/v8/management/server/latest-version", &["get"]),
+    ("/v8/management/server/tailscale", &["get"]),
     ("/v8/management/requests/api-call", &["post"]),
     ("/v8/management/routing/cooldown/reset", &["post"]),
     ("/v8/management/observability/usage/api-keys", &["get"]),
@@ -760,8 +761,8 @@ fn general_inventory_matches_the_document() {
     assert_eq!(ops, 51, "expected 51 general operations");
 }
 
-/// The document's `paths` equals the management inventory exactly: 101 paths, 193
-/// operations, so the two surfaces together are 147 paths.
+/// The document's `paths` equals the management inventory exactly: 88 paths, 173
+/// operations, so the two surfaces together are 134 paths.
 #[test]
 fn management_inventory_matches_the_document() {
     let document = horon_server::openapi::document();
@@ -774,10 +775,10 @@ fn management_inventory_matches_the_document() {
 
     let spec = spec_inventory(&document, is_management);
     let ops: usize = MANAGEMENT_INVENTORY.iter().map(|(_, m)| m.len()).sum();
-    assert_eq!(spec.len(), 87, "expected 87 management paths");
-    assert_eq!(ops, 172, "expected 172 management operations");
+    assert_eq!(spec.len(), 88, "expected 88 management paths");
+    assert_eq!(ops, 173, "expected 173 management operations");
     let total = spec_inventory(&document, |_| true).len();
-    assert_eq!(total, 133, "the two surfaces together must be exactly 133 paths");
+    assert_eq!(total, 134, "the two surfaces together must be exactly 134 paths");
 }
 
 /// The docs surface and the static control-panel assets are registered but must not be

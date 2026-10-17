@@ -1286,6 +1286,17 @@ async fn serve(
     if let Some(listening) = listening {
         let _ = listening.send((listener.local_addr()?, tls.is_some()));
     }
+    // horon-router only: on a connected tailnet, publish this listener over HTTPS with
+    // `tailscale serve` (docs/DIFFERENCES-FROM-GO.md). Off the startup path, so a slow or
+    // absent CLI never delays the first request.
+    let tailscale = horon_server::tailscale::shared();
+    horon_server::tailscale::spawn(
+        tailscale.clone(),
+        config.clone(),
+        listener.local_addr()?,
+        tls.is_some(),
+        standalone,
+    );
     let executors = Executors {
         claude: ClaudeExecutor::new(DEFAULT_BASE_URL)?,
         codex: horon_exec::codex::CodexExecutor::new()?,
@@ -1315,6 +1326,7 @@ async fn serve(
         local_password: password,
         standalone,
         store: store.map(|store| store.persister),
+        tailscale: Some(tailscale),
         ..Default::default()
     };
     let management = horon_server::management::Management::with_options(rt.clone(), config_path, options);

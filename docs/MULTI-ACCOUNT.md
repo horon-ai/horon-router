@@ -115,11 +115,15 @@ Codex API 키라면 `api-keys.codex` 아래 그 키 항목에 `websockets: true`
 
 가장 간단하고 안전한 방법은 [Tailscale](https://tailscale.com/)입니다. 여러 컴퓨터를 사설망에 묶어 줍니다.
 
-1. 프록시를 돌리는 컴퓨터와 프록시를 쓰는 컴퓨터에 Tailscale을 설치합니다.
-2. `config.yaml`에서 `server.host`를 프록시 컴퓨터의 Tailscale 주소로 설정하고 재시작합니다. `tailscale ip -4`가 알려 주는 `100.x.y.z` 주소입니다. 그래야 내 tailnet에서만 접속할 수 있습니다. `access.api-keys`는 그대로 설정해 두십시오.
-3. 다른 컴퓨터에서는 `http://<machine-name>:8317`(또는 `100.x.y.z` 주소)을 base URL로 씁니다.
+horon-router는 Tailscale이 연결된 컴퓨터에서 시작하면 그 사실을 스스로 알아보고 이 서버를 `https://<machine-name>.<tailnet>.ts.net` 주소로 엽니다. `tailscale serve`를 백그라운드로 걸어 주므로 인증서 파일을 만들 필요도, 두 번째 포트를 열 필요도 없습니다. Tailscale이 설치되어 있지 않거나 로그인되어 있지 않으면 아무것도 하지 않고 그 이유를 로그에 남깁니다.
 
-`tailscale serve`로 HTTPS를 붙이면 이 기능은 `127.0.0.1`에서 요청을 넘겨 줍니다. 그래서 `server.trusted-proxies: [127.0.0.1, "::1"]`도 설정하십시오. 다른 컴퓨터에서 대시보드를 열려면 `management.allow-remote: true`를 설정합니다. **주의:** `access.api-keys`가 없으면 Tailscale Funnel이든 다른 터널이든 프록시를 인터넷에 노출하지 마십시오. 클라이언트 키가 없으면 주소를 찾아낸 사람은 누구나 내 계정을 쓸 수 있습니다.
+1. 프록시를 돌리는 컴퓨터와 프록시를 쓰는 컴퓨터에 Tailscale을 설치합니다. tailnet 관리 화면에서 HTTPS 인증서와 MagicDNS를 켜 두어야 합니다. 꺼져 있으면 `tailscale serve`가 인증서를 받지 못해 매핑을 만들지 못하고, 그 이유가 로그에 남습니다.
+2. 프록시를 돌리는 컴퓨터에서 horon-router를 시작합니다. 이미 443 포트를 다른 프로그램이 쓰고 있으면 그 매핑은 건드리지 않고 8443, 10000, 10443 순서로 빈 포트를 골라 엽니다. 고른 주소는 로그의 `tailscale:` 줄에 나옵니다. `server.host`는 `127.0.0.1`로 두어도 됩니다. `tailscale serve`가 그 주소로 요청을 넘겨 줍니다.
+3. 다른 컴퓨터에서는 로그에 나온 `https://...` 주소를 base URL로 씁니다. 대시보드는 같은 주소 뒤에 `/management.html`을 붙입니다.
+
+자동 노출을 끄거나 포트를 직접 정하려면 환경 변수를 씁니다. `HORON_TAILSCALE_HTTPS=off`는 자동 노출을 끄고, `HORON_TAILSCALE_HTTPS_PORT=8443`은 쓸 포트를 정하며(다른 프로그램이 그 포트를 쓰고 있어도 그대로 덮어씁니다), `HORON_TAILSCALE_BIN`은 `tailscale` 실행 파일 경로를 지정합니다. `server.tls`를 켜 둔 경우에는 이 자동 노출을 하지 않습니다. `tailscale serve`는 인증서가 맞지 않는 백엔드로 넘겨 줄 수 없기 때문입니다.
+
+`tailscale serve`는 요청을 `127.0.0.1`에서 넘겨 주므로 이 기능은 모든 접속을 로컬 접속으로 봅니다. 그래서 대시보드는 다른 컴퓨터에서도 열리지만, 접속한 기기별 주소 구분과 대시보드 잠금 시도 제한이 기기별로 동작하지 않습니다. 이것까지 원하면 `server.trusted-proxies: [127.0.0.1, "::1"]`과 `management.allow-remote: true`를 설정하고 재시작하십시오. **주의:** `access.api-keys`가 없으면 Tailscale Funnel이든 다른 터널이든 프록시를 인터넷에 노출하지 마십시오. 클라이언트 키가 없으면 주소를 찾아낸 사람은 누구나 내 계정을 쓸 수 있습니다.
 
 <a id="a-worked-example-three-claude-and-two-codex-accounts"></a>
 ## 예제: Claude 계정 세 개와 Codex 계정 두 개

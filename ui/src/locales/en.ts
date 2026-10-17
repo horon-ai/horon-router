@@ -566,4 +566,13 @@ export const en = {
   "sy.serving": "Serving /v1 and /management.html",
   "sy.available": "{v} is available",
   "sy.onDemand": "The version check is the only request this page makes to the outside. It is sent on demand, never on a timer.",
+  "sy.tailscale": "Tailscale HTTPS",
+  "sy.tsChecking": "Checking whether this computer is on a tailnet",
+  "sy.tsExposed": "Published on your tailnet",
+  "sy.tsOff": "Off",
+  "sy.tsUnavailable": "Not published: the tailscale command is not installed here",
+  "sy.tsNotConnected": "Not published: this computer is not connected to Tailscale",
+  "sy.tsTls": "Not published: server TLS is on, so the tailnet proxy is skipped",
+  "sy.tsEphemeral": "Not published: the server uses a port it does not choose",
+  "sy.tsFailed": "Not published",
 } as const;

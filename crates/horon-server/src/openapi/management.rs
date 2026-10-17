@@ -743,6 +743,21 @@ fn v8_paths() -> Vec<(String, Value)> {
             )]),
         ),
         (
+            "/v8/management/server/tailscale".into(),
+            path_item(vec![(
+                "get",
+                mgmt_op(
+                    false,
+                    ("managementServerTailscale", "Read the Tailscale HTTPS mapping"),
+                    management_security(),
+                    vec![],
+                    None,
+                    vec![ok("The mapping the startup check recorded.", "TailscaleExposure")],
+                    vec![],
+                ),
+            )]),
+        ),
+        (
             "/v8/management/requests/api-call".into(),
             path_item(vec![(
                 "post",
@@ -2084,6 +2099,27 @@ fn schemas_list() -> Vec<(&'static str, Value)> {
                 "type": "object",
                 "properties": { "latest-version": { "type": "string" } },
                 "required": ["latest-version"],
+                "additionalProperties": true
+            }),
+        ),
+        (
+            "TailscaleExposure",
+            json!({
+                "type": "object",
+                "properties": {
+                    "state": {
+                        "type": "string",
+                        "enum": [
+                            "checking", "exposed", "off", "unavailable", "not-connected",
+                            "tls", "ephemeral", "failed"
+                        ]
+                    },
+                    "enabled": { "type": "boolean" },
+                    "url": { "type": "string" },
+                    "https-port": { "type": "integer" },
+                    "detail": { "type": "string" }
+                },
+                "required": ["state", "enabled"],
                 "additionalProperties": true
             }),
         ),

@@ -567,4 +567,13 @@ export const ko: Record<keyof typeof en, string | readonly [string, string]> = {
   "sy.serving": "/v1과 /management.html 제공",
   "sy.available": "{v} 버전을 쓸 수 있어요",
   "sy.onDemand": "이 화면은 새 버전 확인을 위해서만 바깥으로 요청해요. 자동이 아니라 버튼을 눌렀을 때만 보내요.",
+  "sy.tailscale": "Tailscale HTTPS",
+  "sy.tsChecking": "이 컴퓨터가 tailnet에 연결됐는지 확인하는 중",
+  "sy.tsExposed": "내 tailnet에 공개됨",
+  "sy.tsOff": "꺼짐",
+  "sy.tsUnavailable": "공개하지 않음: 이 컴퓨터에 tailscale 명령이 없어요",
+  "sy.tsNotConnected": "공개하지 않음: 이 컴퓨터가 Tailscale에 연결되어 있지 않아요",
+  "sy.tsTls": "공개하지 않음: server.tls를 켜 두어서 tailnet 프록시를 쓰지 않아요",
+  "sy.tsEphemeral": "공개하지 않음: 서버가 직접 정하지 않는 포트를 쓰고 있어요",
+  "sy.tsFailed": "공개하지 못함",
 };

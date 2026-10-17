@@ -68,7 +68,7 @@ All paths are under `/v8/management`. Every screen also uses `GET /config` and `
 | Usage | `GET /observability/usage/api-keys`, opt-in `GET /observability/usage/queue?count=500` |
 | Logs | `GET /observability/logs` (cursor, every 3 s), `DELETE /observability/logs`, `GET /observability/logs/errors`, `GET /observability/logs/errors/<name>`, `GET /observability/logs/requests/<id>` |
 | Configuration | `GET, PUT /config/<section>`, `GET, PUT /config.yaml` |
-| System | `GET /server/latest-version` on request |
+| System | `GET /server/latest-version` on request, `GET /server/tailscale` |
 
 Config list writes reread the target first and refuse to write if it changed since it was shown. The API has no revision precondition, so this narrows the race window rather than closing it.
 

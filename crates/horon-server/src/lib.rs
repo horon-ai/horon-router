@@ -43,6 +43,7 @@ pub mod safe_mode;
 mod sanitize;
 pub mod scheduler;
 mod session;
+pub mod tailscale;
 #[doc(hidden)]
 pub mod testing;
 pub mod usage;

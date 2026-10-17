@@ -8,7 +8,7 @@ export const queryClient = new QueryClient({
 });
 export const keys = {
   config: ["config"], creds: ["creds"], usage: ["usage"],
-  logs: ["logs"], system: ["system"],
+  logs: ["logs"], system: ["system"], tailscale: ["tailscale"],
 } as const;
 export const queries = {
   config: () => ({ queryKey: keys.config, queryFn: (): Promise<Data> => api("/config") }),
@@ -16,6 +16,8 @@ export const queries = {
   usage: () => ({ queryKey: keys.usage, queryFn: (): Promise<Data> => api("/usage") }),
   logs: () => ({ queryKey: keys.logs, queryFn: (): Promise<Data> => api("/logs") }),
   system: () => ({ queryKey: keys.system, queryFn: (): Promise<Data> => api("/system") }),
+  // horon-router only; a Go server answers the route with its empty 404.
+  tailscale: () => ({ queryKey: keys.tailscale, queryFn: (): Promise<Data> => api("/server/tailscale") }),
 };
 // Pages opt in to polling: credentials every 10s, logs every 3s.
 export async function replace(path: string, before: unknown, next: unknown, unset: unknown = Array.isArray(before) ? [] : {}) {

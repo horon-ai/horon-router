@@ -19,6 +19,30 @@ pub const LATEST_RELEASE_URL: &str = "https://github.com/alpoxdev/horon-router/r
 const LATEST_RELEASE_USER_AGENT: &str = "horon-router";
 const RELEASE_CACHE_TTL: Duration = Duration::from_secs(12 * 60 * 60);
 
+/// `GET /server/tailscale`: the startup task's HTTPS mapping, as it last recorded it. Read
+/// only; nothing here runs the CLI or changes the mapping.
+pub(crate) async fn tailscale(State(state): State<Arc<Management>>) -> Response {
+    let report = state
+        .tailscale
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .clone();
+    let mut pairs: Vec<(&'static str, Value)> = vec![
+        ("state", report.state.as_str().into()),
+        ("enabled", (report.state == crate::tailscale::State::Exposed).into()),
+    ];
+    if let Some(url) = report.url {
+        pairs.push(("url", url.into()));
+    }
+    if let Some(port) = report.https_port {
+        pairs.push(("https-port", port.into()));
+    }
+    if let Some(detail) = report.detail {
+        pairs.push(("detail", detail.into()));
+    }
+    reply(StatusCode::OK, pairs)
+}
+
 /// Explicit checks only. One HEAD, no redirects, cookies or GitHub/store tokens.
 /// Cost: one lock per check; a timestamp and tag only after success. No idle work.
 pub(crate) async fn latest_version(State(state): State<Arc<Management>>) -> Response {

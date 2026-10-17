@@ -2,17 +2,35 @@ import { Button } from "../components/ui/button";
 import { useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api, ApiError, text } from "../api";
-import { readPath } from "../core";
+import { readPath, type Data } from "../core";
 import { getSnapshot as language, subscribe as subscribeLang, t } from "../lang";
 import { queries } from "../queries";
 import { getSnapshot, session, subscribe } from "../session";
 
 const clean = (v: string) => v.replace(/^horon-router[/-]/, "").replace(/^v/, "");
+// The server's own words for why the mapping is not there; the state names the case and
+// the detail carries the CLI's reason.
+function tailscaleText(report: Data | undefined, failed: boolean): string {
+  if (failed) return t("common.notReported");
+  if (!report) return t("sy.tsChecking");
+  const detail = typeof report.detail === "string" && report.detail ? ` (${report.detail})` : "";
+  switch (report.state) {
+    case "exposed": return typeof report.url === "string" ? report.url : t("sy.tsExposed");
+    case "off": return `${t("sy.tsOff")}${detail}`;
+    case "unavailable": return t("sy.tsUnavailable");
+    case "not-connected": return t("sy.tsNotConnected");
+    case "tls": return t("sy.tsTls");
+    case "ephemeral": return t("sy.tsEphemeral");
+    case "failed": return `${t("sy.tsFailed")}${detail}`;
+    default: return t("sy.tsChecking");
+  }
+}
 export function System() {
   useSyncExternalStore(subscribeLang, language);
   const state = useSyncExternalStore(subscribe, getSnapshot);
   const config = useQuery(queries.config());
   const latest = useQuery({ queryKey: ["server", "latest-version"], queryFn: async (): Promise<string> => String((await api("/server/latest-version"))["latest-version"] || ""), enabled: false });
+  const tailscale = useQuery(queries.tailscale());
   const c = config.data || {};
   const keys = (readPath(c, "access/api-keys", []) as string[]).length;
   // A failed config read keeps its last good data in the cache; say so instead of
@@ -28,6 +46,7 @@ export function System() {
     [t("sy.built"), !isNaN(Date.parse(state.meta.built)) && new Date(state.meta.built).toLocaleString(t.lang)],
     [t("sy.authDir"), readPath(c, "oauth/auth-dir", t("sy.default"))],
     [t("sy.layout"), c["config-version"] ? `v${c["config-version"]}` : t("sy.legacy")],
+    [t("sy.tailscale"), tailscaleText(tailscale.data, tailscale.isError)],
   ];
   const build = disabled ? t("sy.disabled")
     : latest.data !== undefined ? (newer ? t("sy.available", { v: clean(latest.data) }) : t("sy.upToDate").replace(/^ · /, ""))
