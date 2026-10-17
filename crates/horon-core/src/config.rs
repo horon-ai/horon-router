@@ -611,4 +611,76 @@ mod tests {
             home().join(".horon-router")
         );
     }
+
+    /// Native plugins are removed (plan remove-native-plugins): a leftover top-level
+    /// `plugins` is an ordinary unknown key. The loader that runs a config ignores it
+    /// without touching the plugin directory or rewriting the file, a strict management
+    /// write rejects it, and the archive moves it to comments. General YAML 1.1 bool
+    /// coercion stays for every known field.
+    #[test]
+    fn plugins_is_an_unknown_setting_while_bool_coercion_stays() {
+        let doc = |text: &str| serde_yaml_ng::from_str::<serde_yaml_ng::Value>(text).unwrap();
+        for yaml in [
+            "config-version: 8\nplugins: {enabled: true}\n",
+            "config-version: 8\nplugins:\n  configs:\n    x: {enabled: true}\n",
+            "config-version: 8\nplugins: null\n",
+        ] {
+            assert!(
+                validate_config_fields(&doc(yaml), true).is_err(),
+                "strict validation must reject {yaml:?}"
+            );
+        }
+        // General scalar coercion is untouched: a typed bool from a YAML 1.1 spelling
+        // and a float in an int field, both outside the removed plugin schema.
+        let mut value = doc("observability: {logs: {debug: yes}}\nrouting: {retry: {request-retry: 2.9}}\n");
+        coerce_typed_scalars(&mut value);
+        assert_eq!(
+            value["observability"]["logs"]["debug"],
+            serde_yaml_ng::Value::Bool(true)
+        );
+        assert_eq!(
+            value["routing"]["retry"]["request-retry"],
+            serde_yaml_ng::Value::from(2)
+        );
+        // The document keeps the raw section; only a write archives it.
+        let document = ConfigDocument::parse("config-version: 8\nplugins: {enabled: true}\n").unwrap();
+        assert_eq!(document.value()["plugins"]["enabled"], serde_yaml_ng::Value::Bool(true));
+        let archived = ConfigDocument::parse("config-version: 8\nplugins: {enabled: true}\n")
+            .unwrap()
+            .archive_unknown();
+        assert_eq!(archived.len(), 1);
+        assert_eq!(archived[0].0, "plugins");
+    }
+
+    /// A config that still starts with `plugins: {enabled: true}` loads without ever
+    /// touching the plugin directory: the loader ignores the section and the file
+    /// stays byte-identical on disk.
+    #[test]
+    fn a_leftover_plugins_section_loads_without_plugin_code_or_directory_access() {
+        let dir = std::env::temp_dir().join(format!("horon-config-plugins-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let auth = dir.join("auth");
+        std::fs::create_dir_all(&auth).unwrap();
+        let absent_plugins = dir.join("plugins");
+        assert!(!absent_plugins.exists(), "fixture precondition: no plugin directory");
+        let text = format!(
+            "config-version: 8\nauth-dir: {}\nplugins:\n  enabled: true\n  dir: ./plugins\n  configs:\n    x:\n      enabled: true\n",
+            auth.display()
+        );
+        let path = dir.join("config.yaml");
+        std::fs::write(&path, &text).unwrap();
+        let cfg = Config::load(&path).expect("the loader ignores the removed plugins section");
+        assert_eq!(cfg.auth_dir, auth);
+        assert_eq!(
+            std::fs::read_to_string(&path).unwrap(),
+            text,
+            "the loader must not rewrite the file"
+        );
+        assert!(
+            !absent_plugins.exists(),
+            "loading must not create or read the plugin directory"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }

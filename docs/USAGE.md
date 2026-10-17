@@ -98,9 +98,8 @@ Claude 응답은 `retry-after`와 `anthropic-ratelimit-unified-` 헤더만 남�
 <a id="when-a-provider-has-no-usage-address"></a>
 ### 제공자에 사용량 주소가 없을 때
 
-- 그 제공자를 위한 사용 한도 플러그인(`quota_provider`)이 있으면 `POST /plugins/{id}/quota`로 플러그인에게 묻습니다.
-- 플러그인이 없으면 계정 파일의 선언형 `quota_probe`를 씁니다. 계정 파일에 URL, 메서드, 헤더, 응답에서 값을 꺼낼 경로를 적어 두면 서버가 그대로 호출해서 결과를 한도 모양으로 바꿉니다(`crates/horon-server/src/management/quota_probe.rs`).
-- 둘 다 없으면 대시보드는 "이 제공자의 한도 출처가 없다"고 표시합니다. 이 경우에도 한도 관찰 값이 있으면 그 값이 보입니다.
+- 계정 파일의 선언형 `quota_probe`를 씁니다. 계정 파일에 URL, 메서드, 헤더, 응답에서 값을 꺼낼 경로를 적어 두면 서버가 그대로 호출해서 결과를 한도 모양으로 바꿉니다(`crates/horon-server/src/management/quota_probe.rs`).
+- `quota_probe`도 없으면 대시보드는 "이 제공자의 한도 출처가 없다"고 표시합니다. 이 경우에도 한도 관찰 값이 있으면 그 값이 보입니다.
 
 <a id="what-the-screen-shows"></a>
 ### 화면에 무엇이 보이는가

@@ -349,35 +349,6 @@
     {
       "commands": [
         [
-          "rpush",
-          "plugin-status",
-          "p"
-        ]
-      ],
-      "name": "rpush_plugin_status",
-      "result": null
-    },
-    {
-      "commands": [
-        [
-          "get",
-          "plugin-tasks"
-        ]
-      ],
-      "name": "get_plugin_tasks",
-      "result": [
-        {
-          "id": 3,
-          "operation": "install",
-          "plugin_id": "p",
-          "created_at": "2026-01-02T03:04:05Z",
-          "updated_at": "2026-01-02T03:04:05Z"
-        }
-      ]
-    },
-    {
-      "commands": [
-        [
           "get",
           "{\"type\":\"refresh\",\"auth_index\":\"idx\",\"access_token_sha256\":\"sha\"}"
         ]

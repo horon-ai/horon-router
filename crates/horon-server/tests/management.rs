@@ -618,7 +618,7 @@ async fn nonlocal_socket_requires_allow_remote_even_with_a_valid_key() {
 /// The binary's composition (`horon_server::app`): API routes first, management and its
 /// NoRoute behind them. The API keeps gin's NoRoute rules (bare 404, no `Allow`, HEAD on
 /// `/healthz` only); management keeps its own HEAD handling, so a HEAD under
-/// `/v0/management` reaches the guard on the way to plugin routes.
+/// `/v0/management` reaches the guard first.
 #[tokio::test]
 async fn served_app_keeps_api_and_management_no_route_rules() {
     let f = Fixture::new("served-app");
@@ -666,7 +666,7 @@ async fn served_app_keeps_api_and_management_no_route_rules() {
         );
     }
     assert_eq!(send(head.clone(), "/healthz", None).await.status(), 200);
-    // Go's NoRoute guards /v0/management before looking for a plugin route.
+    // Go's NoRoute guards /v0/management before answering it.
     assert_eq!(send(head.clone(), "/v0/management/nothing", None).await.status(), 401);
     let res = send(head, "/v0/management/nothing", Some("fake-management-only")).await;
     assert_eq!(res.status(), 404);

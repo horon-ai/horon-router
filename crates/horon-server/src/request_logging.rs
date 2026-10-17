@@ -1706,6 +1706,27 @@ mod tests {
             .collect()
     }
 
+    /// Waits for a request log's finalization (the spawned write task that drops the
+    /// record and removes its spool files). Uses the sink's own completion signal the
+    /// way `RequestLog::finish` does: subscribe (`notified` + `enable`) before reading
+    /// the flag, so a notification arriving between the two cannot be missed. The
+    /// bounded timeout fails the test instead of hanging; it does not poll.
+    async fn wait_finalized(log: &RequestLog) {
+        tokio::time::timeout(std::time::Duration::from_secs(10), async {
+            loop {
+                let notified = log.1.notify.notified();
+                tokio::pin!(notified);
+                notified.as_mut().enable();
+                if log.1.done.load(Ordering::Acquire) {
+                    break;
+                }
+                notified.await;
+            }
+        })
+        .await
+        .expect("request log never finalized");
+    }
+
     #[tokio::test]
     async fn upstream_contract_matches_real_go() {
         use horon_core::exec::{CaptureEvent::*, UpstreamRequest};
@@ -2587,10 +2608,13 @@ mod tests {
     ) -> Vec<u8> {
         let dir = scratch();
         let state = management(&dir, enabled, false);
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
         let app = axum::Router::new().fallback(move |axum::Extension(log): axum::Extension<RequestLog>| {
             let events = events.clone();
+            let tx = tx.clone();
             async move {
                 events(&log);
+                let _ = tx.send(log.clone());
                 (status, [("set-cookie", "down=c00kie-down-set")], "done")
             }
         });
@@ -2602,20 +2626,23 @@ mod tests {
             .body(Body::empty())
             .unwrap();
         let response = app.call(request).await.unwrap();
+        // The handler ran inside `app.call`, so its sink is already queued.
+        let log = rx.try_recv().expect("handler sent its RequestLog");
         axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
-        let mut content = Vec::new();
-        for _ in 0..500 {
-            if let [log] = &logs(&dir)[..] {
-                content = std::fs::read(log).unwrap();
-                if content.trim_ascii_end().ends_with(b"\ndone") {
-                    break;
-                }
-            }
-            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
-        }
-        assert!(content.trim_ascii_end().ends_with(b"\ndone"), "no complete log");
+        // A section's spool file is removed when the record that owns it is dropped,
+        // inside the spawned write task, which is ordered after the log file is
+        // complete but not after it appears. Await that finalization before reading
+        // the directory, so the spool-absence check below is ordered after the removal
+        // instead of racing it.
+        wait_finalized(&log).await;
         drop(app);
         drop(state);
+        let files = logs(&dir);
+        let [path] = &files[..] else {
+            panic!("expected one log file, got {files:?}");
+        };
+        let content = std::fs::read(path).unwrap();
+        assert!(content.trim_ascii_end().ends_with(b"\ndone"), "no complete log");
         let leftovers: Vec<_> = std::fs::read_dir(&dir)
             .unwrap()
             .flatten()
@@ -2772,5 +2799,60 @@ mod tests {
         let mut stream = vec![chunk.clone(); CHUNKS].join(&b"\n\n"[..]);
         stream.extend_from_slice(b"\n\n\n=== RESPONSE ===\nStatus: 200\n");
         expect(start, &stream);
+    }
+
+    /// A large upstream request and response each spill to a section spool file.
+    /// Both spools belong to this request's record: they exist while the record is
+    /// still owned by the response guard, and they are gone once its finalization
+    /// (the spawned write task that drops the record) completes. This pins the
+    /// ownership and the cleanup-at-finalization ordering; the original failure is
+    /// evidenced by the recorded suite run in `raw-before/`, not by this test.
+    #[tokio::test]
+    async fn large_upstream_spools_are_owned_and_removed_at_finalization() {
+        use horon_core::exec::CaptureEvent::*;
+        let dir = scratch();
+        let state = management(&dir, true, false);
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+        let app = axum::Router::new().fallback(move |axum::Extension(log): axum::Extension<RequestLog>| {
+            let tx = tx.clone();
+            async move {
+                let _ = tx.send(log.clone());
+                let sink = log.capture_sink();
+                let body = vec![b'q'; 1 << 20];
+                let chunk: Vec<u8> = (0..64 << 10).map(|i| b'a' + (i % 26) as u8).collect();
+                sink.record(Request(upstream_request("https://fixture.invalid/v1", &[], &body)));
+                sink.record(ResponseMetadata(200, &[]));
+                for _ in 0..8 {
+                    sink.record(ResponseChunk(&chunk));
+                }
+                (StatusCode::OK, "done")
+            }
+        });
+        let mut app = router(&state, app);
+        let request = HttpRequest::builder()
+            .method("POST")
+            .uri("/fixture")
+            .body(Body::empty())
+            .unwrap();
+        let response = app.call(request).await.unwrap();
+        let log = rx.try_recv().expect("handler sent its RequestLog");
+        let spools = |dir: &Path| -> Vec<PathBuf> {
+            std::fs::read_dir(dir)
+                .unwrap()
+                .flatten()
+                .map(|e| e.path())
+                .filter(|p| p.extension().is_some_and(|e| e == "tmp"))
+                .collect()
+        };
+        // The response body is not consumed yet, so the record is still owned by the
+        // response guard: both section spools exist and no log file is written.
+        assert_eq!(spools(&dir).len(), 2, "two spools owned by the record");
+        assert!(logs(&dir).is_empty(), "log not written before finalization");
+        assert!(!log.1.done.load(Ordering::Acquire));
+        axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        wait_finalized(&log).await;
+        assert!(spools(&dir).is_empty(), "spools removed at finalization");
+        assert_eq!(logs(&dir).len(), 1);
+        std::fs::remove_dir_all(dir).unwrap();
     }
 }

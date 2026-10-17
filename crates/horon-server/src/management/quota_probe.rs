@@ -7,13 +7,16 @@ use std::time::SystemTime;
 
 use axum::body::Bytes;
 use futures_util::StreamExt;
+use horon_common::gojson::{Header, Node, parse};
 use horon_common::json::{self as gjson, Kind, Res};
 use horon_core::credential::Credential;
 use horon_exec::proxy::{self, GoHeaders, Route};
-use horon_plugin::api::{QuotaBucket, QuotaFetchResponse, QuotaGroup, QuotaMetric, QuotaSubscription};
 use serde_json::{Map, Value};
 
 use super::Management;
+use super::quota_types::{
+    QuotaBucket, QuotaFetchResponse, QuotaGroup, QuotaMetric, QuotaSubscription, quota_fetch_from_value,
+};
 
 /// ponytail: Go reads the probe answer without a bound; the API-call limit applies.
 const MAX_BODY: usize = 64 << 20;
@@ -66,7 +69,7 @@ pub(super) async fn execute(
     };
     let fail = |e: String| Some(Err(e));
     // req.Header.Set for each string value: canonical names, the last value wins.
-    let mut header = horon_plugin::gojson::Header::new();
+    let mut header = Header::new();
     for (key, value) in headers.into_iter().flatten() {
         if let Some(value) = value.as_str() {
             let value = if needs_token {
@@ -78,10 +81,10 @@ pub(super) async fn execute(
         }
     }
     // client.Do refuses what Go's transport would not send, before dialing.
-    if let Err(cause) = horon_plugin::go_preflight(&url, &parsed, &header) {
+    if let Err(cause) = horon_exec::http::go_preflight(&url, &parsed, &header) {
         return fail(format!(
             "probe request failed: {}",
-            horon_plugin::go_url_error_text(&method, &url, &cause)
+            horon_exec::http::go_url_error_text(&method, &url, &cause)
         ));
     }
     // Go's request writer takes Host from the URL and frames the body itself.
@@ -119,7 +122,7 @@ pub(super) async fn execute(
         Err(e) => {
             return fail(format!(
                 "probe request failed: {}",
-                horon_plugin::go_url_error(&method, e)
+                horon_exec::http::go_url_error(&method, e)
             ));
         }
     };
@@ -135,7 +138,12 @@ pub(super) async fn execute(
         match chunk {
             Ok(chunk) if raw.len() + chunk.len() <= MAX_BODY => raw.extend_from_slice(&chunk),
             Ok(_) => return fail("read probe response: response too large".into()),
-            Err(e) => return fail(format!("read probe response: {}", horon_plugin::go_read_error_text(&e))),
+            Err(e) => {
+                return fail(format!(
+                    "read probe response: {}",
+                    horon_exec::http::go_read_error_text(&e)
+                ));
+            }
         }
     }
     if !(200..300).contains(&status) {
@@ -144,7 +152,7 @@ pub(super) async fn execute(
             String::from_utf8_lossy(&raw)
         ));
     }
-    if horon_plugin::gojson::parse(&raw).is_err() {
+    if parse(&raw).is_err() {
         return fail("upstream probe response is not valid JSON".into());
     }
     let offset = date.and_then(|d| server_offset_ms(&d)).unwrap_or(0);
@@ -196,6 +204,14 @@ fn server_offset_ms(date: &str) -> Option<i64> {
     Some((parsed - now).num_milliseconds())
 }
 
+/// Go `strconv.ParseFloat(s, 64)` as `parseNumericFraction` uses it: a syntax error,
+/// an out-of-range literal and a non-finite value all yield nothing. The decimal-only
+/// [`horon_common::json::parse_decimal_float`] keeps the pre-existing fraction behavior, so
+/// `0x1p-2` is not a fraction.
+fn parse_go_float(s: &str) -> Option<f64> {
+    horon_common::json::parse_decimal_float(s)
+}
+
 /// A JSON number or numeric string that is finite (Go `parseNumericFraction`).
 fn numeric_fraction(res: &Res<'_>) -> Option<f64> {
     if !res.exists() {
@@ -209,7 +225,7 @@ fn numeric_fraction(res: &Res<'_>) -> Option<f64> {
             if s.is_empty() {
                 return None;
             }
-            horon_plugin::cli::parse_float(s)?
+            parse_go_float(s)?
         }
         _ => return None,
     };
@@ -218,14 +234,14 @@ fn numeric_fraction(res: &Res<'_>) -> Option<f64> {
 
 /// The response's top-level members as Go's `map[string]json.RawMessage` holds them:
 /// the last of duplicate keys wins.
-fn members(raw: &[u8]) -> Option<Vec<(String, horon_plugin::gojson::Node)>> {
+fn members(raw: &[u8]) -> Option<Vec<(String, Node)>> {
     // `Node` frees itself iteratively (it implements `Drop`), so its members are taken
     // out rather than moved by the pattern.
-    let mut node = horon_plugin::gojson::parse(raw).ok()?;
-    let horon_plugin::gojson::Node::Object(members) = &mut node else {
+    let mut node = parse(raw).ok()?;
+    let Node::Object(members) = &mut node else {
         return None;
     };
-    let mut out: Vec<(String, horon_plugin::gojson::Node)> = Vec::new();
+    let mut out: Vec<(String, Node)> = Vec::new();
     for (k, v) in std::mem::take(members) {
         out.retain(|(key, _)| *key != k);
         out.push((k, v));
@@ -308,8 +324,8 @@ fn normalized_response(raw: &[u8]) -> Option<QuotaFetchResponse> {
     members.retain(|(k, _)| !k.eq_ignore_ascii_case("summary"));
     // Go re-marshals the map before decoding: keys in sorted order.
     members.sort_by(|a, b| a.0.cmp(&b.0));
-    let core = horon_plugin::gojson::Node::Object(members);
-    let mut out = horon_plugin::api::quota_fetch_from_value(&core).ok()?;
+    let core = Node::Object(members);
+    let mut out = quota_fetch_from_value(&core).ok()?;
     let has_plan = out.subscription.as_ref().is_some_and(|s| !s.plan.trim().is_empty());
     let mut groups = Vec::new();
     let raw_groups = gjson::get(raw, "groups");
@@ -483,12 +499,29 @@ mod tests {
 
     #[test]
     fn numeric_fraction_follows_parse_float() {
-        let doc = br#"{"a":0.5,"b":" 0.25 ","c":"x","d":null,"e":"","f":"1e400","g":true}"#;
+        let doc = br#"{"a":0.5,"b":" 0.25 ","c":"x","d":null,"e":"","f":"1e400","g":true,"h":"0x1p-2","i":"0x10","j":"nan","k":"0.75"}"#;
         let f = |k: &str| numeric_fraction(&gjson::get(doc, k));
         assert_eq!(f("a"), Some(0.5));
         assert_eq!(f("b"), Some(0.25));
-        for k in ["c", "d", "e", "f", "g", "missing"] {
+        assert_eq!(f("k"), Some(0.75));
+        for k in ["c", "d", "e", "f", "g", "h", "i", "j", "missing"] {
             assert_eq!(f(k), None, "{k}");
         }
+    }
+
+    #[test]
+    fn mapping_keeps_only_decimal_fractions() {
+        let raw = br#"{"account":{"plan":"p"},"usage":{"items":[{"w":"hex","left":"0x1p-2"},{"w":"hex0","left":"0x10"},{"w":"nan","left":"nan"},{"w":"plain","left":"0.75"}]}}"#;
+        let mapping: Map<String, Value> = serde_json::from_str(
+            r#"{"plan":"account.plan","groups":[{"buckets_path":"usage.items","window_key":"w","remaining_fraction_key":"left"}]}"#,
+        )
+        .unwrap();
+        let out = map_response(raw, &mapping).unwrap();
+        let buckets: Vec<(&str, f64)> = out
+            .groups
+            .iter()
+            .flat_map(|g| g.buckets.iter().map(|b| (b.window.as_str(), b.remaining_fraction)))
+            .collect();
+        assert_eq!(buckets, [("plain", 0.75)]);
     }
 }

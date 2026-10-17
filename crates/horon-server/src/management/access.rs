@@ -38,11 +38,9 @@ const BUILD_DATE: &str = match option_env!("CPA_BUILD_DATE") {
     Some(v) => v,
     None => "unknown",
 };
-/// Go reports "1" only for cgo builds that can load native plugins.
-const SUPPORT_PLUGIN: &str = horon_plugin::SUPPORT_PLUGIN;
 
 const EXPOSED_HEADERS: &str = "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, \
-X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, \
+X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, \
 X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id";
 
 struct Attempt {
@@ -284,7 +282,6 @@ fn version_headers(headers: &mut HeaderMap) {
         ("X-CPA-VERSION", VERSION),
         ("X-CPA-COMMIT", COMMIT),
         ("X-CPA-BUILD-DATE", BUILD_DATE),
-        ("X-CPA-SUPPORT-PLUGIN", SUPPORT_PLUGIN),
     ] {
         headers.insert(name, HeaderValue::from_static(value));
     }

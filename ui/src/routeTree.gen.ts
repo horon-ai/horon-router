@@ -20,7 +20,6 @@ import { Route as ModelsRouteImport } from './routes/models'
 import { Route as OauthRouteImport } from './routes/oauth'
 import { Route as OverviewRouteImport } from './routes/overview'
 import { Route as PayloadRouteImport } from './routes/payload'
-import { Route as PluginsRouteImport } from './routes/plugins'
 import { Route as ProvidersRouteImport } from './routes/providers'
 import { Route as QuotasRouteImport } from './routes/quotas'
 import { Route as SystemRouteImport } from './routes/system'
@@ -84,11 +83,6 @@ const PayloadRoute = PayloadRouteImport.update({
   path: '/payload',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PluginsRoute = PluginsRouteImport.update({
-  id: '/plugins',
-  path: '/plugins',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ProvidersRoute = ProvidersRouteImport.update({
   id: '/providers',
   path: '/providers',
@@ -137,7 +131,6 @@ export interface FileRoutesByFullPath {
   '/oauth': typeof OauthRoute
   '/overview': typeof OverviewRoute
   '/payload': typeof PayloadRoute
-  '/plugins': typeof PluginsRoute
   '/providers': typeof ProvidersRoute
   '/quotas': typeof QuotasRoute
   '/system': typeof SystemRoute
@@ -158,7 +151,6 @@ export interface FileRoutesByTo {
   '/oauth': typeof OauthRoute
   '/overview': typeof OverviewRoute
   '/payload': typeof PayloadRoute
-  '/plugins': typeof PluginsRoute
   '/providers': typeof ProvidersRoute
   '/quotas': typeof QuotasRoute
   '/system': typeof SystemRoute
@@ -180,7 +172,6 @@ export interface FileRoutesById {
   '/oauth': typeof OauthRoute
   '/overview': typeof OverviewRoute
   '/payload': typeof PayloadRoute
-  '/plugins': typeof PluginsRoute
   '/providers': typeof ProvidersRoute
   '/quotas': typeof QuotasRoute
   '/system': typeof SystemRoute
@@ -203,7 +194,6 @@ export interface FileRouteTypes {
     | '/oauth'
     | '/overview'
     | '/payload'
-    | '/plugins'
     | '/providers'
     | '/quotas'
     | '/system'
@@ -224,7 +214,6 @@ export interface FileRouteTypes {
     | '/oauth'
     | '/overview'
     | '/payload'
-    | '/plugins'
     | '/providers'
     | '/quotas'
     | '/system'
@@ -245,7 +234,6 @@ export interface FileRouteTypes {
     | '/oauth'
     | '/overview'
     | '/payload'
-    | '/plugins'
     | '/providers'
     | '/quotas'
     | '/system'
@@ -267,7 +255,6 @@ export interface RootRouteChildren {
   OauthRoute: typeof OauthRoute
   OverviewRoute: typeof OverviewRoute
   PayloadRoute: typeof PayloadRoute
-  PluginsRoute: typeof PluginsRoute
   ProvidersRoute: typeof ProvidersRoute
   QuotasRoute: typeof QuotasRoute
   SystemRoute: typeof SystemRoute
@@ -352,13 +339,6 @@ declare module '@tanstack/react-router' {
       path: '/payload'
       fullPath: '/payload'
       preLoaderRoute: typeof PayloadRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/plugins': {
-      id: '/plugins'
-      path: '/plugins'
-      fullPath: '/plugins'
-      preLoaderRoute: typeof PluginsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/providers': {
@@ -447,7 +427,6 @@ const rootRouteChildren: RootRouteChildren = {
   OauthRoute: OauthRoute,
   OverviewRoute: OverviewRoute,
   PayloadRoute: PayloadRoute,
-  PluginsRoute: PluginsRoute,
   ProvidersRoute: ProvidersRoute,
   QuotasRoute: QuotasRoute,
   SystemRoute: SystemRoute,

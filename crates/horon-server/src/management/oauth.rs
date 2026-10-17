@@ -7,7 +7,7 @@
 //! files in auth-dir; horon-router keeps the callback with the pending session in
 //! memory, so nothing extra appears in the watched directory.
 //!
-//! ponytail: the Vertex import answers `provider_not_found`; no plugin logins.
+//! ponytail: the Vertex import answers `provider_not_found`.
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -38,10 +38,6 @@ struct Session {
     completed: bool,
     expires: Instant,
     callback: Option<Callback>,
-    /// Go `oauthSessionSourcePlugin`: a plugin auth provider's login.
-    plugin: bool,
-    /// The plugin's polling context (Go `Session.Metadata`).
-    metadata: horon_plugin::gojson::Metadata,
 }
 
 #[derive(Clone)]
@@ -76,53 +72,15 @@ impl Sessions {
                 completed: false,
                 expires: Instant::now() + SESSION_TTL,
                 callback: None,
-                plugin: false,
-                metadata: Default::default(),
             },
         );
     }
 
-    /// Go `RegisterPlugin`: `false` when the state is unusable or already registered.
-    pub(super) fn register_plugin(
-        &self,
-        state: &str,
-        provider: &str,
-        metadata: horon_plugin::gojson::Metadata,
-    ) -> bool {
-        let (state, provider) = (state.trim(), provider.trim().to_lowercase());
-        if state.is_empty() || provider.is_empty() || !valid_state(state) {
-            return false;
-        }
-        let mut map = self.lock();
-        if map.contains_key(state) {
-            return false;
-        }
-        map.insert(
-            state.to_owned(),
-            Session {
-                provider,
-                status: String::new(),
-                completed: false,
-                expires: Instant::now() + SESSION_TTL,
-                callback: None,
-                plugin: true,
-                metadata,
-            },
-        );
-        true
-    }
-
-    /// Go `GetOAuthSessionDetails`: `(provider, status, plugin, metadata, completed)`.
-    pub(super) fn details(&self, state: &str) -> Option<(String, String, bool, horon_plugin::gojson::Metadata, bool)> {
-        self.lock().get(state.trim()).map(|s| {
-            (
-                s.provider.clone(),
-                s.status.clone(),
-                s.plugin,
-                s.metadata.clone(),
-                s.completed,
-            )
-        })
+    /// Go `GetOAuthSessionDetails`: `(provider, status, completed)`.
+    pub(super) fn details(&self, state: &str) -> Option<(String, String, bool)> {
+        self.lock()
+            .get(state.trim())
+            .map(|s| (s.provider.clone(), s.status.clone(), s.completed))
     }
 
     pub(super) fn set_error(&self, state: &str, message: &str) {
@@ -140,7 +98,6 @@ impl Sessions {
         if let Some(s) = self.lock().get_mut(state.trim()).filter(|s| !s.completed) {
             s.status.clear();
             s.callback = None;
-            s.metadata.clear();
             s.completed = true;
             s.expires = Instant::now() + COMPLETED_TTL;
         }
@@ -204,7 +161,7 @@ pub(super) fn valid_state(state: &str) -> bool {
             .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_' | b'.'))
 }
 
-/// Go `NormalizeOAuthCallbackProvider`: the built-in aliases, else a plugin-style name.
+/// Go `NormalizeOAuthCallbackProvider`: the built-in aliases.
 fn normalize_callback_provider(provider: &str) -> Option<String> {
     let p = provider.trim().to_lowercase();
     let builtin = match p.as_str() {
@@ -334,7 +291,6 @@ fn login_client(state: &Management) -> wreq::Client {
 
 /// Go `StartOAuthV8`.
 pub(crate) async fn auth_url(State(state): State<Arc<Management>>, RawQuery(raw): RawQuery) -> Response {
-    let raw_query = raw.clone();
     let q = Query::parse(raw);
     let webui = matches!(
         q.first("is_webui").trim().to_lowercase().as_str(),
@@ -362,14 +318,7 @@ pub(crate) async fn auth_url(State(state): State<Arc<Management>>, RawQuery(raw)
         "nous" => start_nous(state).await,
         "github-copilot" | "copilot" => start_github_copilot(state).await,
         "antigravity" | "anti-gravity" => start_antigravity(state, webui).await,
-        // Go `ServePluginAuthURL`: a plugin auth provider's login, else not found.
-        _ => {
-            let raw = raw_query.as_deref().unwrap_or_default();
-            match super::plugin_oauth::serve_auth_url(&state, "/v8/management/oauth/auth-url", raw).await {
-                Some(response) => response,
-                None => fail(StatusCode::NOT_FOUND, "provider_not_found"),
-            }
-        }
+        _ => fail(StatusCode::NOT_FOUND, "provider_not_found"),
     }
 }
 
@@ -1219,7 +1168,7 @@ fn stop_forwarder(state: &Management, port: u16, id: Option<u64>) {
     }
 }
 
-/// Go `GetAuthStatus`; a pending plugin login is polled through its plugin.
+/// Go `GetAuthStatus`.
 pub(crate) async fn status(State(state): State<Arc<Management>>, RawQuery(raw): RawQuery) -> Response {
     let q = Query::parse(raw);
     let sid = q.first("state").trim().to_owned();
@@ -1231,14 +1180,8 @@ pub(crate) async fn status(State(state): State<Arc<Management>>, RawQuery(raw): 
     }
     match state.oauth.details(&sid) {
         None => status_error(StatusCode::OK, "unknown or expired state"),
-        Some((_, _, _, _, true)) => reply(StatusCode::OK, [("status", "ok".into())]),
-        Some((_, status, _, _, _)) if !status.is_empty() => status_error(StatusCode::OK, &status),
-        Some((provider, _, true, metadata, _)) if state.rt.plugins().has_auth_provider(&provider) => {
-            match super::plugin_oauth::poll(&state, &sid, &provider, metadata).await {
-                Some(response) => response,
-                None => reply(StatusCode::OK, [("status", "wait".into())]),
-            }
-        }
+        Some((_, _, true)) => reply(StatusCode::OK, [("status", "ok".into())]),
+        Some((_, status, _)) if !status.is_empty() => status_error(StatusCode::OK, &status),
         Some(_) => reply(StatusCode::OK, [("status", "wait".into())]),
     }
 }
@@ -1359,7 +1302,7 @@ fn handle_callback(state: &Management, req: CallbackRequest) -> Response {
     if code.is_empty() && error.is_empty() {
         return status_error(StatusCode::BAD_REQUEST, "code or error is required");
     }
-    let Some((session_provider, status, plugin, _, completed)) = state.oauth.details(&sid) else {
+    let Some((session_provider, status, completed)) = state.oauth.details(&sid) else {
         return status_error(StatusCode::NOT_FOUND, "unknown or expired state");
     };
     if completed {
@@ -1369,12 +1312,7 @@ fn handle_callback(state: &Management, req: CallbackRequest) -> Response {
         "" => session_provider.clone(),
         p => p.to_owned(),
     };
-    let canonical = if plugin {
-        super::plugin_oauth::normalize_provider(&provider)
-    } else {
-        normalize_callback_provider(&provider)
-    };
-    let Some(canonical) = canonical else {
+    let Some(canonical) = normalize_callback_provider(&provider) else {
         return status_error(StatusCode::BAD_REQUEST, "unsupported provider");
     };
     if !status.is_empty() {
@@ -1383,18 +1321,7 @@ fn handle_callback(state: &Management, req: CallbackRequest) -> Response {
     if !session_provider.eq_ignore_ascii_case(&canonical) {
         return status_error(StatusCode::BAD_REQUEST, "provider does not match state");
     }
-    // A plugin reads its callback from the auth directory, where Go writes every one.
-    if plugin && state.oauth.is_pending(&sid, &canonical) {
-        let auth_dir = state.rt.config().auth_dir.clone();
-        return match super::plugin_oauth::write_callback_file(&auth_dir, &canonical, &sid, &code, &error) {
-            Ok(()) => reply(StatusCode::OK, [("status", "ok".into())]),
-            Err(e) => {
-                tracing::error!(error = %e, "failed to persist oauth callback");
-                status_error(StatusCode::INTERNAL_SERVER_ERROR, "failed to persist oauth callback")
-            }
-        };
-    }
-    if !plugin && state.oauth.deliver(&canonical, &sid, &code, &error) {
+    if state.oauth.deliver(&canonical, &sid, &code, &error) {
         return reply(StatusCode::OK, [("status", "ok".into())]);
     }
     match state.oauth.get(&sid) {

@@ -1393,6 +1393,8 @@ name = "horon-common"
 version = "0.2.2"
 dependencies = [
  "base64 0.22.1",
+ "bytes",
+ "chrono",
  "flate2",
  "gjson",
  "horon-core",
@@ -1484,27 +1486,29 @@ dependencies = [
 ]
 
 [[package]]
-name = "horon-plugin"
+name = "horon-router"
 version = "0.2.2"
 dependencies = [
- "async-compression",
- "base64 0.22.1",
- "bytes",
- "chrono",
- "flate2",
+ "anyhow",
+ "axum",
+ "clap",
  "futures-util",
+ "getrandom 0.3.4",
  "horon-common",
  "horon-core",
  "horon-exec",
- "horon-plugin",
- "horon-translate",
- "http",
+ "horon-home",
+ "horon-server",
+ "horon-store",
+ "http-body",
  "libc",
+ "ratatui",
  "serde_json",
  "serde_yaml_ng",
- "sha2 0.10.9",
+ "socket2",
  "tokio",
  "tokio-util",
+ "tower",
  "tracing",
  "url",
  "wreq",
@@ -1529,7 +1533,6 @@ dependencies = [
  "horon-common",
  "horon-core",
  "horon-exec",
- "horon-plugin",
  "horon-translate",
  "http-body",
  "hyper",
@@ -1701,36 +1704,6 @@ dependencies = [
  "pin-project-lite",
  "tokio",
  "tower-service",
-]
-
-[[package]]
-name = "horon-router"
-version = "0.2.2"
-dependencies = [
- "anyhow",
- "axum",
- "clap",
- "futures-util",
- "getrandom 0.3.4",
- "horon-common",
- "horon-core",
- "horon-exec",
- "horon-home",
- "horon-plugin",
- "horon-server",
- "horon-store",
- "http-body",
- "libc",
- "ratatui",
- "serde_json",
- "serde_yaml_ng",
- "socket2",
- "tokio",
- "tokio-util",
- "tower",
- "tracing",
- "url",
- "wreq",
 ]
 
 [[package]]

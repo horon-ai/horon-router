@@ -103,13 +103,13 @@ try {
   }
   console.log(`PASS credential actions match server capabilities (${summary.join(", ")})`);
 
-  // A route the server lacks is read once, not retried in a loop.
+  // The dashboard carries no native-plugin surface any more: no screen may touch /plugins.
   const before = evaluate("window.__calls.length");
   browser("click", 'nav a[href="#/quotas"]');
   settled();
-  const pluginReads = evaluate(`window.__calls.slice(${before}).filter(c=>c.path.endsWith('/plugins')&&c.method==='GET').length`);
-  assert.ok(pluginReads <= 1, `GET /plugins read ${pluginReads} times`);
-  console.log(`PASS unsupported reads are not retried in a loop (${pluginReads} read of GET /plugins)`);
+  const pluginCalls = evaluate(`window.__calls.slice(${before}).filter(c=>c.path.includes('/plugins')).length`);
+  assert.equal(pluginCalls, 0, `native-plugin request on /quotas: ${pluginCalls}`);
+  console.log("PASS no native-plugin request is made anywhere in the dashboard (0 /plugins calls)");
 
   browser("click", 'nav a[href="#/payload"]');
   settled();

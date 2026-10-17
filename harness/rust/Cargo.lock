@@ -386,192 +386,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7704b5fdd17b18ae31c4c1da5a2e0305a2bf17b5249300a9ee9ed7b72114c636"
 
 [[package]]
-name = "horon-common"
-version = "0.2.2"
-dependencies = [
- "base64 0.22.1",
- "horon-core",
- "gjson",
- "http",
- "memchr",
- "serde_json",
- "serde_yaml_ng",
- "sha2",
- "tokio",
-]
-
-[[package]]
-name = "horon-core"
-version = "0.2.2"
-dependencies = [
- "anyhow",
- "base64 0.22.1",
- "bcrypt",
- "bytes",
- "futures-util",
- "http",
- "serde",
- "serde_json",
- "serde_yaml_ng",
- "sha2",
- "tracing",
- "yaml-edit",
-]
-
-[[package]]
-name = "horon-differential-driver"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "axum",
- "horon-core",
- "horon-exec",
- "horon-server",
- "tokio",
- "wreq",
-]
-
-[[package]]
-name = "horon-exec"
-version = "0.2.2"
-dependencies = [
- "async-compression",
- "base64 0.22.1",
- "brotli-decompressor",
- "btls",
- "bytes",
- "chrono",
- "horon-common",
- "horon-core",
- "horon-home",
- "horon-translate",
- "flate2",
- "futures-util",
- "getrandom 0.3.4",
- "gjson",
- "http",
- "httpdate",
- "libc",
- "regex",
- "serde",
- "serde_json",
- "serde_yaml_ng",
- "sha2",
- "tiktoken-rs",
- "tokio",
- "tokio-tungstenite",
- "tokio-util",
- "tracing",
- "url",
- "uuid",
- "wreq",
-]
-
-[[package]]
-name = "horon-home"
-version = "0.2.2"
-dependencies = [
- "anyhow",
- "base64 0.22.1",
- "btls",
- "chrono",
- "horon-common",
- "horon-core",
- "serde",
- "serde_json",
- "serde_yaml_ng",
- "sha2",
- "tokio",
- "tokio-btls",
- "tokio-util",
- "tracing",
- "uuid",
-]
-
-[[package]]
-name = "horon-plugin"
-version = "0.2.2"
-dependencies = [
- "async-compression",
- "base64 0.22.1",
- "bytes",
- "chrono",
- "horon-common",
- "horon-core",
- "horon-exec",
- "horon-translate",
- "flate2",
- "futures-util",
- "http",
- "libc",
- "serde_json",
- "serde_yaml_ng",
- "sha2",
- "tokio",
- "tokio-util",
- "tracing",
- "url",
- "wreq",
-]
-
-[[package]]
-name = "horon-server"
-version = "0.2.2"
-dependencies = [
- "anyhow",
- "async-compression",
- "axum",
- "base64 0.22.1",
- "bcrypt",
- "btls",
- "bytes",
- "chrono",
- "horon-common",
- "horon-core",
- "horon-exec",
- "horon-plugin",
- "horon-translate",
- "futures-util",
- "getrandom 0.3.4",
- "gjson",
- "http-body",
- "hyper",
- "hyper-util",
- "libc",
- "regex",
- "serde",
- "serde_json",
- "serde_yaml_ng",
- "sha2",
- "socket2",
- "subtle",
- "tokio",
- "tokio-btls",
- "tower",
- "tower-service",
- "tracing",
- "tracing-subscriber",
- "uuid",
- "windows-sys",
- "wreq",
- "zstd",
-]
-
-[[package]]
-name = "horon-translate"
-version = "0.2.2"
-dependencies = [
- "base64 0.22.1",
- "bytes",
- "horon-common",
- "horon-core",
- "rand",
- "regex",
- "serde_json",
- "sha2",
-]
-
-[[package]]
 name = "cpufeatures"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -879,6 +693,167 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
 dependencies = [
  "foldhash",
+]
+
+[[package]]
+name = "horon-common"
+version = "0.2.2"
+dependencies = [
+ "base64 0.22.1",
+ "bytes",
+ "chrono",
+ "gjson",
+ "horon-core",
+ "http",
+ "memchr",
+ "serde_json",
+ "serde_yaml_ng",
+ "sha2",
+ "tokio",
+]
+
+[[package]]
+name = "horon-core"
+version = "0.2.2"
+dependencies = [
+ "anyhow",
+ "base64 0.22.1",
+ "bcrypt",
+ "bytes",
+ "futures-util",
+ "http",
+ "serde",
+ "serde_json",
+ "serde_yaml_ng",
+ "sha2",
+ "tracing",
+ "yaml-edit",
+]
+
+[[package]]
+name = "horon-differential-driver"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "horon-core",
+ "horon-exec",
+ "horon-server",
+ "tokio",
+ "wreq",
+]
+
+[[package]]
+name = "horon-exec"
+version = "0.2.2"
+dependencies = [
+ "async-compression",
+ "base64 0.22.1",
+ "brotli-decompressor",
+ "btls",
+ "bytes",
+ "chrono",
+ "flate2",
+ "futures-util",
+ "getrandom 0.3.4",
+ "gjson",
+ "horon-common",
+ "horon-core",
+ "horon-home",
+ "horon-translate",
+ "http",
+ "httpdate",
+ "libc",
+ "regex",
+ "serde",
+ "serde_json",
+ "serde_yaml_ng",
+ "sha2",
+ "tiktoken-rs",
+ "tokio",
+ "tokio-tungstenite",
+ "tokio-util",
+ "tracing",
+ "url",
+ "uuid",
+ "wreq",
+]
+
+[[package]]
+name = "horon-home"
+version = "0.2.2"
+dependencies = [
+ "anyhow",
+ "base64 0.22.1",
+ "btls",
+ "chrono",
+ "horon-common",
+ "horon-core",
+ "serde",
+ "serde_json",
+ "serde_yaml_ng",
+ "sha2",
+ "tokio",
+ "tokio-btls",
+ "tokio-util",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "horon-server"
+version = "0.2.2"
+dependencies = [
+ "anyhow",
+ "async-compression",
+ "axum",
+ "base64 0.22.1",
+ "bcrypt",
+ "btls",
+ "bytes",
+ "chrono",
+ "futures-util",
+ "getrandom 0.3.4",
+ "gjson",
+ "horon-common",
+ "horon-core",
+ "horon-exec",
+ "horon-translate",
+ "http-body",
+ "hyper",
+ "hyper-util",
+ "libc",
+ "regex",
+ "serde",
+ "serde_json",
+ "serde_yaml_ng",
+ "sha2",
+ "socket2",
+ "subtle",
+ "tokio",
+ "tokio-btls",
+ "tower",
+ "tower-service",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+ "windows-sys",
+ "wreq",
+ "zstd",
+]
+
+[[package]]
+name = "horon-translate"
+version = "0.2.2"
+dependencies = [
+ "base64 0.22.1",
+ "bytes",
+ "horon-common",
+ "horon-core",
+ "rand",
+ "regex",
+ "serde_json",
+ "sha2",
 ]
 
 [[package]]

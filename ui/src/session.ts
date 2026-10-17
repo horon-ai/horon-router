@@ -5,14 +5,14 @@ import type { Key } from "./i18n.ts";
 import { queryClient, keys } from "./queries.ts";
 
 // The sidebar order and labels follow the pen.dev canvas Sidebar component (q7JXeZ):
-// 13 pages, each with its own icon, no group separators, and Connect in the list.
+// 12 pages, each with its own icon, no group separators, and Connect in the list.
 // "Use with tools" is a real route (/use) but the canvas does not put it in the
 // sidebar; the Overview Get set up card owns that flow.
 export const pages = [
   ["overview", "page.overview"], ["credentials", "page.credentials"], ["connect", "page.connect"],
   ["providers", "page.providers"], ["keys", "page.keys"], ["models", "page.models"],
   ["payload", "page.payload"], ["quotas", "page.quotas"], ["usage", "page.usage"],
-  ["logs", "page.logs"], ["config", "page.config"], ["plugins", "page.plugins"],
+  ["logs", "page.logs"], ["config", "page.config"],
   ["system", "page.system"],
 ] as const satisfies readonly (readonly [string, Key])[];
 

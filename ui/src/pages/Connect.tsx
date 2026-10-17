@@ -1,17 +1,16 @@
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { useEffect, useRef, useState, useSyncExternalStore, type ChangeEvent, type FormEvent } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { api, ApiError } from "../api";
 import { label, type Data } from "../core";
 import { Missing } from "../components/Missing";
 import { t, subscribe as subscribeLang, getSnapshot as language } from "../lang";
-import { keys, queries, queryClient } from "../queries";
+import { keys, queryClient } from "../queries";
 import { session } from "../session";
 import { Link } from "@tanstack/react-router";
 
 // The canvas lists six sample providers; the real list is every provider this server can
-// sign in to, plus any a plugin contributes. Dropping the others would remove real flows.
+// sign in to. Dropping the others would remove real flows.
 const builtIn = ["claude", "codex", "antigravity", "kimi", "kimi-ai", "xai", "devin", "meta", "command-code", "nous", "github-copilot"];
 const forwarded = ["claude", "codex", "antigravity", "xai", "devin"];
 const missingActions: [string, string, string][] = [
@@ -27,8 +26,7 @@ const mode = (p: string) => p === "claude" ? t("cn.mode.oauthPaste")
 export function Connect() {
   useSyncExternalStore(subscribeLang, language);
   const state = useSyncExternalStore(session.subscribe, session.getSnapshot);
-  const plugins = useQuery(queries.plugins());
-  const providers = [...new Set([...builtIn, ...(plugins.data || []).filter((p: Data) => p.supports_oauth).map((p: Data) => String(p.oauth_provider || p.id))])];
+  const providers = [...builtIn];
   const [gone, setGone] = useState<string[]>([]);
   const [current, setCurrent] = useState<Data | null>(null);
   const [status, setStatus] = useState("");

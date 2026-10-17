@@ -78,9 +78,9 @@
   "status": 400
  },
  "DELETE /v0/management/plugins/:id": {
-  "body": "{\"error\":\"plugin_not_found\",\"message\":\"plugin not found\"}",
+  "body": "",
   "id": "M5-0092",
-  "routed": true,
+  "routed": false,
   "status": 404
  },
  "DELETE /v0/management/plugins/:id/quota": {
@@ -132,9 +132,9 @@
   "status": 400
  },
  "DELETE /v8/management/plugins/:id": {
-  "body": "{\"error\":\"plugin_not_found\",\"message\":\"plugin not found\"}",
+  "body": "",
   "id": "M5-0077",
-  "routed": true,
+  "routed": false,
   "status": 404
  },
  "DELETE /v8/management/plugins/:id/quota": {
@@ -210,16 +210,16 @@
   "status": 401
  },
  "GET /v0/management/anthropic-auth-url": {
-  "body": "{\"state\":\"a04d2cf1d9fff502fef5bde8fa3ece3e\",\"status\":\"ok\",\"url\":\"https://claude.",
+  "body": "{\"state\":\"bf30326ac0a165d06c12489b82d82b50\",\"status\":\"ok\",\"url\":\"https://claude.",
   "id": "M5-0217",
   "routed": true,
   "status": 200
  },
  "GET /v0/management/antigravity-auth-url": {
-  "body": "{\"error\":\"provider_not_found\"}",
+  "body": "{\"state\":\"521e83e66e08f59dc97e7cbd9768e671\",\"status\":\"ok\",\"url\":\"https://account",
   "id": "M5-0219",
   "routed": true,
-  "status": 404
+  "status": 200
  },
  "GET /v0/management/api-key-usage": {
   "body": "{}",
@@ -234,7 +234,7 @@
   "status": 200
  },
  "GET /v0/management/auth-files": {
-  "body": "{\"files\":[],\"observed_at\":\"2026-10-03T16:49:45.97729455Z\"}",
+  "body": "{\"files\":[],\"observed_at\":\"2026-10-16T18:12:57.130748Z\"}",
   "id": "M5-0207",
   "routed": true,
   "status": 200
@@ -264,7 +264,7 @@
   "status": 200
  },
  "GET /v0/management/codex-auth-url": {
-  "body": "{\"state\":\"9eafd43880c88e2758112ce6f294dbcc\",\"status\":\"ok\",\"url\":\"https://auth.op",
+  "body": "{\"state\":\"b7f24cb707466ee84edbb9b1dd16d867\",\"status\":\"ok\",\"url\":\"https://auth.op",
   "id": "M5-0218",
   "routed": true,
   "status": 200
@@ -276,7 +276,7 @@
   "status": 200
  },
  "GET /v0/management/config.yaml": {
-  "body": "host: 127.0.0.1\nport: 58747\nauth-dir: /tmp/parity-probe-tdem9u9k/auth\napi-keys:\n",
+  "body": "host: 127.0.0.1\nport: 49687\nauth-dir: /tmp/t6docs/parity-probe-9bobfm34/auth\napi",
   "id": "M5-0086",
   "routed": true,
   "status": 200
@@ -288,7 +288,7 @@
   "status": 200
  },
  "GET /v0/management/devin-auth-url": {
-  "body": "{\"state\":\"3fdf9510933ef442ed2e78fd9d99a175\",\"status\":\"ok\",\"url\":\"https://app.dev",
+  "body": "{\"state\":\"e5b9e5fb77474f75b7dbc7da528841c2\",\"status\":\"ok\",\"url\":\"https://app.dev",
   "id": "M5-0223",
   "routed": true,
   "status": 200
@@ -324,19 +324,19 @@
   "status": 200
  },
  "GET /v0/management/kimi-ai-auth-url": {
-  "body": "{\"error\":\"failed to generate authorization url\"}",
+  "body": "{\"expires_in\":1800,\"flow\":\"device\",\"state\":\"kmi-ai-1792174379522163000\",\"status\"",
   "id": "M5-0221",
   "routed": true,
-  "status": 500
+  "status": 200
  },
  "GET /v0/management/kimi-auth-url": {
-  "body": "{\"error\":\"failed to generate authorization url\"}",
+  "body": "{\"expires_in\":1800,\"flow\":\"device\",\"state\":\"kmi-1792174378705588000\",\"status\":\"o",
   "id": "M5-0220",
   "routed": true,
-  "status": 500
+  "status": 200
  },
  "GET /v0/management/latest-version": {
-  "body": "{\"error\":\"request_failed\",\"message\":\"no release repository is configured\"}",
+  "body": "{\"error\":\"unexpected_status\",\"message\":\"status 404\"}",
   "id": "M5-0088",
   "routed": true,
   "status": 502
@@ -378,10 +378,10 @@
   "status": 200
  },
  "GET /v0/management/meta-auth-url": {
-  "body": "{\"error\":\"failed to start device authorization flow\"}",
+  "body": "{\"expires_in\":600,\"flow\":\"device\",\"state\":\"meta-1792174380998859000\",\"status\":\"o",
   "id": "M5-0224",
   "routed": true,
-  "status": 500
+  "status": 200
  },
  "GET /v0/management/model-definitions/:channel": {
   "body": "{\"channel\":\"probe\",\"error\":\"unknown channel\"}",
@@ -426,15 +426,15 @@
   "status": 404
  },
  "GET /v0/management/plugins": {
-  "body": "{\"plugins_enabled\":false,\"plugins_dir\":\"plugins\",\"plugins\":[]}",
+  "body": "",
   "id": "M5-0089",
-  "routed": true,
-  "status": 200
+  "routed": false,
+  "status": 404
  },
  "GET /v0/management/plugins/:id/config": {
-  "body": "{\"error\":\"plugin_not_found\",\"message\":\"plugin not found\"}",
+  "body": "",
   "id": "M5-0094",
-  "routed": true,
+  "routed": false,
   "status": 404
  },
  "GET /v0/management/plugins/:id/quota": {
@@ -468,7 +468,7 @@
   "status": 404
  },
  "GET /v0/management/request-error-logs": {
-  "body": "{\"files\":[{\"name\":\"error-backend-api-codex-alpha-search-2026-10-03T164929-468b7f",
+  "body": "{\"files\":[{\"name\":\"error-backend-api-codex-alpha-search-2026-10-17T031243-6f0656",
   "id": "M5-0147",
   "routed": true,
   "status": 200
@@ -534,10 +534,10 @@
   "status": 200
  },
  "GET /v0/management/xai-auth-url": {
-  "body": "{\"error\":\"failed to start device authorization flow\"}",
+  "body": "{\"expires_in\":1800,\"flow\":\"device\",\"state\":\"xai-1792174380040730000\",\"status\":\"o",
   "id": "M5-0222",
   "routed": true,
-  "status": 500
+  "status": 200
  },
  "GET /v1/live/:call_id": {
   "body": "{\"error\":\"Invalid API key\"}",
@@ -600,7 +600,7 @@
   "status": 200
  },
  "GET /v8/management/config.yaml": {
-  "body": "access:\n  api-keys:\n    - probe-client-key\nserver:\n  host: 127.0.0.1\n  port: 587",
+  "body": "access:\n  api-keys:\n    - probe-client-key\nserver:\n  host: 127.0.0.1\n  port: 496",
   "id": "M5-0047",
   "routed": true,
   "status": 200
@@ -612,7 +612,7 @@
   "status": 404
  },
  "GET /v8/management/credentials": {
-  "body": "{\"files\":[],\"observed_at\":\"2026-10-03T16:49:33.175309994Z\"}",
+  "body": "{\"files\":[],\"observed_at\":\"2026-10-16T18:12:46.445271Z\"}",
   "id": "M5-0064",
   "routed": true,
   "status": 200
@@ -654,7 +654,7 @@
   "status": 400
  },
  "GET /v8/management/observability/logs/errors": {
-  "body": "{\"files\":[{\"name\":\"error-backend-api-codex-alpha-search-2026-10-03T164929-468b7f",
+  "body": "{\"files\":[{\"name\":\"error-backend-api-codex-alpha-search-2026-10-17T031243-6f0656",
   "id": "M5-0059",
   "routed": true,
   "status": 200
@@ -684,10 +684,10 @@
   "status": 200
  },
  "GET /v8/management/plugins": {
-  "body": "{\"plugins_enabled\":false,\"plugins_dir\":\"plugins\",\"plugins\":[]}",
+  "body": "",
   "id": "M5-0076",
-  "routed": true,
-  "status": 200
+  "routed": false,
+  "status": 404
  },
  "GET /v8/management/plugins/:id/quota": {
   "body": "",
@@ -708,7 +708,7 @@
   "status": 400
  },
  "GET /v8/management/server/latest-version": {
-  "body": "{\"error\":\"request_failed\",\"message\":\"no release repository is configured\"}",
+  "body": "{\"error\":\"unexpected_status\",\"message\":\"status 404\"}",
   "id": "M5-0053",
   "routed": true,
   "status": 502
@@ -834,16 +834,16 @@
   "status": 400
  },
  "PATCH /v0/management/plugins/:id/config": {
-  "body": "{\"status\":\"ok\"}",
+  "body": "",
   "id": "M5-0096",
-  "routed": true,
-  "status": 200
+  "routed": false,
+  "status": 404
  },
  "PATCH /v0/management/plugins/:id/enabled": {
-  "body": "{\"error\":\"invalid_body\",\"message\":\"enabled is required\"}",
+  "body": "",
   "id": "M5-0093",
-  "routed": true,
-  "status": 400
+  "routed": false,
+  "status": 404
  },
  "PATCH /v0/management/proxy-url": {
   "body": "{\"error\":\"invalid body\"}",
@@ -996,16 +996,16 @@
   "status": 404
  },
  "POST /v0/management/quota/fetch": {
-  "body": "",
+  "body": "{\"error\":\"auth_index is required\"}",
   "id": "M5-0129",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 400
  },
  "POST /v0/management/quota/reset": {
-  "body": "",
+  "body": "{\"error\":\"auth_index is required\"}",
   "id": "M5-0130",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 400
  },
  "POST /v0/management/reset-quota": {
   "body": "{\"error\":\"auth_index is required\"}",
@@ -1248,10 +1248,10 @@
   "status": 400
  },
  "PUT /v0/management/config.yaml": {
-  "body": "",
+  "body": "{\"changed\":[\"config\"],\"ok\":true}",
   "id": "M5-0087",
-  "routed": false,
-  "status": 404
+  "routed": true,
+  "status": 200
  },
  "PUT /v0/management/debug": {
   "body": "{\"error\":\"invalid body\"}",
@@ -1338,10 +1338,10 @@
   "status": 400
  },
  "PUT /v0/management/plugins/:id/config": {
-  "body": "{\"status\":\"ok\"}",
+  "body": "",
   "id": "M5-0095",
-  "routed": true,
-  "status": 200
+  "routed": false,
+  "status": 404
  },
  "PUT /v0/management/proxy-url": {
   "body": "{\"error\":\"invalid body\"}",

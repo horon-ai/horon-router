@@ -1041,7 +1041,7 @@ fn parse_usage(data: &[u8]) -> Usage {
 /// NaN and out-of-range values.
 fn go_int64(v: f32) -> i64 {
     let v = f64::from(v);
-    if v.is_nan() || v >= 9_223_372_036_854_775_808.0 || v < -9_223_372_036_854_775_808.0 {
+    if v.is_nan() || !(-9_223_372_036_854_775_808.0..9_223_372_036_854_775_808.0).contains(&v) {
         return i64::MIN;
     }
     v as i64

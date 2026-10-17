@@ -433,6 +433,24 @@ impl PublisherSettings {
     }
 }
 
+#[cfg(test)]
+tokio::task_local! {
+    /// Test-only observation seam: the exact deadline the real publisher arms for
+    /// `sleep_until` on each cycle, sent as it arms. Tests scope it to the publisher task
+    /// with `TIMER_DEADLINES.scope(tx, run_publisher(..))`, so it is task-local (never a
+    /// global that could race parallel tests) and compiled out of production. It reports
+    /// the publisher's own scheduling decision directly, instead of inferring it from a
+    /// network arrival that the paused clock can reorder.
+    static TIMER_DEADLINES: std::sync::mpsc::Sender<tokio::time::Instant>;
+}
+
+#[cfg(test)]
+fn record_deadline(deadline: tokio::time::Instant) {
+    let _ = TIMER_DEADLINES.try_with(|tx| {
+        let _ = tx.send(deadline);
+    });
+}
+
 /// Go `StartHomeInFlightPublisher`: one snapshot per interval while the heartbeat holds.
 pub async fn run_publisher(
     client: Client,
@@ -442,6 +460,8 @@ pub async fn run_publisher(
 ) {
     let mut next = tokio::time::Instant::now();
     loop {
+        #[cfg(test)]
+        record_deadline(next);
         tokio::select! {
             _ = shutdown.cancelled() => return,
             _ = tokio::time::sleep_until(next) => {}
@@ -629,27 +649,51 @@ mod tests {
         home: crate::fake::FakeHome,
         client: Client,
         arrivals: Arc<std::sync::Mutex<Vec<(tokio::time::Instant, Json)>>>,
+        rx: Option<std::sync::mpsc::Receiver<()>>,
     }
 
     impl Published {
         async fn start(heartbeat: bool) -> Self {
             let arrivals: Arc<std::sync::Mutex<Vec<(tokio::time::Instant, Json)>>> = Arc::default();
             let seen = arrivals.clone();
+            let (tx, rx) = std::sync::mpsc::channel();
+            let notify = Arc::new(std::sync::Mutex::new(tx));
             let home = crate::fake::FakeHome::start(move |args| {
                 if args[0].eq_ignore_ascii_case("lpush") && args[1] == "in-flight-snapshot" {
-                    let frame = serde_json::from_str(&args[2]).unwrap();
+                    let frame: Json = serde_json::from_str(&args[2]).unwrap();
                     seen.lock().unwrap().push((tokio::time::Instant::now(), frame));
+                    let _ = notify.lock().unwrap().send(());
                 }
                 crate::fake::raw(":1\r\n")
             })
             .await;
             let client = Client::new(home.config());
             crate::fake::set_heartbeat(&client, heartbeat);
-            Self { home, client, arrivals }
+            Self {
+                home,
+                client,
+                arrivals,
+                rx: Some(rx),
+            }
         }
 
         fn arrivals(&self) -> Vec<(tokio::time::Instant, Json)> {
             self.arrivals.lock().unwrap().clone()
+        }
+
+        /// Waits for the next snapshot without parking the runtime. A `spawn_blocking`
+        /// wait inhibits the paused clock's auto-advance, so the snapshot's recorded
+        /// instant is the publisher's exact logical tick. The 5s receive is a safety net.
+        async fn next_arrival(&mut self) {
+            let rx = self.rx.take().expect("one wait at a time");
+            let (got, rx) = tokio::task::spawn_blocking(move || {
+                let got = rx.recv_timeout(Duration::from_secs(5));
+                (got, rx)
+            })
+            .await
+            .expect("the wait task joins");
+            self.rx = Some(rx);
+            got.expect("a snapshot within 5s");
         }
 
         async fn wait_for(&self, count: usize) -> Vec<(tokio::time::Instant, Json)> {
@@ -665,6 +709,21 @@ mod tests {
             .await
             .unwrap_or_else(|_| panic!("{count} snapshots within 2s"))
         }
+    }
+
+    /// Receives the next deadline the publisher armed for its `sleep_until`. Runs off a
+    /// blocking thread so the paused clock never auto-advances while waiting; the 5s
+    /// receive is a safety net only, never a readiness guess.
+    async fn next_arm(rx: &mut Option<std::sync::mpsc::Receiver<tokio::time::Instant>>) -> tokio::time::Instant {
+        let recv = rx.take().expect("one wait at a time");
+        let (got, recv) = tokio::task::spawn_blocking(move || {
+            let got = recv.recv_timeout(Duration::from_secs(5));
+            (got, recv)
+        })
+        .await
+        .expect("the wait task joins");
+        *rx = Some(recv);
+        got.expect("an armed deadline within 5s")
     }
 
     /// Go `homeInFlightPublisherTestConfig`.
@@ -753,34 +812,80 @@ mod tests {
     }
 
     /// Go `TestHomeInFlightPublisherAppliesConfigUpdateAtNextTimerCycle`: a new interval
-    /// takes effect after the pending timer fires, not before. Paused time: the timers
-    /// and arrival stamps share one controlled clock, so scheduler delay cannot skew them.
+    /// takes effect after the pending timer fires, not before. The paused clock moves only
+    /// by explicit `advance`, and every wait runs off a `spawn_blocking` task, which
+    /// inhibits the clock's auto-advance so the real snapshot I/O completes without the
+    /// clock moving. The oracle reads the publisher's own scheduling decision — the exact
+    /// deadline it arms for `sleep_until`, captured by the task-scoped [`TIMER_DEADLINES`]
+    /// observer — instead of inferring the tick from a network arrival the paused clock can
+    /// reorder. A publisher that skipped the pending 60ms deadline would arm 10ms early; one
+    /// that never re-read the config would keep arming 60ms.
     #[tokio::test(start_paused = true)]
     async fn a_new_interval_applies_at_the_next_timer_cycle() {
         let settings = test_settings(Duration::from_millis(60));
-        let published = Published::start(true).await;
+        let mut published = Published::start(true).await;
         let stop = CancellationToken::new();
-        tokio::spawn(run_publisher(
-            published.client.clone(),
-            Registry::new(),
-            settings.clone(),
-            stop.clone(),
+        // The observer is scoped to this publisher task only, so parallel tests never share it.
+        let (arm_tx, arm_rx) = std::sync::mpsc::channel();
+        let mut arms = Some(arm_rx);
+        let publisher = tokio::spawn(TIMER_DEADLINES.scope(
+            arm_tx,
+            run_publisher(
+                published.client.clone(),
+                Registry::new(),
+                settings.clone(),
+                stop.clone(),
+            ),
         ));
-        published.wait_for(1).await;
-        let updated = tokio::time::Instant::now();
+
+        // Cycle 1 fires at once and, before reading Home's config, arms its pending deadline.
+        let first = next_arm(&mut arms).await;
+        let pending = next_arm(&mut arms).await;
+        assert_eq!(
+            pending.duration_since(first),
+            Duration::from_millis(60),
+            "the first cycle arms the configured interval as its pending deadline"
+        );
+
+        // The first frame lands over real TCP at the frozen instant.
+        published.next_arrival().await;
+        assert_eq!(published.arrivals()[0].1["revision"], 1);
+
+        // Home lowers the interval to 10ms while the 60ms deadline is pending.
         settings.apply(PublisherConfig {
             snapshot_interval: Duration::from_millis(10),
             ..settings.get().unwrap()
         });
-        let arrivals = published.wait_for(3).await;
-        assert!(
-            arrivals[1].0.duration_since(updated) >= Duration::from_millis(30),
-            "the hot interval waited for the pending timer"
+
+        // Crossing the pending deadline fires exactly one cycle, which adopts 10ms.
+        tokio::time::advance(Duration::from_millis(60)).await;
+        published.next_arrival().await;
+        assert_eq!(published.arrivals()[1].1["revision"], 2);
+        let adopted = next_arm(&mut arms).await;
+        assert_eq!(
+            adopted.duration_since(first),
+            Duration::from_millis(70),
+            "the pending 60ms deadline fired first, then the adopted 10ms interval armed the next deadline"
         );
-        assert!(
-            arrivals[2].0.duration_since(arrivals[1].0) <= Duration::from_millis(35),
-            "then the new interval applies"
+
+        // The adopted interval applies on the following cycle.
+        tokio::time::advance(Duration::from_millis(10)).await;
+        published.next_arrival().await;
+        assert_eq!(published.arrivals()[2].1["revision"], 3);
+        let next_cycle = next_arm(&mut arms).await;
+        assert_eq!(
+            next_cycle.duration_since(first),
+            Duration::from_millis(80),
+            "the adopted interval applies on the following cycle"
         );
+        assert_eq!(published.arrivals().len(), 3, "one frame per cycle");
+
+        // Cancelling stops the publisher: it returns and no frame follows the stop.
         stop.cancel();
+        tokio::time::timeout(Duration::from_secs(5), publisher)
+            .await
+            .expect("the publisher stops after cancel")
+            .expect("the publisher task joins");
+        assert_eq!(published.arrivals().len(), 3, "no publish after cancel");
     }
 }

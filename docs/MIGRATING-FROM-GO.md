@@ -46,10 +46,10 @@ horon-router는 CLIProxyAPI의 모든 플래그를 받습니다. Go 방식의 �
 | Go 설정 또는 기능 | horon-router에서 |
 | --- | --- |
 | `pprof` | 프로파일링 엔드포인트가 없습니다. |
-| 요청 경로의 플러그인 | 프런트엔드 인증, 모델 라우터와 그것이 연결하는 플러그인 실행기, 요청·응답·스트림 조각 인터셉터, 요청 수명 주기와 사용량 플러그인은 Go와 같이 동작합니다. `host.http.*`, `host.auth.*`, `host.affinity.lookup` 콜백도 마찬가지입니다. 플러그인이 소유한 제공자는 아직 처리하지 않습니다. 플러그인이 파싱하는 인증 파일(플러그인 로그인으로 저장한 파일 포함)은 인증 정보로 읽지 않고, 플러그인 모델과 실행기는 모델 라우터로만 닿습니다. 플러그인 스케줄러, 요청·응답 변환기, thinking 적용기, `host.model.*` 콜백, WebSocket 응답 관찰자는 호출되지 않습니다. |
-| Home이 관리하는 플러그인 | `-home-jwt`를 쓰면 bootstrap, 설정 갱신, 요청 분배, 사용량, 프로세스·요청 로그, 진행 중 보고, 공유 KV 상태가 동작합니다. 플러그인 실행 파일은 미리 로컬에 설치되어 있어야 합니다. Home이 보낸 설정으로 그것을 설정할 수 있지만, Home이 관리하는 플러그인 동기화, 작업, 상태 보고는 쓸 수 없습니다. |
 | `management.panel-github-repository`, `management.disable-auto-update-panel`, `MANAGEMENT_STATIC_PATH` | 대시보드는 실행 파일에 들어 있고 절대 내려받거나 디스크에서 읽지 않습니다. `management.disable-control-panel`은 적용됩니다. |
 | 설정 재읽기 로그 요약 | 설정은 다시 읽지만 바뀐 내용을 로그에 요약하지 않습니다. |
+
+위 목록과 달리 `plugins` 설정은 아직 옮기지 못한 것이 아니라 **의도적으로 제거한 것**입니다. horon-router는 네이티브 플러그인 지원을 제거했으므로 `plugins`는 다른 미지원 키와 같은 정책으로 무시하고 실행하지 않으며, 엄격한 설정 쓰기는 미지원 키 오류로 거절합니다. 시작할 때 설정 파일을 자동으로 고치거나 지우지 않습니다. 자세한 내용은 [DIFFERENCES-FROM-GO.md](DIFFERENCES-FROM-GO.md)를 보십시오.
 
 작업 폴더의 `.env`는 Go와 같이 읽습니다. `PGSTORE_*`, `OBJECTSTORE_*`, `GITSTORE_*` 저장소 백엔드와 `WRITABLE_PATH`도 Go와 같이 동작합니다. `RUST_LOG`를 설정하면 `debug`에서 오는 로그 단계를 덮어씁니다.
 
@@ -58,7 +58,7 @@ horon-router는 CLIProxyAPI의 모든 플래그를 받습니다. Go 방식의 �
 <a id="management-api-differences"></a>
 ## 관리 API 차이
 
-설정, 인증 정보, OAuth 로그인, `requests/api-call`, 쿨다운 초기화, 사용량, 로그, 모델 정의, 플러그인을 다루는 v8 경로는 Go와 같이 동작합니다. 예전 `/v0/management` 경로도 아래에 나온 것을 빼면 마찬가지입니다. API를 통한 OAuth 로그인은 Claude, Codex, Kimi, Meta, xAI, Devin에서 됩니다. Antigravity 로그인과 Vertex 가져오기(`oauth/import`)는 `404`와 `provider_not_found`를 돌려줍니다.
+설정, 인증 정보, OAuth 로그인, `requests/api-call`, 쿨다운 초기화, 사용량, 로그, 모델 정의를 다루는 v8 경로는 Go와 같이 동작합니다. 예전 `/v0/management` 경로도 아래에 나온 것을 빼면 마찬가지입니다. API를 통한 OAuth 로그인은 Claude, Codex, Kimi, Meta, xAI, Devin에서 됩니다. Antigravity 로그인과 Vertex 가져오기(`oauth/import`)는 `404`와 `provider_not_found`를 돌려줍니다.
 
 horon-router에서 쓸 수 없는 것:
 

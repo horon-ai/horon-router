@@ -250,15 +250,13 @@ fn tags_list() -> Vec<Value> {
         the `X-Management-Key` header) and is distinct from the client keys of the general \
         API. When no management key is configured the whole tree answers 404 with an empty \
         body. The static control panel (`/ui`, `/management.html`, `/assets/*`, `/fonts/*`, \
-        `/favicon.svg`) is served as files, not as API operations, and the dynamic HTTP routes \
-        a plugin registers at runtime are outside this contract.",
+        `/favicon.svg`) is served as files, not as API operations.",
         }),
         json!({
             "name": TAG_LEGACY,
             "description": "Deprecated v0 spellings under `/v0/management`, Go's pre-v8 \
         tree. They share the v8 handlers and the same management authentication, so every \
-        operation here is marked `deprecated`. The panel and dynamic-plugin limits of the v8 \
-        tag apply here too.",
+        operation here is marked `deprecated`. The panel limits of the v8 tag apply here too.",
         }),
     ]
 }
@@ -303,8 +301,6 @@ fn paths_list() -> Vec<(String, Value)> {
     ));
     items.extend(v8_paths());
     items.extend(v0_paths());
-    items.extend(plugin_paths("/v8/management", false));
-    items.extend(plugin_paths("/v0/management", true));
     items.extend(legacy_paths());
     items
 }
@@ -1320,21 +1316,6 @@ fn v0_paths() -> Vec<(String, Value)> {
             ]),
         ),
         (
-            "/v0/management/quota/providers".into(),
-            path_item(vec![(
-                "get",
-                mgmt_op(
-                    true,
-                    ("managementLegacyQuotaProviders", "List quota providers"),
-                    management_security(),
-                    vec![],
-                    None,
-                    vec![ok("The registered quota providers.", "QuotaProviders")],
-                    vec![],
-                ),
-            )]),
-        ),
-        (
             "/v0/management/quota/fetch".into(),
             path_item(vec![(
                 "post",
@@ -1501,339 +1482,6 @@ fn v0_paths() -> Vec<(String, Value)> {
             )]),
         ),
     ]
-}
-
-fn plugin_paths(base: &str, legacy: bool) -> Vec<(String, Value)> {
-    let mut items = vec![
-        (
-            format!("{base}/plugins"),
-            path_item(vec![(
-                "get",
-                mgmt_op(
-                    legacy,
-                    (
-                        if legacy {
-                            "managementLegacyPluginsList"
-                        } else {
-                            "managementPluginsList"
-                        },
-                        "List plugins",
-                    ),
-                    management_security(),
-                    vec![],
-                    None,
-                    vec![ok("The discovered, configured and registered plugins.", "PluginsList")],
-                    vec![e500("The plugins directory could not be read")],
-                ),
-            )]),
-        ),
-        (
-            format!("{base}/plugins/{{id}}"),
-            path_item(vec![(
-                "delete",
-                mgmt_op(
-                    legacy,
-                    (
-                        if legacy {
-                            "managementLegacyPluginsDelete"
-                        } else {
-                            "managementPluginsDelete"
-                        },
-                        "Delete a plugin",
-                    ),
-                    management_security(),
-                    vec![path_param("id", "The plugin ID")],
-                    None,
-                    vec![(
-                        "200",
-                        resp("The plugin file and config were removed.", &[(JSON, r("PluginDelete"))]),
-                    )],
-                    vec![
-                        e400("The plugin ID is invalid"),
-                        e404("The plugin does not exist"),
-                        e500("The plugin could not be removed"),
-                    ],
-                ),
-            )]),
-        ),
-        (
-            format!("{base}/plugins/{{id}}/quota"),
-            path_item(vec![
-                (
-                    "get",
-                    mgmt_op(
-                        legacy,
-                        (
-                            if legacy {
-                                "managementLegacyPluginQuotaGet"
-                            } else {
-                                "managementPluginQuotaGet"
-                            },
-                            "Read a plugin-managed quota",
-                        ),
-                        management_security(),
-                        vec![
-                            path_param("id", "The plugin ID"),
-                            query_param("auth_index", "The credential's auth index (also `authIndex`)"),
-                        ],
-                        None,
-                        vec![ok("The quota snapshot.", "QuotaResponse")],
-                        vec![
-                            e400("`auth_index` is required"),
-                            e404("The credential or quota provider was not found"),
-                            e502("The quota provider failed"),
-                        ],
-                    ),
-                ),
-                (
-                    "post",
-                    mgmt_op(
-                        legacy,
-                        (
-                            if legacy {
-                                "managementLegacyPluginQuotaPost"
-                            } else {
-                                "managementPluginQuotaPost"
-                            },
-                            "Fetch a plugin-managed quota",
-                        ),
-                        management_security(),
-                        vec![path_param("id", "The plugin ID")],
-                        Some(body(r("QuotaRequest"))),
-                        vec![ok("The quota snapshot.", "QuotaResponse")],
-                        vec![
-                            e400("`auth_index` is required or the body is invalid"),
-                            e404("The credential or quota provider was not found"),
-                            e502("The quota provider failed"),
-                        ],
-                    ),
-                ),
-                (
-                    "delete",
-                    mgmt_op(
-                        legacy,
-                        (
-                            if legacy {
-                                "managementLegacyPluginQuotaDelete"
-                            } else {
-                                "managementPluginQuotaDelete"
-                            },
-                            "Reset a plugin-managed quota",
-                        ),
-                        management_security(),
-                        vec![
-                            path_param("id", "The plugin ID"),
-                            query_param("auth_index", "The credential's auth index (also `authIndex`)"),
-                        ],
-                        Some(body(r("QuotaRequest"))),
-                        vec![ok("The quota was reset.", "CooldownReset")],
-                        vec![
-                            e400("`auth_index` is required"),
-                            e404("The credential or quota provider was not found"),
-                            e502("The quota provider failed"),
-                        ],
-                    ),
-                ),
-            ]),
-        ),
-    ];
-    if legacy {
-        items.push((
-            format!("{base}/plugins/{{id}}/quota/reset"),
-            path_item(vec![(
-                "post",
-                mgmt_op(
-                    true,
-                    ("managementLegacyPluginQuotaReset", "Reset a plugin-managed quota"),
-                    management_security(),
-                    vec![
-                        path_param("id", "The plugin ID"),
-                        query_param("auth_index", "The credential's auth index (also `authIndex`)"),
-                    ],
-                    Some(body(r("QuotaRequest"))),
-                    vec![ok("The quota was reset.", "CooldownReset")],
-                    vec![
-                        e400("`auth_index` is required"),
-                        e404("The credential or quota provider was not found"),
-                        e502("The quota provider failed"),
-                    ],
-                ),
-            )]),
-        ));
-        items.push((
-            format!("{base}/plugins/{{id}}/enabled"),
-            path_item(vec![(
-                "patch",
-                mgmt_op(
-                    true,
-                    ("managementLegacyPluginEnabled", "Enable or disable a plugin"),
-                    management_security(),
-                    vec![path_param("id", "The plugin ID")],
-                    Some(body(r("PluginEnabledRequest"))),
-                    vec![("200", resp("The plugin was updated.", &[(JSON, r("StatusOk"))]))],
-                    vec![
-                        e400("The plugin ID is invalid or `enabled` is missing"),
-                        e404("The plugin does not exist"),
-                        e500("The config could not be saved"),
-                    ],
-                ),
-            )]),
-        ));
-        items.push((
-            format!("{base}/plugins/{{id}}/config"),
-            path_item(vec![
-                (
-                    "get",
-                    mgmt_op(
-                        true,
-                        ("managementLegacyPluginConfigGet", "Read a plugin's config"),
-                        management_security(),
-                        vec![path_param("id", "The plugin ID")],
-                        None,
-                        vec![ok("The plugin's config subtree.", "PluginConfig")],
-                        vec![e400("The plugin ID is invalid"), e404("The plugin does not exist")],
-                    ),
-                ),
-                (
-                    "put",
-                    mgmt_op(
-                        true,
-                        ("managementLegacyPluginConfigPut", "Replace a plugin's config"),
-                        management_security(),
-                        vec![path_param("id", "The plugin ID")],
-                        Some(body(r("PluginConfig"))),
-                        vec![("200", resp("The plugin config was replaced.", &[(JSON, r("StatusOk"))]))],
-                        vec![
-                            e400("The plugin ID or body is invalid"),
-                            e404("The plugin does not exist"),
-                            e500("The config could not be saved"),
-                        ],
-                    ),
-                ),
-                (
-                    "patch",
-                    mgmt_op(
-                        true,
-                        ("managementLegacyPluginConfigPatch", "Merge into a plugin's config"),
-                        management_security(),
-                        vec![path_param("id", "The plugin ID")],
-                        Some(body(r("PluginConfig"))),
-                        vec![("200", resp("The plugin config was patched.", &[(JSON, r("StatusOk"))]))],
-                        vec![
-                            e400("The plugin ID or body is invalid"),
-                            e404("The plugin does not exist"),
-                            e500("The config could not be saved"),
-                        ],
-                    ),
-                ),
-            ]),
-        ));
-    } else {
-        items.push((
-            format!("{base}/plugins/store"),
-            path_item(vec![
-                (
-                    "get",
-                    mgmt_op(
-                        false,
-                        ("managementPluginStoreList", "Browse the plugin store"),
-                        management_security(),
-                        vec![],
-                        None,
-                        vec![ok("The plugin store catalog and its sources.", "PluginStoreList")],
-                        vec![e502("The plugin store registry could not be reached")],
-                    ),
-                ),
-                (
-                    "delete",
-                    mgmt_op(
-                        false,
-                        ("managementPluginStoreDelete", "Delete the plugin with the ID `store`"),
-                        management_security(),
-                        vec![],
-                        None,
-                        vec![(
-                            "200",
-                            resp("The plugin file and config were removed.", &[(JSON, r("PluginDelete"))]),
-                        )],
-                        vec![
-                            e400("The plugin ID is invalid"),
-                            e404("The plugin does not exist"),
-                            e500("The plugin could not be removed"),
-                        ],
-                    ),
-                ),
-            ]),
-        ));
-        items.push((
-            format!("{base}/plugins/store/{{id}}/install"),
-            path_item(vec![(
-                "post",
-                mgmt_op(
-                    false,
-                    ("managementPluginStoreInstall", "Install a plugin from the store"),
-                    management_security(),
-                    vec![
-                        path_param("id", "The plugin ID"),
-                        query_param("version", "The version to install"),
-                        query_param("source", "The store source ID"),
-                    ],
-                    Some(body(r("PluginInstallRequest"))),
-                    vec![ok("The install result.", "PluginInstall")],
-                    vec![
-                        e400("The plugin ID, version or body is invalid"),
-                        e404("The plugin or source was not found"),
-                        e409("A loaded plugin cannot be overwritten while the server runs"),
-                        e500("The plugin was installed but the config could not be saved"),
-                        e502("The plugin store registry or manifest failed"),
-                    ],
-                ),
-            )]),
-        ));
-    }
-    if legacy {
-        items.push((
-            format!("{base}/plugin-store"),
-            path_item(vec![(
-                "get",
-                mgmt_op(
-                    true,
-                    ("managementLegacyPluginStoreList", "Browse the plugin store"),
-                    management_security(),
-                    vec![],
-                    None,
-                    vec![ok("The plugin store catalog and its sources.", "PluginStoreList")],
-                    vec![e502("The plugin store registry could not be reached")],
-                ),
-            )]),
-        ));
-        items.push((
-            format!("{base}/plugin-store/{{id}}/install"),
-            path_item(vec![(
-                "post",
-                mgmt_op(
-                    true,
-                    ("managementLegacyPluginStoreInstall", "Install a plugin from the store"),
-                    management_security(),
-                    vec![
-                        path_param("id", "The plugin ID"),
-                        query_param("version", "The version to install"),
-                        query_param("source", "The store source ID"),
-                    ],
-                    Some(body(r("PluginInstallRequest"))),
-                    vec![ok("The install result.", "PluginInstall")],
-                    vec![
-                        e400("The plugin ID, version or body is invalid"),
-                        e404("The plugin or source was not found"),
-                        e409("A loaded plugin cannot be overwritten while the server runs"),
-                        e500("The plugin was installed but the config could not be saved"),
-                        e502("The plugin store registry or manifest failed"),
-                    ],
-                ),
-            )]),
-        ));
-    }
-    items
 }
 
 fn legacy_paths() -> Vec<(String, Value)> {
@@ -2510,105 +2158,8 @@ fn schemas_list() -> Vec<(&'static str, Value)> {
             "QuotaResponse",
             json!({
                 "type": "object",
-                "description": "A provider- or plugin-defined quota snapshot, returned as the \
-            plugin's Go JSON.",
-                "additionalProperties": true
-            }),
-        ),
-        (
-            "QuotaProviders",
-            json!({
-                "type": "object",
-                "properties": {
-                    "providers": {
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "plugin_id": { "type": "string" },
-                                "provider": { "type": "string" },
-                                "display_name": { "type": "string" },
-                                "supported_providers": { "type": "array", "items": { "type": "string" } },
-                                "supports_reset": { "type": "boolean" }
-                            },
-                            "required": ["plugin_id", "provider", "supports_reset"],
-                            "additionalProperties": true
-                        }
-                    }
-                },
-                "required": ["providers"],
-                "additionalProperties": true
-            }),
-        ),
-        (
-            "PluginsList",
-            json!({
-                "type": "object",
-                "properties": {
-                    "plugins_enabled": { "type": "boolean" },
-                    "plugins_dir": { "type": "string" },
-                    "plugins": { "type": "array", "items": { "type": "object", "additionalProperties": true } }
-                },
-                "required": ["plugins_enabled", "plugins_dir", "plugins"],
-                "additionalProperties": true
-            }),
-        ),
-        (
-            "PluginStoreList",
-            json!({
-                "type": "object",
-                "properties": {
-                    "plugins_enabled": { "type": "boolean" },
-                    "plugins_dir": { "type": "string" },
-                    "sources": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
-                    "plugins": { "type": "array", "items": { "type": "object", "additionalProperties": true } }
-                },
-                "required": ["plugins_enabled", "plugins_dir", "plugins"],
-                "additionalProperties": true
-            }),
-        ),
-        (
-            "PluginInstallRequest",
-            json!({
-                "type": "object",
-                "properties": { "version": { "type": "string" } },
-                "additionalProperties": true
-            }),
-        ),
-        (
-            "PluginInstall",
-            json!({
-                "type": "object",
-                "properties": {
-                    "status": { "type": "string" },
-                    "source_id": { "type": "string" },
-                    "source_name": { "type": "string" },
-                    "source_url": { "type": "string" },
-                    "id": { "type": "string" },
-                    "version": { "type": "string" },
-                    "install_type": { "type": "string" },
-                    "path": { "type": "string" },
-                    "plugins_enabled": { "type": "boolean" },
-                    "restart_required": { "type": "boolean" }
-                },
-                "required": ["status", "id", "version"],
-                "additionalProperties": true
-            }),
-        ),
-        (
-            "PluginConfig",
-            json!({
-                "type": "object",
-                "description": "A plugin's config subtree; an unconfigured plugin answers `{}`.",
-                "additionalProperties": true
-            }),
-        ),
-        (
-            "PluginEnabledRequest",
-            json!({
-                "type": "object",
-                "properties": { "enabled": { "type": "boolean" } },
-                "required": ["enabled"],
+                "description": "A quota snapshot from the credential's declarative `quota_probe`, \
+            returned as Go JSON.",
                 "additionalProperties": true
             }),
         ),
@@ -2655,22 +2206,6 @@ fn schemas_list() -> Vec<(&'static str, Value)> {
                 "type": "object",
                 "description": "A list edit: `{old, new}` or `{index, value}` (Go's \
             `patchStringList`), or the list itself.",
-                "additionalProperties": true
-            }),
-        ),
-        (
-            "PluginDelete",
-            json!({
-                "type": "object",
-                "properties": {
-                    "status": { "type": "string", "const": "deleted" },
-                    "id": { "type": "string" },
-                    "path": { "type": "string" },
-                    "file_deleted": { "type": "boolean" },
-                    "configured_removed": { "type": "boolean" },
-                    "restart_required": { "type": "boolean" }
-                },
-                "required": ["status", "id"],
                 "additionalProperties": true
             }),
         ),
@@ -2900,11 +2435,6 @@ mod tests {
             ("/v8/management/oauth/import", &["post"][..]),
             ("/v8/management/oauth/callback", &["get", "post"][..]),
             ("/v8/management/quota/fetch", &["post"][..]),
-            ("/v8/management/plugins", &["get"][..]),
-            ("/v8/management/plugins/{id}", &["delete"][..]),
-            ("/v8/management/plugins/store", &["get", "delete"][..]),
-            ("/v8/management/plugins/store/{id}/install", &["post"][..]),
-            ("/v8/management/plugins/{id}/quota", &["get", "post", "delete"][..]),
             ("/v0/management/config.yaml", &["get", "put"][..]),
             ("/v0/management/config", &["get"][..]),
             ("/v0/management/latest-version", &["get"][..]),
@@ -2916,7 +2446,6 @@ mod tests {
             ("/v0/management/get-auth-status", &["get"][..]),
             ("/v0/management/oauth-session", &["delete"][..]),
             ("/v0/management/oauth-callback", &["get", "post"][..]),
-            ("/v0/management/quota/providers", &["get"][..]),
             ("/v0/management/quota/fetch", &["post"][..]),
             ("/v0/management/quota/reset", &["post"][..]),
             ("/v0/management/vertex/import", &["post"][..]),
@@ -2924,14 +2453,6 @@ mod tests {
             ("/v0/management/request-error-logs", &["get"][..]),
             ("/v0/management/request-error-logs/{name}", &["get"][..]),
             ("/v0/management/request-log-by-id/{id}", &["get"][..]),
-            ("/v0/management/plugins", &["get"][..]),
-            ("/v0/management/plugins/{id}", &["delete"][..]),
-            ("/v0/management/plugins/{id}/quota", &["get", "post", "delete"][..]),
-            ("/v0/management/plugins/{id}/quota/reset", &["post"][..]),
-            ("/v0/management/plugins/{id}/enabled", &["patch"][..]),
-            ("/v0/management/plugins/{id}/config", &["get", "put", "patch"][..]),
-            ("/v0/management/plugin-store", &["get"][..]),
-            ("/v0/management/plugin-store/{id}/install", &["post"][..]),
             ("/v0/management/api-keys", &["get", "put", "patch", "delete"][..]),
         ] {
             for method in methods {

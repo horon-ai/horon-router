@@ -43,8 +43,6 @@ try {
   await call("/credentials");
   await call("/observability/usage/api-keys");
   await call("/observability/usage/queue?count=50");
-  await call("/plugins");
-  await call("/plugins/store");
   await call("/server/latest-version");
   const upstream = await call("/requests/api-call", "POST", {
     method: "GET",
@@ -212,19 +210,7 @@ try {
   );
   assert.ok(Array.isArray(incremental.lines));
   await call("/observability/logs/errors");
-  await call(
-    "/observability/logs/requests/no-such-test-request",
-    "GET",
-    undefined,
-    404,
-  );
-  await call(
-    "/plugins/dashboard-test/quota?auth_index=no-such-account",
-    "GET",
-    undefined,
-    404,
-  );
-  await call("/plugins/dashboard-test", "DELETE", undefined, 404);
+  await call("/observability/logs/requests/no-such-test-request", "GET", undefined, 404);
   console.log(
     `PASS: ${checks} endpoint checks, including write/readback, rejection, OAuth start/poll/callback/cancel, credential CRUD, and cursor logs.`,
   );

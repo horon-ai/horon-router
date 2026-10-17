@@ -501,22 +501,13 @@ where
     let traced = {
         let trace = trace.clone();
         move |mut response: axum::response::Response, upstream: Option<Upstream>| {
-            // The same config snapshot decides passthrough for both header sources.
-            let passthrough = matches!(upstream, Some(Upstream::Success(_)));
             match upstream {
                 Some(Upstream::Success(headers)) => respond::write_upstream_headers(response.headers_mut(), &headers),
                 Some(Upstream::Error(headers)) => respond::write_error_headers(response.headers_mut(), &headers),
                 None => {}
             }
-            // Go `downstreamHeadersAfterInterceptors`: without passthrough, the headers
-            // plugin interceptors changed; under passthrough the final ones went above.
-            let intercepted = trace.intercepted_headers();
-            if !passthrough && !intercepted.is_empty() {
-                respond::write_upstream_headers(
-                    response.headers_mut(),
-                    &respond::filter_upstream_headers(&intercepted),
-                );
-            }
+            // Go `downstreamHeadersAfterInterceptors` under passthrough: the final
+            // upstream headers went above.
             if let Some(value) = trace.header() {
                 response.headers_mut().insert("x-cpa-trace-id", value);
             }
@@ -635,38 +626,9 @@ fn bootstrap_retries(cfg: &Config) -> usize {
 /// Go handlers_stream.go: a stream that failed before its first payload is retried as a
 /// whole request when the status is statusless, auth, quota, timeout or 5xx.
 pub async fn run_with_bootstrap_retries(rt: &Arc<Runtime>, call: Call, trace: &Trace) -> Result<Done, Failure> {
-    // Go `applyModelRouter` runs once per request, before provider resolution: a plugin
-    // executor takes the request whole; a provider decision replaces the registry route.
-    use crate::plugins::execution::{self as plugin_execution, Route};
-    let query = plugin_execution::query();
-    let forced = call.forced_provider.as_deref().map(|p| p.trim().to_lowercase());
-    let routed = match (plugin_execution::route(rt, &call, &query, trace).await, forced) {
-        (None, _) => None,
-        // Go `validateNativeInteractionsExecution` / `providersForExecution`: a forced
-        // provider admits only a router decision for that same provider, and keeps its
-        // own route.
-        (Some(Route::Provider { provider, .. }), Some(forced)) if provider == forced => None,
-        (Some(_), Some(_)) => {
-            return Err(Failure::Exec(ExecError::local(
-                400,
-                horon_core::exec::FailureScope::Request,
-                "agent is only supported for native interactions execution",
-            )));
-        }
-        (Some(Route::Executor(plugin)), None) => {
-            return plugin_execution::execute(rt, &call, &plugin, &query, trace).await;
-        }
-        (Some(Route::Provider { provider, model }), None) => Some((provider, model)),
-    };
     // Go resolves providers before the lifecycle starts: an unknown model never starts one.
-    let resolved = route(rt, &rt.registry(), &call, routed.as_ref()).map_err(|e| e.failure)?;
-    let mut call = call;
-    let hooks = crate::plugins::interceptors::start(rt, trace, &mut call, &resolved.1, true).await?;
-    let result = retry_bootstrap(rt, call, trace, &resolved, hooks.as_ref()).await;
-    match hooks {
-        Some(hooks) => hooks.finish(result, trace).await,
-        None => result,
-    }
+    let resolved = route(rt, &rt.registry(), &call, None).map_err(|e| e.failure)?;
+    retry_bootstrap(rt, call, trace, &resolved).await
 }
 
 /// The bootstrap retry rounds of one resolved request.
@@ -675,7 +637,6 @@ async fn retry_bootstrap(
     call: Call,
     trace: &Trace,
     resolved: &(Vec<String>, String),
-    hooks: Option<&Arc<crate::plugins::interceptors::Hooks>>,
 ) -> Result<Done, Failure> {
     // Go `maxBootstrapRetries = 0` while Home is enabled: Home's own rounds decide.
     let max = if call.stream && rt.remote_dispatch().is_none() {
@@ -683,7 +644,7 @@ async fn retry_bootstrap(
     } else {
         0
     };
-    let mut result = run_primed(rt, call.clone(), trace, resolved.clone(), hooks).await;
+    let mut result = run_primed(rt, call.clone(), trace, resolved.clone()).await;
     for _ in 0..max {
         let original = match &result {
             Err(RunError {
@@ -692,7 +653,7 @@ async fn retry_bootstrap(
             }) if bootstrap_eligible(classify::go_status(e)) => e.clone(),
             _ => break,
         };
-        result = match run_primed(rt, call.clone(), trace, resolved.clone(), hooks).await {
+        result = match run_primed(rt, call.clone(), trace, resolved.clone()).await {
             Err(RunError {
                 failure,
                 bootstrap: false,
@@ -714,26 +675,15 @@ async fn retry_bootstrap(
     result.map_err(|e| e.failure)
 }
 
-/// [`run_routed`], with a stream read through the chunk interceptors up to its first
-/// delivered chunk: an error before it is a bootstrap failure (Go
-/// `readInitialStreamChunks` inside the bootstrap loop).
+/// [`run_routed`], with a stream read up to its first delivered chunk: an error before
+/// it is a bootstrap failure (Go `readInitialStreamChunks` inside the bootstrap loop).
 async fn run_primed(
     rt: &Arc<Runtime>,
     call: Call,
     trace: &Trace,
     resolved: (Vec<String>, String),
-    hooks: Option<&Arc<crate::plugins::interceptors::Hooks>>,
 ) -> Result<Done, RunError> {
-    let result = run_routed(rt, call, trace, resolved, hooks.map(|h| &**h)).await;
-    match (hooks, result) {
-        (Some(hooks), Ok(done @ Done::Stream { .. })) => {
-            hooks.prime(Ok(done), trace).await.map_err(|failure| RunError {
-                failure,
-                bootstrap: true,
-            })
-        }
-        (_, result) => result,
-    }
+    run_routed(rt, call, trace, resolved).await
 }
 
 fn bootstrap_eligible(status: u16) -> bool {
@@ -746,8 +696,6 @@ pub struct Trace(
     std::sync::Mutex<Option<String>>,
     std::sync::OnceLock<String>,
     horon_core::exec::CaptureSink,
-    /// Response headers plugin interceptors changed (Go `downstreamHeadersAfterInterceptors`).
-    std::sync::Mutex<HeaderMap>,
 );
 
 impl Trace {
@@ -760,7 +708,6 @@ impl Trace {
             crate::request_logging::current()
                 .map(|log| log.capture_sink())
                 .unwrap_or_default(),
-            Default::default(),
         );
         if let Some(id) = id.filter(|id| !id.is_empty()) {
             let _ = trace.1.set(id);
@@ -778,21 +725,6 @@ impl Trace {
     pub fn with_capture(mut self, capture: horon_core::exec::CaptureSink) -> Self {
         self.2 = capture;
         self
-    }
-
-    /// The request's upstream capture.
-    pub(crate) fn capture(&self) -> horon_core::exec::CaptureSink {
-        self.2.clone()
-    }
-
-    /// Records the response headers plugin interceptors changed; [`serve`] writes them
-    /// (filtered like upstream headers) over the rendered response.
-    pub(crate) fn set_intercepted_headers(&self, headers: HeaderMap) {
-        *self.3.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = headers;
-    }
-
-    fn intercepted_headers(&self) -> HeaderMap {
-        std::mem::take(&mut *self.3.lock().unwrap_or_else(std::sync::PoisonError::into_inner))
     }
 
     /// The `X-CPA-TRACE-ID` value of the credential selected so far.
@@ -887,16 +819,15 @@ impl Fault {
 /// `Manager.Execute*`). Selection failures take part in retry rounds too.
 pub async fn run(rt: &Arc<Runtime>, call: Call, trace: &Trace) -> Result<Done, RunError> {
     let resolved = route(rt, &rt.registry(), &call, None)?;
-    run_routed(rt, call, trace, resolved, None).await
+    run_routed(rt, call, trace, resolved).await
 }
 
-/// [`run`] for resolved providers and model, with the request's plugin hooks.
+/// [`run`] for resolved providers and model.
 async fn run_routed(
     rt: &Arc<Runtime>,
     call: Call,
     trace: &Trace,
     (providers, model): (Vec<String>, String),
-    hooks: Option<&crate::plugins::interceptors::Hooks>,
 ) -> Result<Done, RunError> {
     let (cfg, policy) = rt.request_snapshot();
     let registry = rt.registry();
@@ -911,8 +842,7 @@ async fn run_routed(
     // Go's usage reporter: one record per Generate attempt while the queue accepts.
     // Home count-tokens attempts record only their upstream 401s (`reportHomeUnauthorized`).
     let home_count = call.operation == Operation::CountTokens && rt.remote_dispatch().is_some();
-    let facts = ((call.operation == Operation::Generate
-        && (rt.usage_queue().accepts() || rt.plugins().has_usage_plugins()))
+    let facts = ((call.operation == Operation::Generate && rt.usage_queue().accepts())
         || (home_count && rt.usage_queue().accepts()))
     .then(|| {
         Arc::new(crate::usage_record::Facts::new(
@@ -1085,7 +1015,7 @@ async fn run_routed(
                 keep_model: call.selection_model.is_some(),
                 unauthorized: None,
             };
-            match attempt(rt, &cfg, &policy, &call, &request, usage.as_ref(), lease, target, hooks).await {
+            match attempt(rt, &cfg, &policy, &call, &request, usage.as_ref(), lease, target).await {
                 Attempt::Done(done) => return Ok(done),
                 Attempt::Stop(fault) => return Err(fault.into_run_error()),
                 Attempt::Next(fault) => {
@@ -1698,7 +1628,7 @@ async fn remote_round(
                 let mut lease = lease;
                 match cx.rt.prepare_remote(&mut lease, cx.cfg).await {
                     Ok(()) => (
-                        attempt(cx.rt, cx.cfg, cx.policy, cx.call, request, usage, lease, target, None).await,
+                        attempt(cx.rt, cx.cfg, cx.policy, cx.call, request, usage, lease, target).await,
                         false,
                     ),
                     Err(error) => {
@@ -1876,7 +1806,6 @@ async fn attempt(
     usage: Option<&Arc<crate::usage_record::Facts>>,
     mut lease: Lease,
     target: Target<'_>,
-    hooks: Option<&crate::plugins::interceptors::Hooks>,
 ) -> Attempt {
     let route_model = lease.selection.model.clone();
     let mut last = None;
@@ -1926,24 +1855,6 @@ async fn attempt(
         if let Some(on_selected) = call.on_selected() {
             on_selected(&lease.credential);
         }
-        // Go `applyRequestAfterAuthInterceptor`: a termination ends the request before
-        // the executor runs, without a result for the credential.
-        if let Some(hooks) = hooks
-            && let Err(error) = hooks
-                .after_auth(
-                    &mut req,
-                    &lease.credential,
-                    &route_model,
-                    call.media.as_ref().map(|m| m.kind),
-                )
-                .await
-        {
-            lease.complete(Outcome::Neutral(error.clone()));
-            return Attempt::Stop(Fault {
-                error,
-                bootstrap: false,
-            });
-        }
         let start = |credential: &horon_core::credential::Credential, req: &mut ExecRequest| {
             usage.map(|facts| {
                 let mut tracker = crate::usage_record::Tracker::start(rt, facts, credential, upstream);
@@ -1960,7 +1871,8 @@ async fn attempt(
             let credential = rt.for_executor(&credential);
             match (session, call.media.as_ref().map(|m| m.kind)) {
                 (Some(session), _) => rt.executors.execute_in_session(&credential, req, cfg, session).await,
-                // An after-auth interceptor may rewrite the path (Go's request_path metadata).
+                // The media executors take the inbound route (`request_path`) separately, so
+                // clone it out before `req` moves into the call.
                 (None, Some(MediaKind::Images)) => {
                     let path = req.request_path.clone();
                     rt.executors.images(&credential, req, &path, cfg).await

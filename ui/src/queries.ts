@@ -7,14 +7,13 @@ export const queryClient = new QueryClient({
   defaultOptions: { queries: { refetchIntervalInBackground: false, retry: false } },
 });
 export const keys = {
-  config: ["config"], creds: ["creds"], usage: ["usage"], plugins: ["plugins"],
+  config: ["config"], creds: ["creds"], usage: ["usage"],
   logs: ["logs"], system: ["system"],
 } as const;
 export const queries = {
   config: () => ({ queryKey: keys.config, queryFn: (): Promise<Data> => api("/config") }),
   creds: () => ({ queryKey: keys.creds, queryFn: async (): Promise<Data[]> => (await api("/credentials")).files || [] }),
   usage: () => ({ queryKey: keys.usage, queryFn: (): Promise<Data> => api("/usage") }),
-  plugins: () => ({ queryKey: keys.plugins, queryFn: async (): Promise<Data[]> => (await api("/plugins")).plugins || [] }),
   logs: () => ({ queryKey: keys.logs, queryFn: (): Promise<Data> => api("/logs") }),
   system: () => ({ queryKey: keys.system, queryFn: (): Promise<Data> => api("/system") }),
 };
@@ -27,8 +26,5 @@ export async function replace(path: string, before: unknown, next: unknown, unse
     throw new Error(t("store.changed"));
   }
   await api(url, "PUT", next);
-  await Promise.all([
-    queryClient.invalidateQueries({ queryKey: keys.config }),
-    queryClient.invalidateQueries({ queryKey: keys.plugins }),
-  ]);
+  await queryClient.invalidateQueries({ queryKey: keys.config });
 }

@@ -69,9 +69,6 @@ fn same_key_order(go: &Value, rs: &Value, at: &str) -> Result<(), String> {
 fn scalar_case_yaml(field: &str, spelling: &str) -> String {
     match field {
         "observability.logs.debug" => format!("config-version: 8\nobservability:\n  logs:\n    debug: {spelling}\n"),
-        "plugins.configs.x.enabled" => {
-            format!("config-version: 8\nplugins:\n  configs:\n    x:\n      enabled: {spelling}\n")
-        }
         "server.host" => format!("config-version: 8\nserver:\n  host: {spelling}\n"),
         _ => format!("config-version: 8\ncredentials:\n  concurrency:\n    cpa-heartbeat-timeout: {spelling}\n"),
     }
@@ -80,7 +77,7 @@ fn scalar_case_yaml(field: &str, spelling: &str) -> String {
 #[test]
 fn yaml_bool_spellings_and_durations_load_like_go() {
     let cases = fixture()["yaml_bools"].as_array().unwrap();
-    assert!(cases.len() > 100);
+    assert_eq!(cases.len(), 90);
     for case in cases {
         let (field, spelling) = (case["field"].as_str().unwrap(), case["spelling"].as_str().unwrap());
         let at = format!("{field}: {spelling}");
@@ -100,16 +97,6 @@ fn yaml_bool_spellings_and_durations_load_like_go() {
         };
         let got = match field {
             "observability.logs.debug" => json!(flag(&["observability", "logs", "debug"])),
-            // Plugin entries stay raw (Go `PluginInstanceConfig.Raw`); Go's typed
-            // `Enabled` decodes the YAML 1.1 spellings from them.
-            "plugins.configs.x.enabled" => {
-                let raw = cfg.document["plugins"]["configs"]["x"]["enabled"].clone();
-                json!(match &raw {
-                    serde_yaml_ng::Value::Bool(b) => *b,
-                    serde_yaml_ng::Value::String(s) => horon_core::config::go_bool(s).unwrap_or(false),
-                    _ => false,
-                })
-            }
             // ponytail: serde resolves the YAML 1.2 bool spellings without keeping their
             // text, so a string field reads `True`/`TRUE` as `true` where Go keeps it.
             "server.host" if ["True", "TRUE", "False", "FALSE"].contains(&spelling) => {
@@ -124,14 +111,13 @@ fn yaml_bool_spellings_and_durations_load_like_go() {
     }
 }
 
-/// Go's typed decoding and raw plugin views (`typed_scalars` in the fixture): load
-/// errors match; int fields truncate floats; plugin entries keep their raw scalars in
-/// the live document, from which `go_bool`/`go_int` give Go's typed values.
+/// Go's typed decoding of scalars (`typed_scalars` in the fixture): load errors match
+/// and int fields truncate floats, including the exponent and hexadecimal spellings.
 #[test]
-fn typed_scalars_and_raw_plugin_entries_load_like_go() {
+fn typed_scalars_load_like_go() {
     let hash = bcrypt::hash("fake-secret", 4).unwrap();
     let cases = fixture()["typed_scalars"].as_array().unwrap();
-    assert_eq!(cases.len(), 12);
+    assert_eq!(cases.len(), 5);
     for case in cases {
         let name = case["name"].as_str().unwrap();
         let parsed = Config::parse(&case["yaml"].as_str().unwrap().replace("$HASH", &hash));
@@ -143,26 +129,6 @@ fn typed_scalars_and_raw_plugin_entries_load_like_go() {
         );
         let Ok(cfg) = parsed else { continue };
         assert_eq!(json!(cfg.routing.retry.request_retry), case["request_retry"], "{name}");
-        let Some(raw_view) = case.get("raw_view") else { continue };
-        let entry = cfg.document["plugins"]["configs"].get("x").cloned().unwrap();
-        // Go's raw view of a null entry is `{}`.
-        let raw: Value = match &entry {
-            serde_yaml_ng::Value::Null => json!({}),
-            other => serde_json::to_value(other).unwrap(),
-        };
-        assert_eq!(raw, raw_view["body"], "{name}: raw view");
-        let enabled = entry.get("enabled").and_then(|v| match v {
-            serde_yaml_ng::Value::Bool(b) => Some(*b),
-            serde_yaml_ng::Value::String(s) => horon_core::config::go_bool(s),
-            _ => None,
-        });
-        let priority = entry.get("priority").and_then(horon_core::config::go_int);
-        assert_eq!(
-            json!(enabled.unwrap_or(false)),
-            case["enabled"],
-            "{name}: typed enabled"
-        );
-        assert_eq!(json!(priority.unwrap_or(0)), case["priority"], "{name}: typed priority");
     }
 }
 
@@ -590,7 +556,6 @@ mod routes {
                     "Access-Control-Allow-Methods",
                     "Access-Control-Allow-Headers",
                     "Access-Control-Expose-Headers",
-                    "X-CPA-SUPPORT-PLUGIN",
                     "X-CPA-COMMIT",
                     "X-CPA-BUILD-DATE",
                 ] {
@@ -598,6 +563,10 @@ mod routes {
                         headers.insert(name.into(), v.to_str().unwrap().into());
                     }
                 }
+                assert!(
+                    !res.headers().contains_key("x-cpa-support-plugin"),
+                    "{name}[{i}]: native plugin support is removed"
+                );
                 if res.headers().contains_key("x-cpa-version") {
                     headers.insert("X-CPA-VERSION".into(), "present".into());
                 }
@@ -607,12 +576,10 @@ mod routes {
                 if status != 200 {
                     assert_eq!(body, step["resp_body"].as_str().unwrap(), "{name}[{i}]");
                 }
-                let mut want = step["resp_headers"].as_object().unwrap().clone();
-                // The goldens come from Go's cgo build, which loads native plugins; this
-                // binary does too, except on Windows.
-                if want.contains_key("X-CPA-SUPPORT-PLUGIN") {
-                    want.insert("X-CPA-SUPPORT-PLUGIN".into(), horon_plugin::SUPPORT_PLUGIN.into());
-                }
+                // The recorded Go headers still carry X-CPA-SUPPORT-PLUGIN; the fixture
+                // drops it, because this server removed native plugin support (plan task
+                // 2) and the absence check above pins that.
+                let want = step["resp_headers"].as_object().unwrap().clone();
                 assert_eq!(Value::Object(headers), Value::Object(want), "{name}[{i}] headers");
                 compared += 1;
             }
@@ -698,20 +665,13 @@ mod config_writes {
         serde_json::to_value(v).unwrap()
     }
 
-    /// Typed scalars as Go loads them (YAML 1.1 bools, truncated floats), and null
-    /// plugin entries as the `{}` Go's saver writes. Go re-encodes these on its first
-    /// write; horon-router keeps untouched text as written, so files compare by what
-    /// they load as.
+    /// Typed scalars as Go loads them (YAML 1.1 bools, truncated floats). Go re-encodes
+    /// these on its first write; horon-router keeps untouched text as written, so files
+    /// compare by what they load as.
     fn typed_bools(v: &Value) -> Value {
         let mut yaml = serde_yaml_ng::to_value(v).unwrap();
         horon_core::config::coerce_typed_scalars(&mut yaml);
-        let mut json = serde_json::to_value(yaml).unwrap();
-        if let Some(entries) = json.pointer_mut("/plugins/configs").and_then(Value::as_object_mut) {
-            for entry in entries.values_mut().filter(|e| e.is_null()) {
-                *entry = json!({});
-            }
-        }
-        json
+        serde_json::to_value(yaml).unwrap()
     }
 
     /// [`typed_bools`] for the value at a `/config/...` sub-path.
@@ -850,7 +810,7 @@ mod config_writes {
             let _ = std::fs::remove_dir_all(&dir);
         }
         assert!(failures.is_empty(), "{}", failures.join("\n"));
-        assert_eq!(compared, 98);
+        assert_eq!(compared, 93);
         eprintln!("config writes: {bytes_compared} of {compared} steps compared byte for byte");
         assert!(bytes_compared >= 40, "only {bytes_compared} byte comparisons");
     }

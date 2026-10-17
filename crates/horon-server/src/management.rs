@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex, PoisonError};
 
 use axum::body::Bytes;
-use axum::extract::{DefaultBodyLimit, OriginalUri, State};
+use axum::extract::{DefaultBodyLimit, OriginalUri, Request, State};
 use axum::handler::Handler;
 use axum::http::{HeaderValue, Method, StatusCode, header};
 use axum::response::{IntoResponse, Response};
@@ -28,15 +28,12 @@ mod logs;
 mod multipart;
 mod oauth;
 pub mod observability;
-mod plugin_auth;
-mod plugin_oauth;
-mod plugin_store;
-mod plugins;
+mod query;
 mod quota;
 mod quota_probe;
+mod quota_types;
 pub use access::cors;
 pub(crate) use access::{Cors, cors_headers};
-pub(crate) use plugins::go_query;
 
 pub struct Management {
     pub(crate) rt: Arc<Runtime>,
@@ -73,8 +70,6 @@ pub struct Management {
     auth_dir: Option<PathBuf>,
     /// The zone log line timestamps are parsed in (Go `time.Local` when `None`).
     pub(crate) log_zone: logs::Zone,
-    /// Plugin store test seams and release cache (Go `Handler.pluginStore*`).
-    pub(crate) plugin_store: plugin_store::StoreState,
     access: access::Access,
 }
 
@@ -105,13 +100,6 @@ pub struct Options {
     /// auth-dir, so a config without one never reads the default `~/.horon-router`
     /// (tests only). A configured store still wins.
     pub auth_dir: Option<PathBuf>,
-    /// The only plugin store registry (Go `pluginStoreRegistryURL`; tests only).
-    pub plugin_store_registry_url: Option<String>,
-    /// The plugin store's HTTP client (Go `pluginStoreHTTPClient`; tests only).
-    pub plugin_store_http: Option<Arc<dyn horon_plugin::store::Doer>>,
-    /// The plugin store's GitHub rate limiter (Go `pluginStoreRateLimiter`); the
-    /// process-wide one when unset.
-    pub plugin_store_rate_limiter: Option<Arc<horon_plugin::store::GitHubRateLimiter>>,
 }
 
 impl Management {
@@ -156,11 +144,6 @@ impl Management {
         let store = options.store.take();
         let auth_dir = options.auth_dir.take();
         let log_zone = options.log_zone;
-        let plugin_store = plugin_store::StoreState::new(
-            options.plugin_store_registry_url.take(),
-            options.plugin_store_http.take(),
-            options.plugin_store_rate_limiter.take(),
-        );
         let access = access::Access::new(&cfg, options);
         rt.usage_queue().configure(access.available(), &cfg);
         let state = Arc::new(Self {
@@ -182,11 +165,9 @@ impl Management {
             store,
             auth_dir,
             log_zone,
-            plugin_store,
         });
         oauth::install_callback_sink(&state);
         access::start_purge(&state);
-        plugin_auth::attach(&state);
         state
     }
 
@@ -402,11 +383,33 @@ macro_rules! open {
 }
 
 /// gin answers HEAD and unregistered methods on a known path with NoRoute (no `Allow`
-/// header; starting from `any` keeps axum from adding one). Go's NoRoute serves
-/// plugin routes, so those requests go to [`plugins::no_route`].
+/// header; starting from `any` keeps axum from adding one).
 fn methods() -> MethodRouter<Arc<Management>> {
     // An explicit HEAD keeps axum from answering HEAD with the GET handler.
-    any(plugins::no_route).head(plugins::no_route)
+    any(no_route).head(no_route)
+}
+
+/// gin's NoRoute: an unknown path, or an unregistered method on a known one, answers a
+/// bare 404 with no `Allow`. Under `/v0/management` the management guard runs first, so
+/// an unauthenticated request is answered like any other management route.
+async fn no_route(State(state): State<Arc<Management>>, req: Request) -> Response {
+    // gin matches NoRoute prefixes on the decoded path.
+    let path = percent_decode(req.uri().path());
+    if path != "/v0/management" && !path.starts_with("/v0/management/") {
+        return access::not_found();
+    }
+    let inner: MethodRouter<(), std::convert::Infallible> = axum::routing::any(missing)
+        .layer(middleware::from_fn_with_state(state.clone(), access::guard))
+        .with_state(state);
+    match tower::ServiceExt::oneshot(inner, req).await {
+        Ok(r) => r,
+        Err(never) => match never {},
+    }
+}
+
+/// The guarded NoRoute answer: a bare 404 with an empty body.
+async fn missing() -> Response {
+    access::not_found()
 }
 
 /// The OAuth callback POST needs no key, so unlike Go it keeps a bound: legitimate
@@ -559,72 +562,13 @@ pub fn router(state: Arc<Management>) -> Router {
     ] {
         router = router.route(&format!("{v0}/{path}"), route);
     }
-    // Plugin routes: v8 and the v0 spellings Go keeps (internal/api/server_management.go,
-    // server_management_v8.go); the v0 config, enable and v8 store routes share them.
-    for (path, route) in [
-        ("plugins", methods().get(guarded!(s, plugins::list))),
-        ("plugins/{id}", methods().delete(guarded!(s, plugins::delete))),
-    ] {
-        router = router
-            .route(&format!("{v8}/{path}"), route.clone())
-            .route(&format!("{v0}/{path}"), route);
-    }
-    // Plugin store (plugin_store.go). gin keeps one route tree per method, so a DELETE of
-    // `plugins/store` is DeletePlugin with the ID `store`.
+    // Credential-level quota (plugin_quota.go): the declarative probe under v0 and the
+    // v8 spelling the dashboard uses. The plugin-only enumerations (quota/providers,
+    // per-plugin quota) are gone with the plugin host.
     router = router
-        .route(
-            &format!("{v8}/plugins/store"),
-            methods()
-                .get(guarded!(s, plugin_store::list))
-                .delete(guarded!(s, plugins::delete_store_id)),
-        )
-        .route(
-            &format!("{v8}/plugins/store/{{id}}/install"),
-            methods().post(guarded!(s, plugin_store::install)),
-        )
-        .route(
-            &format!("{v0}/plugin-store"),
-            methods().get(guarded!(s, plugin_store::list)),
-        )
-        .route(
-            &format!("{v0}/plugin-store/{{id}}/install"),
-            methods().post(guarded!(s, plugin_store::install)),
-        );
-    // Plugin quota (plugin_quota.go): per-plugin under v8 and v0, the credential-level
-    // routes and the reset alias only under v0.
-    for base in [v8, v0] {
-        router = router.route(
-            &format!("{base}/plugins/{{id}}/quota"),
-            methods()
-                .get(guarded!(s, quota::get_plugin))
-                .post(guarded!(s, quota::fetch_plugin))
-                .delete(guarded!(s, quota::reset_plugin)),
-        );
-    }
-    router = router
-        .route(
-            &format!("{v0}/plugins/{{id}}/quota/reset"),
-            methods().post(guarded!(s, quota::reset_plugin)),
-        )
-        .route(
-            &format!("{v0}/quota/providers"),
-            methods().get(guarded!(s, quota::providers)),
-        )
         .route(&format!("{v0}/quota/fetch"), methods().post(guarded!(s, quota::fetch)))
-        .route(&format!("{v0}/quota/reset"), methods().post(guarded!(s, quota::reset)));
-    router = router.route(&format!("{v8}/quota/fetch"), methods().post(guarded!(s, quota::fetch)));
-    router = router
-        .route(
-            &format!("{v0}/plugins/{{id}}/enabled"),
-            methods().patch(guarded!(s, plugins::patch_enabled)),
-        )
-        .route(
-            &format!("{v0}/plugins/{{id}}/config"),
-            methods()
-                .get(guarded!(s, plugins::get_config))
-                .put(guarded!(s, plugins::put_config))
-                .patch(guarded!(s, plugins::patch_config)),
-        );
+        .route(&format!("{v0}/quota/reset"), methods().post(guarded!(s, quota::reset)))
+        .route(&format!("{v8}/quota/fetch"), methods().post(guarded!(s, quota::fetch)));
     // Go's remaining v0 routes, adapted over the v8 handlers (management/legacy.rs).
     router = router.route(&format!("{v0}/config"), methods().get(guarded!(s, legacy::config)));
     for path in legacy::FIELD_ROUTES {
@@ -682,7 +626,7 @@ pub fn router(state: Arc<Management>) -> Router {
             methods().get(guarded!(s, logs::request_log)),
         );
     router
-        .fallback(plugins::no_route)
+        .fallback(no_route)
         .route("/ui", get(panel_alias))
         .route("/management.html", get(panel))
         .route("/assets/{*path}", get(panel))
@@ -858,7 +802,6 @@ pub(crate) fn config_sync(state: &Management, path: &str, method: Method, body: 
     for field in [
         "credentials/concurrency/lifecycle-config-revision",
         "credentials/concurrency/observation-barrier-revision",
-        "plugins/auth-revision",
     ] {
         let parts: Vec<_> = field.split('/').collect();
         if doc.get(&parts) != before.get(&parts) {
